@@ -1,0 +1,401 @@
+/* --- Grundgerüst ---------------------------------------------------------- */
+
+.seite {
+  min-height: 100vh;
+  background: var(--grund);
+  background-image: var(--raster);
+  background-size: 32px 32px;
+  padding: 0 0 var(--s-11);
+}
+.seite--ohne-raster {
+  background-image: none;
+}
+
+.kopfzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-7);
+  justify-content: space-between;
+  padding: var(--s-7) var(--s-9);
+  border-bottom: 1px solid var(--rahmen);
+  background: var(--flaeche-1);
+}
+.kopfzeile__marke {
+  display: flex;
+  align-items: center;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+}
+.kopfzeile__wuerfel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--akzent);
+  color: var(--akzent);
+  font-family: var(--font-technik);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+.kopfzeile__titel {
+  margin: 0;
+  font-family: var(--font-technik);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-primaer);
+}
+.kopfzeile__kontext {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-label);
+}
+.kopfzeile__kennzahlen {
+  display: flex;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.kachel-klein {
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-2);
+  padding: var(--s-2) var(--s-5);
+  min-width: 104px;
+}
+.kachel-klein__label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-label);
+}
+.kachel-klein__wert {
+  font-family: var(--font-technik);
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  color: var(--text-primaer);
+}
+.kachel-klein__wert--akzent {
+  color: var(--akzent);
+}
+
+.rumpf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-8);
+  padding: var(--s-8) var(--s-9);
+  align-items: flex-start;
+}
+
+/* --- Sidebar -------------------------------------------------------------- */
+
+.sidebar {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.sektionslabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-label);
+}
+
+.instanzkarte {
+  position: relative;
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-2);
+  padding: var(--s-5);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+}
+.instanzkarte:hover {
+  border-color: var(--rahmen-kraeftig);
+}
+.instanzkarte__auswahl {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--akzent);
+  background: var(--akzent-selektion);
+  pointer-events: none;
+}
+.instanzkarte__streifen {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+.instanzkarte__kopf {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding-left: var(--s-3);
+}
+.instanzkarte__spiel {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-label);
+}
+.instanzkarte__name {
+  display: block;
+  font-family: var(--font-technik);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.03em;
+  color: var(--text-primaer);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.instanzkarte__zeile {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: 11px;
+  color: var(--text-gedaempft);
+  padding-left: var(--s-3);
+}
+.instanzkarte__balken {
+  height: 4px;
+  background: var(--balken-track);
+  margin-left: var(--s-3);
+}
+.instanzkarte__balken > span {
+  display: block;
+  height: 4px;
+}
+
+.status-chip {
+  flex: none;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+/* --- Detailbereich -------------------------------------------------------- */
+
+.detail {
+  flex: 3 1 560px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-7);
+}
+
+.panel {
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-1);
+  padding: var(--s-7);
+}
+
+.detailkopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-7);
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.detailkopf__meta {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-label);
+}
+.detailkopf__name {
+  margin: var(--s-1) 0 var(--s-3);
+  font-family: var(--font-technik);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-primaer);
+}
+.detailkopf__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4);
+  font-size: 12px;
+  color: var(--text-gedaempft);
+}
+.detailkopf__chip {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  border: 1px solid currentColor;
+  padding: 1px var(--s-3);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.detailkopf__punkt {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  background: currentColor;
+  animation: pulse 2s ease-in-out infinite;
+}
+.detailkopf__adresse {
+  color: var(--akzent);
+}
+.detailkopf__trenner {
+  color: #4a5768;
+}
+.detailkopf__aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+/* --- Reiter --------------------------------------------------------------- */
+
+.reiter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  border-bottom: 1px solid var(--rahmen);
+}
+.reiter__knopf {
+  position: relative;
+  font-family: var(--font-technik);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  color: var(--text-gedaempft);
+  padding: 9px var(--s-6);
+  cursor: pointer;
+}
+.reiter__knopf:hover {
+  color: var(--text-primaer);
+  background: var(--flaeche-2);
+}
+.reiter__aktiv-overlay {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--rahmen);
+  border-top: 2px solid var(--akzent);
+  background: var(--flaeche-1);
+  pointer-events: none;
+}
+.reiter__label {
+  position: relative;
+}
+
+/* --- Schaltflächen -------------------------------------------------------- */
+
+.knopf {
+  font-family: var(--font-technik);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: var(--s-3) var(--s-7);
+  cursor: pointer;
+  border-radius: 0;
+}
+.knopf:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.knopf--primaer {
+  background: var(--akzent-flaeche);
+  border: 1px solid var(--akzent);
+  color: var(--akzent);
+}
+.knopf--primaer:hover:not(:disabled) {
+  background: var(--akzent-flaeche-hover);
+}
+.knopf--sekundaer {
+  background: var(--flaeche-2);
+  border: 1px solid var(--rahmen-kraeftig);
+  color: var(--text-sekundaer);
+}
+.knopf--sekundaer:hover:not(:disabled) {
+  border-color: var(--akzent);
+  color: var(--akzent);
+}
+.knopf--gestrichelt {
+  background: transparent;
+  border: 1px dashed var(--rahmen-kraeftig);
+  color: var(--text-gedaempft);
+  padding: var(--s-4);
+  width: 100%;
+  margin-top: var(--s-1);
+}
+.knopf--gestrichelt:hover:not(:disabled) {
+  border-color: var(--akzent);
+  color: var(--akzent);
+}
+.knopf--klein {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: var(--flaeche-2);
+  border: 1px solid var(--rahmen);
+  color: var(--text-gedaempft);
+  padding: 2px var(--s-3);
+}
+.knopf--klein:hover:not(:disabled) {
+  border-color: var(--akzent);
+  color: var(--akzent);
+}
+.knopf--klein-warn:hover:not(:disabled) {
+  border-color: var(--warnung);
+  color: var(--warnung);
+}
+.knopf--klein-gefahr:hover:not(:disabled) {
+  border-color: var(--gefahr);
+  color: var(--gefahr);
+}
+
+/* --- Banner --------------------------------------------------------------- */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-9);
+  font-size: 12px;
+  border-bottom: 1px solid var(--rahmen);
+}
+.banner--fehler {
+  background: rgba(255, 107, 107, 0.1);
+  border-bottom-color: var(--gefahr);
+  color: var(--gefahr);
+}
+.banner--warnung {
+  background: rgba(240, 180, 41, 0.1);
+  border-bottom-color: var(--warnung);
+  color: var(--warnung);
+}

@@ -1,0 +1,55 @@
+/*
+ * Design-Tokens aus dem Handoff (Variante v2). Die Werte sind unverändert
+ * übernommen — Farben, Typografie, Abstände. Radien gibt es bewusst nicht:
+ * kantige Kanten sind Teil des Looks, ebenso das Fehlen von Schatten.
+ */
+:root {
+  /* Flächen */
+  --grund: #0b0e13;
+  --flaeche-1: #0e131a;
+  --flaeche-2: #11171f;
+  --flaeche-tief: #080b0f;
+
+  /* Rahmen */
+  --rahmen: #1c2430;
+  --rahmen-kraeftig: #33414f;
+  --rahmen-leise: #161d26;
+
+  /* Text */
+  --text-primaer: #eef3f8;
+  --text-standard: #dfe5ec;
+  --text-sekundaer: #c3ccd8;
+  --text-gedaempft: #9aa7b6;
+  --text-label: #7c8899;
+  --text-leise: #8b98a8;
+
+  /* Signal */
+  --akzent: #3ee08f;
+  --akzent-flaeche: rgba(62, 224, 143, 0.12);
+  --akzent-flaeche-hover: rgba(62, 224, 143, 0.24);
+  --akzent-selektion: rgba(62, 224, 143, 0.06);
+  --warnung: #f0b429;
+  --gefahr: #ff6b6b;
+  --balken-track: #1a222c;
+
+  /* Schrift */
+  --font-technik: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+
+  /* Abstände — die im Design verwendete Skala */
+  --s-1: 4px;
+  --s-2: 6px;
+  --s-3: 8px;
+  --s-4: 10px;
+  --s-5: 12px;
+  --s-6: 14px;
+  --s-7: 16px;
+  --s-8: 20px;
+  --s-9: 24px;
+  --s-10: 32px;
+  --s-11: 40px;
+
+  /* Raster-Overlay des Seitenhintergrunds */
+  --raster: linear-gradient(rgba(62, 224, 143, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(62, 224, 143, 0.035) 1px, transparent 1px);
+}
