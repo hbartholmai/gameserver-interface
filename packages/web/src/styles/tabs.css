@@ -380,6 +380,103 @@
   font-size: 12px;
 }
 
+/* --- Aufbau einer Instanz -------------------------------------------------- */
+
+.fortschritt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.fortschritt__kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-5);
+}
+.fortschritt__phase {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-gedaempft);
+}
+.fortschritt__zahl {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--akzent);
+}
+.fortschritt__bytes {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-leise);
+}
+.fortschritt__hinweis {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-leise);
+}
+.fortschritt__hinweis--gut {
+  color: var(--akzent);
+}
+.fortschritt__hinweis--fehler {
+  color: var(--gefahr);
+}
+
+.aufbau {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-7);
+}
+/* Feste Hoehe, damit der Dialog beim Nachruecken der Zeilen nicht springt. */
+.aufbau__log {
+  height: 152px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--s-1);
+  border: 1px solid var(--rahmen-leise);
+  background: var(--flaeche-tief);
+  padding: var(--s-5);
+}
+.aufbau__leer {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-label);
+}
+.aufbau__zeile {
+  display: flex;
+  gap: var(--s-5);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.aufbau__zeit {
+  flex: none;
+  color: var(--text-label);
+}
+.aufbau__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-sekundaer);
+}
+.aufbau__text--warn {
+  color: var(--warnung);
+}
+.aufbau__text--error {
+  color: var(--gefahr);
+}
+.aufbau__text--cmd {
+  color: var(--akzent);
+}
+
+/* Im Detailkopf steht die Zeile neben den Kennzahlen und darf nicht zu breit werden. */
+.detailkopf .fortschritt {
+  max-width: 320px;
+  flex: 1 1 240px;
+}
+
 /* --- Anmeldung ------------------------------------------------------------ */
 
 .anmeldung {
@@ -521,12 +618,7 @@
   flex: none;
 }
 
-.fortschritt {
-  height: 4px;
-  background: var(--balken-track);
-}
-.fortschritt > span {
-  display: block;
-  height: 4px;
-  background: var(--akzent);
-}
+/* Hier stand ein ungenutzter 4-px-Balken unter demselben Namen `.fortschritt`.
+   Er wurde von keiner Komponente verwendet, überschrieb aber die Regeln der
+   Aufbauansicht weiter oben. Wer wieder einen schlanken Balken braucht: `.balken`
+   gibt es bereits. */

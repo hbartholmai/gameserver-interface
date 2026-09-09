@@ -81,16 +81,36 @@ export class FakeRuntime implements Runtime {
   readonly kind = 'fake' as const;
   private readonly containers = new Map<string, FakeContainer>();
   /** Verzögerung bis „Online“ — im Design 2200 ms. In Tests auf 0 gesetzt. */
-  constructor(private readonly startupMs = 2200) {}
+  constructor(
+    private readonly startupMs = 2200,
+    /** Dauer des simulierten Image-Pulls. Tests setzen 0, damit sie schnell bleiben. */
+    private readonly pullMs = 6000,
+  ) {}
 
   async health(): Promise<RuntimeHealth> {
     return { ok: true, version: 'fake-1.0', error: null };
   }
 
+  /**
+   * Simulierter Image-Pull. Die Byte-Zahlen sind erfunden, aber sie laufen über
+   * `pullMs` hinweg hoch — ohne das ließe sich die Fortschrittsanzeige ohne
+   * Docker nie in Bewegung beurteilen, sondern immer nur fertig.
+   */
   async pull(_image: string, onProgress?: (p: PullProgress) => void): Promise<void> {
-    for (const percent of [10, 40, 75, 100]) {
-      onProgress?.({ percent, message: percent < 100 ? 'lädt Layer' : 'fertig' });
-      await new Promise((r) => setTimeout(r, 20));
+    const gesamtBytes = 1_180_000_000;
+    const schritte = this.pullMs > 0 ? 24 : 1;
+    const pause = this.pullMs / schritte;
+
+    for (let i = 1; i <= schritte; i += 1) {
+      const anteil = i / schritte;
+      onProgress?.({
+        percent: anteil * 100,
+        // Dieselben Statustexte, die die Docker-Engine schickt.
+        message: anteil < 0.7 ? 'Downloading' : anteil < 1 ? 'Extracting' : 'Pull complete',
+        currentBytes: Math.round(gesamtBytes * anteil),
+        totalBytes: gesamtBytes,
+      });
+      if (pause > 0) await new Promise((r) => setTimeout(r, pause));
     }
   }
 

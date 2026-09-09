@@ -97,6 +97,8 @@ export class DockerRuntime implements Runtime {
           onProgress({
             percent: total > 0 ? Math.min(100, (current / total) * 100) : null,
             message: event.status ?? 'lädt',
+            currentBytes: total > 0 ? current : null,
+            totalBytes: total > 0 ? total : null,
           });
         },
       );

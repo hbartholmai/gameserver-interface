@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { STATUS_COLOR, formatPing, type Instance } from '@gsp/shared';
+import { STATUS_COLOR, formatDauer, formatPing, type Instance, type Job } from '@gsp/shared';
+import { Fortschrittszeile } from './Aufbau.js';
 
 export function Detailkopf({
   instanz,
+  job,
   beschaeftigt,
   onStart,
   onStop,
@@ -10,6 +12,8 @@ export function Detailkopf({
   onBackup,
 }: {
   instanz: Instance;
+  /** Laufender Job dieser Instanz, damit der Aufbau auch außerhalb des Dialogs sichtbar bleibt. */
+  job: Job | null;
   beschaeftigt: boolean;
   onStart: () => void;
   onStop: () => void;
@@ -50,7 +54,24 @@ export function Detailkopf({
           <span>PING {formatPing(instanz.metrics.pingMs)}</span>
         </div>
 
-        {instanz.error && (
+        {job?.status === 'running' && (
+          <div style={{ marginTop: 'var(--s-5)' }}>
+            <Fortschrittszeile job={job} />
+          </div>
+        )}
+
+        {/* Nach dem Job kommt die Phase ohne Messwert: der Server erzeugt seine
+            Welt. Statt eines erfundenen Balkens die Dauer des letzten Starts. */}
+        {job?.status !== 'running' && instanz.status === 'Startet' && (
+          <p className="hinweis">
+            Der Server fährt hoch — seit {formatDauer(instanz.metrics.uptimeSec)}
+            {instanz.lastBootSec ? `, beim letzten Mal ${formatDauer(instanz.lastBootSec)}` : ''}.
+          </p>
+        )}
+
+        {/* Während eines laufenden Jobs ist „Container fehlt“ kein Fehler,
+            sondern der Normalzustand vor dem Erstellen. */}
+        {instanz.error && job?.status !== 'running' && (
           <p className="hinweis" style={{ color: 'var(--gefahr)' }}>
             {instanz.error}
           </p>

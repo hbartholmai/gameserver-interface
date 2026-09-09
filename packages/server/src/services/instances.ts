@@ -123,6 +123,7 @@ export class InstanceService {
       backupCron: request.backupCron,
       backupKeepDays: request.backupKeepDays,
       peakPlayers: 0,
+      lastBootSec: null,
       createdAt: new Date().toISOString(),
     };
 
@@ -133,7 +134,10 @@ export class InstanceService {
       report(5, 'Image wird geladen');
       const image = `${template.image}:${record.tag}`;
       await this.runtime.pull(image, (progress) => {
-        report(progress.percent === null ? null : 5 + progress.percent * 0.7, progress.message);
+        report(progress.percent === null ? null : 5 + progress.percent * 0.7, progress.message, {
+          done: progress.currentBytes,
+          total: progress.totalBytes,
+        });
       });
 
       report(80, 'Container wird erstellt');
@@ -261,7 +265,10 @@ export class InstanceService {
       try {
         report(5, 'Image wird geladen');
         await this.runtime.pull(`${template.image}:${instance.tag}`, (progress) => {
-          report(progress.percent === null ? null : progress.percent * 0.8, progress.message);
+          report(progress.percent === null ? null : progress.percent * 0.8, progress.message, {
+            done: progress.currentBytes,
+            total: progress.totalBytes,
+          });
         });
         report(85, 'Container wird neu erstellt');
         await this.recreate(id);
@@ -407,6 +414,14 @@ export class InstanceService {
     if (state.running) {
       // Der Übergang endet, sobald der Server seine Startmeldung geschrieben hat.
       if (this.logs.isReady(instance.id)) {
+        // Genau in diesem Takt liegt der Übergang noch vor — danach ist er
+        // gelöscht, die Dauer wird also einmal je Start geschrieben.
+        if (transition?.kind === 'starting') {
+          const dauerSek = Math.max(1, Math.round((Date.now() - transition.since) / 1000));
+          this.store.updateInstance(instance.id, { lastBootSec: dauerSek });
+          // Der Aufrufer hält den Datensatz in der Hand und baut gleich das DTO.
+          instance.lastBootSec = dauerSek;
+        }
         this.transitions.delete(instance.id);
         return { status: 'Online', running: true, uptimeSec, error: null };
       }
@@ -464,6 +479,7 @@ export class InstanceService {
       backupCount: backups.length,
       updateNote: this.updating.has(instance.id) ? 'Update läuft' : 'Version ist aktuell',
       updateAvailable: false,
+      lastBootSec: instance.lastBootSec,
       createdAt: instance.createdAt,
     };
   }

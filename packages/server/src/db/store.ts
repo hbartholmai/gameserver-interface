@@ -19,6 +19,8 @@ export interface InstanceRecord {
   backupCron: string;
   backupKeepDays: number;
   peakPlayers: number;
+  /** Dauer des letzten erfolgreichen Starts in Sekunden, `null` vor dem ersten. */
+  lastBootSec: number | null;
   createdAt: string;
 }
 
@@ -37,6 +39,7 @@ interface InstanceRow {
   backup_cron: string;
   backup_keep_days: number;
   peak_players: number;
+  last_boot_sec: number | null;
   created_at: string;
 }
 
@@ -56,6 +59,7 @@ function toRecord(row: InstanceRow): InstanceRecord {
     backupCron: row.backup_cron,
     backupKeepDays: row.backup_keep_days,
     peakPlayers: row.peak_players,
+    lastBootSec: row.last_boot_sec,
     createdAt: row.created_at,
   };
 }
@@ -78,8 +82,8 @@ export class Store {
       .prepare(
         `INSERT INTO instances
           (id, game, name, tag, container_name, container_id, ports, memory_mb, cpus,
-           settings, secrets, backup_cron, backup_keep_days, peak_players, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           settings, secrets, backup_cron, backup_keep_days, peak_players, last_boot_sec, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         record.id,
@@ -96,6 +100,7 @@ export class Store {
         record.backupCron,
         record.backupKeepDays,
         record.peakPlayers,
+        record.lastBootSec,
         record.createdAt,
       );
   }
@@ -107,7 +112,8 @@ export class Store {
     this.db
       .prepare(
         `UPDATE instances SET name = ?, tag = ?, container_id = ?, ports = ?, memory_mb = ?,
-           cpus = ?, settings = ?, secrets = ?, backup_cron = ?, backup_keep_days = ?, peak_players = ?
+           cpus = ?, settings = ?, secrets = ?, backup_cron = ?, backup_keep_days = ?, peak_players = ?,
+           last_boot_sec = ?
          WHERE id = ?`,
       )
       .run(
@@ -122,6 +128,7 @@ export class Store {
         next.backupCron,
         next.backupKeepDays,
         next.peakPlayers,
+        next.lastBootSec,
         id,
       );
   }

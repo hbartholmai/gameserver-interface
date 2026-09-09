@@ -97,6 +97,13 @@ export const instanceSchema = z.object({
   backupCount: z.number(),
   updateNote: z.string(),
   updateAvailable: z.boolean(),
+  /**
+   * Wie lange der letzte erfolgreiche Start gedauert hat, in Sekunden — von
+   * „Startet“ bis zur Startmeldung im Log. `null` vor dem ersten Start. Die
+   * Oberfläche zeigt das während des Hochfahrens als Anhaltspunkt; ein
+   * Prozentsatz ist für diese Phase nicht ermittelbar.
+   */
+  lastBootSec: z.number().nullable(),
   createdAt: z.string(),
 });
 export type Instance = z.infer<typeof instanceSchema>;

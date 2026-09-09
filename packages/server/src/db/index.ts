@@ -104,6 +104,14 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_player_sessions ON player_sessions(instance_id, left_at);
   `,
+
+  // 2 — Dauer des letzten erfolgreichen Starts. Für die Phase zwischen
+  // laufendem Container und Startmeldung des Servers gibt es keinen
+  // Prozentsatz; der Erfahrungswert der Instanz ist der einzige ehrliche
+  // Anhaltspunkt, den die Oberfläche dort zeigen kann.
+  `
+  ALTER TABLE instances ADD COLUMN last_boot_sec INTEGER;
+  `,
 ];
 
 export function openDb(path: string): Db {

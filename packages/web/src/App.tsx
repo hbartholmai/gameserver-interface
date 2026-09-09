@@ -6,6 +6,7 @@ import {
   type Backup,
   type HostStatus,
   type Instance,
+  type Job,
   type LogLine,
   type Mod,
   type SessionInfo,
@@ -64,6 +65,11 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
   const [backups, setBackups] = useState<Backup[]>([]);
   const [mods, setMods] = useState<Mod[]>([]);
   const [dialogOffen, setDialogOffen] = useState(false);
+  // Letzter Job je Instanz. Er bleibt nach dem Ende stehen, damit die
+  // Aufbauansicht den Übergang „Job fertig → Server fährt hoch“ erkennt.
+  const [jobs, setJobs] = useState<Record<string, Job>>({});
+  // Instanz, deren Aufbau der Dialog gerade begleitet.
+  const [imAufbau, setImAufbau] = useState<string | null>(null);
   const [beschaeftigt, setBeschaeftigt] = useState(false);
   const [notiz, setNotiz] = useState('');
   const [meldung, setMeldung] = useState<string | null>(null);
@@ -121,8 +127,17 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
         );
       } else if (nachricht.type === 'instances-changed') {
         void ladeInstanzen();
-      } else if (nachricht.type === 'job' && nachricht.job.status === 'failed') {
-        setMeldung(`${nachricht.job.kind}: ${nachricht.job.error ?? 'fehlgeschlagen'}`);
+      } else if (nachricht.type === 'job') {
+        const job = nachricht.job;
+        if (job.instanceId) {
+          setJobs((alt) => ({ ...alt, [job.instanceId as string]: job }));
+        }
+        if (job.status === 'failed') {
+          setMeldung(`${job.kind}: ${job.error ?? 'fehlgeschlagen'}`);
+        }
+        // Strukturänderungen wie ein fertig aufgesetzter Container sind der
+        // Instanzliste sonst nicht anzusehen.
+        if (job.status === 'done' || job.status === 'failed') void ladeInstanzen();
       }
     });
 
@@ -225,6 +240,7 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
             <>
               <Detailkopf
                 instanz={instanz}
+                job={jobs[instanz.id] ?? null}
                 beschaeftigt={beschaeftigt}
                 onStart={() => void aktion(() => api.start(instanz.id))}
                 onStop={() => void aktion(() => api.stop(instanz.id))}
@@ -359,9 +375,18 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
       {dialogOffen && (
         <NeueInstanz
           vorlagen={vorlagen}
-          onSchliessen={() => setDialogOffen(false)}
-          onAngelegt={(id) => {
+          aufbauInstanz={imAufbau ? (instanzen.find((i) => i.id === imAufbau) ?? null) : null}
+          aufbauJob={imAufbau ? (jobs[imAufbau] ?? null) : null}
+          aufbauLogs={logs}
+          onSchliessen={() => {
             setDialogOffen(false);
+            setImAufbau(null);
+          }}
+          onAngelegt={(id) => {
+            // Der Dialog bleibt stehen und zeigt den Aufbau. Die Instanz wird
+            // sofort gewählt, damit das Log-Abo greift und die Aufbauansicht
+            // mitlaufende Zeilen bekommt.
+            setImAufbau(id);
             setGewaehlt(id);
             void ladeInstanzen();
           }}

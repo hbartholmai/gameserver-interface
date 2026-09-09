@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CreateInstanceRequest, TemplateDescriptor } from '@gsp/shared';
+import type { CreateInstanceRequest, Instance, Job, LogLine, TemplateDescriptor } from '@gsp/shared';
 import { api, ApiError } from '../api/client.js';
 import { Feld, type Wert } from '../components/Feld.js';
 import { SektionsLabel } from '../components/basis.js';
+import { Aufbau, phaseVon } from '../components/Aufbau.js';
 
 /** Vorbelegung aus den Feld-Defaults der gewählten Vorlage. */
 function defaults(vorlage: TemplateDescriptor): Record<string, Wert> {
@@ -18,10 +19,21 @@ function defaults(vorlage: TemplateDescriptor): Record<string, Wert> {
 
 export function NeueInstanz({
   vorlagen,
+  aufbauInstanz,
+  aufbauJob,
+  aufbauLogs,
   onSchliessen,
   onAngelegt,
 }: {
   vorlagen: TemplateDescriptor[];
+  /**
+   * Gesetzt, sobald die Instanz angelegt ist. Der Dialog schließt dann nicht,
+   * sondern begleitet den Aufbau — das Laden des Images und das Hochfahren des
+   * Servers sind der Teil, der Minuten dauert.
+   */
+  aufbauInstanz: Instance | null;
+  aufbauJob: Job | null;
+  aufbauLogs: LogLine[];
   onSchliessen: () => void;
   onAngelegt: (id: string) => void;
 }) {
@@ -36,6 +48,7 @@ export function NeueInstanz({
   const [fehler, setFehler] = useState<Record<string, string>>({});
   const [meldung, setMeldung] = useState<string | null>(null);
   const [sendet, setSendet] = useState(false);
+  const [angelegt, setAngelegt] = useState(false);
 
   const vorlage = useMemo(
     () => vorlagen.find((v) => v.id === gewaehlt) ?? null,
@@ -86,6 +99,7 @@ export function NeueInstanz({
 
     try {
       const antwort = await api.createInstance(anfrage);
+      setAngelegt(true);
       onAngelegt(antwort.id);
     } catch (err) {
       if (err instanceof ApiError && err.fields.length > 0) {
@@ -100,6 +114,56 @@ export function NeueInstanz({
       setSendet(false);
     }
   };
+
+  // Ist die Instanz angelegt, begleitet derselbe Dialog den Aufbau, statt sich
+  // zu schließen und den Nutzer im Unklaren zu lassen.
+  if (angelegt) {
+    const phase = phaseVon(aufbauJob, aufbauInstanz);
+    const fertig = phase === 'fertig' || phase === 'fehler';
+    return (
+      <div
+        className="dialog-hintergrund"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Instanz wird aufgesetzt"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') onSchliessen();
+        }}
+      >
+        <div className="dialog">
+          <div className="dialog__kopf">
+            <h2 className="dialog__titel">{aufbauInstanz?.name ?? 'Neue Instanz'}</h2>
+            <button type="button" className="knopf knopf--klein" onClick={onSchliessen}>
+              Schließen
+            </button>
+          </div>
+
+          <div className="dialog__koerper">
+            {/* Während des Jobs existiert der Container noch nicht; der Instanzstatus
+                lautet dann „Fehler“ und wäre hier irreführend. */}
+            <SektionsLabel
+              text="Instanz wird aufgesetzt"
+              rechts={phase === 'job' ? 'wird aufgebaut' : (aufbauInstanz?.status ?? '')}
+            />
+            <Aufbau instanz={aufbauInstanz} job={aufbauJob} logs={aufbauLogs} />
+          </div>
+
+          <div className="dialog__fuss">
+            <span className="hinweis" style={{ flex: 1 }}>
+              {fertig ? '' : 'Der Aufbau läuft weiter, auch wenn du den Dialog schließt.'}
+            </span>
+            <button
+              type="button"
+              className={fertig ? 'knopf knopf--primaer' : 'knopf knopf--sekundaer'}
+              onClick={onSchliessen}
+            >
+              {fertig ? 'Fertig' : 'Im Hintergrund weiter'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -32,8 +32,8 @@ describe('API-Durchlauf', () => {
         GSP_LOG_LEVEL: 'silent',
         TZ: 'Europe/Berlin',
       }),
-      // Ohne Startverzögerung, damit Tests nicht warten müssen.
-      new FakeRuntime(0),
+      // Ohne Startverzögerung und ohne simulierten Pull, damit Tests nicht warten müssen.
+      new FakeRuntime(0, 0),
     );
   });
 

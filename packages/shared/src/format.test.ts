@@ -9,6 +9,7 @@ import {
   formatRate,
   formatTimestamp,
   formatUptime,
+  formatDauer,
 } from './format.js';
 import { pingColor } from './schema/common.js';
 
@@ -33,6 +34,15 @@ describe('Formatierung', () => {
     expect(formatUptime(71.5 * 3600)).toBe('71 h 30 m');
     expect(formatUptime(12 * 60)).toBe('12 m');
     expect(formatUptime(0)).toBe('0 m');
+  });
+
+  it('gibt Startdauern sekundengenau an', () => {
+    // Der Grund für die eigene Funktion: formatUptime rundet auf Minuten und
+    // würde einen 90-Sekunden-Start als „1 m“ ausgeben.
+    expect(formatDauer(45)).toBe('45 s');
+    expect(formatDauer(160)).toBe('2 m 40 s');
+    expect(formatDauer(0)).toBe('0 s');
+    expect(formatDauer(null)).toBe('—');
   });
 
   it('schreibt Spielzeiten und markiert fehlende Werte', () => {

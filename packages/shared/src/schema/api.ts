@@ -61,6 +61,12 @@ export const jobSchema = z.object({
   /** 0–100, `null` wenn kein Fortschritt bekannt ist. */
   progress: z.number().nullable(),
   message: z.string(),
+  /**
+   * Rohe Byte-Zahlen des Image-Pulls, `null` außerhalb dieser Phase oder solange
+   * die Gesamtgröße unbekannt ist. Die Formatierung entsteht im Frontend.
+   */
+  bytesDone: z.number().nullable().default(null),
+  bytesTotal: z.number().nullable().default(null),
   error: z.string().nullable(),
   startedAt: z.string(),
   finishedAt: z.string().nullable(),
