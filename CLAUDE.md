@@ -106,6 +106,17 @@ Zahlen werden über `@gsp/shared/format` deutsch formatiert (`5,4 GB`, `71 h 30 
 
 ## Fallstricke
 
+- **Der Build-Kontext muss sauber sein.** Ohne `.dockerignore` kopiert `COPY . .`
+  das Host-`node_modules` und die `dist/`-Verzeichnisse über das, was `npm ci`
+  und `npm run build` im Image gerade erst erzeugt haben: die mitgereiste
+  `dist/.tsbuildinfo` lässt tsc nichts emittieren, die Windows-Junctions der
+  Workspaces zerbrechen die Auflösung von `@gsp/shared`, und BuildKit scheitert
+  auf Windows schon beim Laden des Kontexts („unknown file mode"). Neue Ordner
+  mit erzeugten Dateien gehören in `.dockerignore`, nicht nur in `.gitignore`.
+- **`GSP_DATA_DIR` wird vom Docker-Daemon aufgelöst, nicht vom Panel.** Unter
+  Docker Desktop für Windows liegt der Daemon in einer Linux-VM; ein Pfad wie
+  `D:\ServerTest` wird dort zu `/app/D:ServerTest`. Richtig ist
+  `/run/desktop/mnt/host/d/ServerTest` — siehe README, Abschnitt Einstellungen.
 - **`npm run build -w @gsp/shared` vergessen** ist die häufigste Ursache für „Cannot find module '@gsp/shared'" oder implizite `any` im Web-Paket.
 - **Container-Umgebungen sind unveränderlich.** Geänderte Einstellungen wirken erst nach `recreate()` — stoppen, entfernen, neu erstellen. Weltdaten überleben das, weil sie in Bind-Mounts liegen.
 - **Geheimnisse maskieren.** `maskSecrets()` ersetzt Werte von Feldern mit `secret: true` durch `********`. Der Config-Reiter schickt unveränderte Geheimnisse nicht mit zurück, sonst würde die Maske als neues Passwort gespeichert.

@@ -120,6 +120,26 @@ Backups und Mod-Verwaltung arbeiten dadurch direkt auf Host-Pfaden.
 | `GSP_WEB_ROOT` | — | Verzeichnis des gebauten Frontends |
 | `TZ` | `Europe/Berlin` | Zeitzone für Instanzen und Zeitpläne |
 
+`GSP_DATA_DIR` muss ein Pfad sein, den der **Docker-Daemon** auflösen kann, denn
+er dient sowohl als Bind-Quelle im Compose-File als auch als `GSP_HOST_DATA_DIR`
+für die Instanz-Volumes.
+
+Unter **Docker Desktop für Windows** läuft der Daemon in einer Linux-VM. Ein
+Windows-Pfad wie `D:\ServerTest` ist dort kein absoluter Pfad; `path.resolve()`
+im Panel-Container macht daraus `/app/D:ServerTest`, und die Instanzen mounten
+ins Leere. Laufwerke hängen in der VM unter `/run/desktop/mnt/host/<laufwerk>/`,
+Buchstabe klein geschrieben:
+
+```dotenv
+GSP_DATA_DIR=/run/desktop/mnt/host/d/ServerTest
+```
+
+Prüfen lässt sich das ohne das Panel:
+
+```bash
+docker run --rm -v /run/desktop/mnt/host/d/ServerTest:/probe alpine ls -la /probe
+```
+
 ## Sicherheit
 
 **Der eingebundene Docker-Socket entspricht Root-Rechten auf dem Host.** Wer
