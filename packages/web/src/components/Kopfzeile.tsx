@@ -3,10 +3,14 @@ import { formatPercent, type HostStatus } from '@gsp/shared';
 export function Kopfzeile({
   host,
   benutzer,
+  vorlagenOffen,
+  onVorlagen,
   onAbmelden,
 }: {
   host: HostStatus | null;
   benutzer: string;
+  vorlagenOffen: boolean;
+  onVorlagen: () => void;
   onAbmelden: () => void;
 }) {
   return (
@@ -29,6 +33,14 @@ export function Kopfzeile({
         />
         <Kennzahl label="Spieler" wert={String(host?.playersTotal ?? 0)} />
         <Kennzahl label="Host CPU" wert={formatPercent(host?.hostCpuPct ?? 0)} />
+        <button
+          type="button"
+          className={`knopf knopf--sekundaer${vorlagenOffen ? ' chip--aktiv' : ''}`}
+          aria-pressed={vorlagenOffen}
+          onClick={onVorlagen}
+        >
+          Vorlagen
+        </button>
         <button type="button" className="knopf knopf--sekundaer" onClick={onAbmelden}>
           {benutzer} · Abmelden
         </button>

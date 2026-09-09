@@ -26,6 +26,7 @@ import { Mods } from './tabs/Mods.js';
 import { Config } from './tabs/Config.js';
 import { Anmeldung } from './views/Anmeldung.js';
 import { NeueInstanz } from './views/NeueInstanz.js';
+import { Vorlagen } from './views/Vorlagen.js';
 
 export function App() {
   const [session, setSession] = useState<SessionInfo | null>(null);
@@ -70,6 +71,7 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
   const [jobs, setJobs] = useState<Record<string, Job>>({});
   // Instanz, deren Aufbau der Dialog gerade begleitet.
   const [imAufbau, setImAufbau] = useState<string | null>(null);
+  const [vorlagenOffen, setVorlagenOffen] = useState(false);
   const [beschaeftigt, setBeschaeftigt] = useState(false);
   const [notiz, setNotiz] = useState('');
   const [meldung, setMeldung] = useState<string | null>(null);
@@ -91,9 +93,14 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
     setGewaehlt((alt) => alt ?? antwort.instances[0]?.id ?? null);
   }, []);
 
+  const ladeVorlagen = useCallback(async () => {
+    const antwort = await api.templates();
+    setVorlagen(antwort.templates);
+  }, []);
+
   // Erstdaten und Live-Verbindung.
   useEffect(() => {
-    void api.templates().then((a) => setVorlagen(a.templates));
+    void ladeVorlagen();
     void api.host().then(setHost).catch(() => undefined);
     void ladeInstanzen();
 
@@ -146,7 +153,7 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
       verbindung.close();
       live.current = null;
     };
-  }, [ladeInstanzen]);
+  }, [ladeInstanzen, ladeVorlagen]);
 
   // Log-Abo folgt der gewählten Instanz.
   useEffect(() => {
@@ -194,6 +201,8 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
       <Kopfzeile
         host={host}
         benutzer={session.username}
+        vorlagenOffen={vorlagenOffen}
+        onVorlagen={() => setVorlagenOffen((offen) => !offen)}
         onAbmelden={() => {
           void api.logout().finally(() => {
             setCsrfToken(null);
@@ -216,7 +225,24 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
         </div>
       )}
 
-      <div className="rumpf">
+      {/* Vorlagen liegen über den Instanzen und bekommen deshalb die ganze
+          Fläche, statt sich als weiterer Reiter in eine Instanz zu drängen. */}
+      {vorlagenOffen && (
+        <Vorlagen
+          onSchliessen={() => {
+            setVorlagenOffen(false);
+            // Eine geänderte Vorlage kann Felder und Fähigkeiten verschoben
+            // haben — beides steckt in den Instanzansichten.
+            void ladeVorlagen();
+            void ladeInstanzen();
+          }}
+        />
+      )}
+
+      {/* `hidden` allein genügt nicht: das Attribut wird von der eigenen
+          `display`-Regel der Klasse überstimmt und die Instanzansicht schiene
+          unter der Vorlagenverwaltung durch. */}
+      <div className="rumpf" hidden={vorlagenOffen} style={vorlagenOffen ? { display: 'none' } : undefined}>
         <Sidebar
           instanzen={instanzen}
           gewaehlt={instanz?.id ?? null}

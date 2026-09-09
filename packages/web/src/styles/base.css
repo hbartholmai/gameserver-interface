@@ -37,13 +37,15 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible,
+textarea:focus-visible,
 [tabindex]:focus-visible {
   outline: 2px solid var(--akzent);
   outline-offset: 2px;
 }
 
 input,
-select {
+select,
+textarea {
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--text-standard);
@@ -52,11 +54,13 @@ select {
   border-radius: 0;
   padding: 8px 11px;
 }
-input::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: #5b6675;
 }
 input:disabled,
-select:disabled {
+select:disabled,
+textarea:disabled {
   color: var(--text-leise);
   cursor: not-allowed;
 }
