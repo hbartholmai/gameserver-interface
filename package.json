@@ -1,0 +1,33 @@
+{
+  "name": "gameserver-interface",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Web-Panel zur Verwaltung von Gameserver-Instanzen auf Linux-Hosts",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.15"
+  },
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/web"
+  ],
+  "scripts": {
+    "build": "npm run build -w @gsp/shared && npm run build -w @gsp/server && npm run build -w @gsp/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "concurrently -n server,web -c green,cyan \"npm run dev -w @gsp/server\" \"npm run dev -w @gsp/web\"",
+    "start": "node packages/server/dist/index.js",
+    "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
+    "rebuild": "npm run clean && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "concurrently": "^9.1.2",
+    "playwright": "^1.63.0",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.0"
+  }
+}

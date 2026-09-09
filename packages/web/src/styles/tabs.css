@@ -1,0 +1,532 @@
+/* --- Übersicht ------------------------------------------------------------ */
+
+.kachelraster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-5);
+}
+.kachel {
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-1);
+  padding: var(--s-5);
+}
+.kachel__kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+}
+.kachel__label {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-label);
+}
+.kachel__zusatz {
+  font-size: 10px;
+  color: var(--text-leise);
+}
+.kachel__wert {
+  font-family: var(--font-technik);
+  font-weight: 700;
+  font-size: 32px;
+  letter-spacing: 0.02em;
+  color: var(--text-primaer);
+  line-height: 1.15;
+}
+.kachel__wert--mittel {
+  font-size: 26px;
+  letter-spacing: 0.03em;
+}
+.kachel__wert--klein {
+  font-size: 22px;
+  letter-spacing: 0.03em;
+}
+.kachel__fuss {
+  font-size: 11px;
+  color: var(--text-gedaempft);
+  margin-top: var(--s-1);
+}
+.kachel__fuss--warnung {
+  color: var(--warnung);
+}
+
+.balken {
+  height: 6px;
+  background: var(--balken-track);
+  margin-top: var(--s-3);
+}
+.balken > span {
+  display: block;
+  height: 6px;
+  background: var(--akzent);
+}
+
+.spalten {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-8);
+}
+.spalte {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.kv-liste {
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-1);
+}
+.kv-zeile {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-5);
+  padding: 7px var(--s-5);
+  border-bottom: 1px solid var(--rahmen-leise);
+  font-size: 12px;
+}
+.kv-zeile:last-child {
+  border-bottom: none;
+}
+.kv-zeile__schluessel {
+  color: var(--text-label);
+  flex: none;
+}
+.kv-zeile__wert {
+  color: var(--text-standard);
+  text-align: right;
+  word-break: break-word;
+}
+
+.ereignisse {
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-1);
+}
+.ereignis {
+  display: flex;
+  gap: var(--s-5);
+  padding: 7px var(--s-5);
+  border-bottom: 1px solid var(--rahmen-leise);
+  font-size: 12px;
+}
+.ereignis:last-child {
+  border-bottom: none;
+}
+.ereignis__zeit {
+  width: 58px;
+  flex: none;
+  color: var(--text-leise);
+}
+.ereignis__text {
+  color: var(--text-sekundaer);
+}
+
+/* --- Konsole -------------------------------------------------------------- */
+
+.konsole__kopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: center;
+  justify-content: space-between;
+}
+.chips {
+  display: flex;
+  gap: var(--s-2);
+}
+.chip {
+  position: relative;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: var(--flaeche-2);
+  border: 1px solid var(--rahmen);
+  color: var(--text-gedaempft);
+  padding: 3px var(--s-4);
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+.chip--aktiv {
+  background: var(--akzent-flaeche);
+  border-color: var(--akzent);
+  color: var(--akzent);
+}
+
+.logfenster {
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-tief);
+  padding: var(--s-5);
+  height: 340px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.75;
+}
+.logzeile {
+  display: flex;
+  gap: var(--s-3);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.logzeile__zeit {
+  color: var(--text-leise);
+  flex: none;
+}
+.logzeile__level {
+  width: 40px;
+  flex: none;
+}
+.logzeile__level--INFO {
+  color: var(--text-leise);
+}
+.logzeile__level--WARN {
+  color: var(--warnung);
+}
+.logzeile__level--ERROR {
+  color: var(--gefahr);
+}
+.logzeile__level--CMD {
+  color: var(--akzent);
+}
+.logzeile__text {
+  color: var(--text-sekundaer);
+}
+.logzeile__text--ERROR {
+  color: var(--gefahr);
+}
+
+.eingabezeile {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  margin-top: var(--s-5);
+}
+.eingabezeile__pfeil {
+  color: var(--akzent);
+  font-weight: 700;
+}
+.eingabezeile input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 9px var(--s-5);
+}
+.hinweis {
+  font-size: 11px;
+  color: var(--text-leise);
+  margin-top: var(--s-3);
+}
+.hinweis--warnung {
+  color: var(--warnung);
+}
+
+/* --- Listenzeilen (Spieler, Backups, Mods) -------------------------------- */
+
+.zeilen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4);
+  border: 1px solid var(--rahmen-leise);
+  background: var(--flaeche-1);
+  padding: var(--s-3) var(--s-4);
+  font-size: 12px;
+}
+.zeile__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-primaer);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.zeile__datei {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-sekundaer);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.zeile__meta {
+  color: var(--text-gedaempft);
+  flex: none;
+}
+.zeile__ping {
+  width: 60px;
+  text-align: right;
+  flex: none;
+}
+.zeile__zeit {
+  width: 118px;
+  flex: none;
+  color: var(--text-gedaempft);
+}
+.zeile__groesse {
+  width: 70px;
+  text-align: right;
+  flex: none;
+  color: var(--text-gedaempft);
+}
+.zeile__art {
+  width: 70px;
+  text-align: right;
+  flex: none;
+}
+.zeile__art--manuell {
+  color: var(--warnung);
+}
+.zeile__art--auto {
+  color: var(--text-leise);
+}
+.zeile__version {
+  width: 84px;
+  flex: none;
+  color: var(--text-gedaempft);
+}
+.zeile__badge {
+  width: 120px;
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.zeile__badge--aktiv {
+  color: var(--akzent);
+}
+.zeile__badge--aus {
+  color: var(--text-leise);
+}
+.zeile__badge--update {
+  color: var(--warnung);
+}
+.zeile__toggle {
+  width: 72px;
+  flex: none;
+}
+.leerzustand {
+  font-size: 12px;
+  color: var(--text-leise);
+  padding: var(--s-3) 0;
+}
+
+/* --- Config --------------------------------------------------------------- */
+
+.config {
+  max-width: 660px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+.feld {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-5);
+}
+.feld__label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-gedaempft);
+}
+.feld__eingabe {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+/* Die Breitenverteilung gilt nur in der Zeile von `.feld`. Die Anmeldung
+   stapelt das Label in die `.feld__eingabe` hinein — dort laeuft die Hauptachse
+   senkrecht, und eine Flex-Basis wuerde als Hoehe wirken und die Maske
+   auseinanderziehen. */
+.feld > .feld__label {
+  flex: 1 1 180px;
+}
+.feld > .feld__eingabe {
+  flex: 1 1 260px;
+}
+.feld__eingabe input,
+.feld__eingabe select {
+  width: 100%;
+}
+.feld__hilfe {
+  font-size: 10px;
+  color: var(--text-leise);
+}
+.feld__fehler {
+  font-size: 10px;
+  color: var(--gefahr);
+}
+.feld__schalter {
+  display: flex;
+  gap: var(--s-2);
+}
+.config__fuss {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-5);
+  border-top: 1px solid var(--rahmen);
+  padding-top: var(--s-7);
+}
+.config__notiz {
+  color: var(--akzent);
+  font-size: 12px;
+}
+
+/* --- Anmeldung ------------------------------------------------------------ */
+
+.anmeldung {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-9);
+  background: var(--grund);
+  background-image: var(--raster);
+  background-size: 32px 32px;
+}
+.anmeldung__box {
+  width: 100%;
+  max-width: 380px;
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-1);
+  padding: var(--s-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-7);
+}
+.anmeldung__marke {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+}
+
+/* --- Dialog (Instanz anlegen) --------------------------------------------- */
+
+.dialog-hintergrund {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 5, 8, 0.82);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--s-9);
+  overflow: auto;
+  z-index: 20;
+}
+.dialog {
+  width: 100%;
+  max-width: 720px;
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-1);
+  display: flex;
+  flex-direction: column;
+}
+.dialog__kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-5);
+  padding: var(--s-7);
+  border-bottom: 1px solid var(--rahmen);
+}
+.dialog__titel {
+  margin: 0;
+  font-family: var(--font-technik);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primaer);
+}
+.dialog__koerper {
+  padding: var(--s-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+}
+.dialog__fuss {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-5);
+  padding: var(--s-7);
+  border-top: 1px solid var(--rahmen);
+}
+
+.vorlagenwahl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-5);
+}
+.vorlagenkarte {
+  position: relative;
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-2);
+  padding: var(--s-5);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.vorlagenkarte:hover {
+  border-color: var(--rahmen-kraeftig);
+}
+.vorlagenkarte--gewaehlt {
+  border-color: var(--akzent);
+  background: var(--akzent-selektion);
+}
+.vorlagenkarte__name {
+  font-family: var(--font-technik);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-primaer);
+}
+.vorlagenkarte__text {
+  font-size: 11px;
+  color: var(--text-gedaempft);
+  line-height: 1.5;
+}
+
+.notizen {
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-2);
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.notiz {
+  font-size: 11px;
+  color: var(--text-gedaempft);
+  display: flex;
+  gap: var(--s-3);
+}
+.notiz::before {
+  content: '//';
+  color: var(--text-label);
+  flex: none;
+}
+
+.fortschritt {
+  height: 4px;
+  background: var(--balken-track);
+}
+.fortschritt > span {
+  display: block;
+  height: 4px;
+  background: var(--akzent);
+}
