@@ -43,7 +43,7 @@ export function compileTemplate(def: TemplateDefinition): GameTemplate {
       ...(def.backup.postCommands.length > 0 ? { postCommands: def.backup.postCommands } : {}),
     },
     ...(def.modsPath !== undefined ? { modsPath: def.modsPath } : {}),
-    ...(def.modExtensions.length > 0 ? { modExtensions: def.modExtensions } : {}),
+    modExtensions: def.modExtensions,
 
     definition: def,
   };

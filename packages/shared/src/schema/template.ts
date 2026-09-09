@@ -81,6 +81,12 @@ export const templateDescriptorSchema = z.object({
   defaultCpus: z.number(),
   /** Hinweis, der im Wizard und über der Konsole angezeigt wird. */
   notes: z.array(z.string()),
+  /**
+   * Dateiendungen, die als Mod gelten. Gehört in den Descriptor, weil der
+   * Mod-Reiter sie braucht: die Endung war dort fest verdrahtet und behauptete
+   * bei jeder Vorlage ohne Java oder BepInEx etwas Falsches.
+   */
+  modExtensions: z.array(z.string()),
 });
 export type TemplateDescriptor = z.infer<typeof templateDescriptorSchema>;
 
@@ -110,8 +116,6 @@ export interface GameTemplate extends TemplateDescriptor {
    * unterstützt (`capabilities.mods === 'none'`).
    */
   modsPath?: string;
-  /** Dateiendungen, die als Mod gelten. */
-  modExtensions?: string[];
 }
 
 export interface TemplateContext {

@@ -15,6 +15,12 @@ import { factorioDefinition } from './factorio.js';
 import { terrariaDefinition } from './terraria.js';
 import { luantiDefinition } from './luanti.js';
 import { palworldDefinition } from './palworld.js';
+import { cs2Definition } from './cs2.js';
+import { tf2Definition } from './tf2.js';
+import { garrysmodDefinition } from './garrysmod.js';
+import { rustDefinition } from './rust.js';
+import { arkDefinition } from './ark.js';
+import { sevenDaysToDieDefinition } from './sevendaystodie.js';
 
 /**
  * Die mitgelieferten Vorlagen. Sie sind **Startbestand**, kein Laufzeitpfad:
@@ -31,6 +37,12 @@ export const BUILTIN_DEFINITIONS: TemplateDefinition[] = [
   terrariaDefinition,
   luantiDefinition,
   palworldDefinition,
+  cs2Definition,
+  tf2Definition,
+  garrysmodDefinition,
+  rustDefinition,
+  arkDefinition,
+  sevenDaysToDieDefinition,
 ];
 
 /**
@@ -96,6 +108,7 @@ export function toDescriptor(template: GameTemplate): TemplateDescriptor {
     defaultMemoryMb: template.defaultMemoryMb,
     defaultCpus: template.defaultCpus,
     notes: template.notes,
+    modExtensions: template.modExtensions,
   };
 }
 
@@ -174,3 +187,9 @@ export { factorioDefinition } from './factorio.js';
 export { terrariaDefinition } from './terraria.js';
 export { luantiDefinition } from './luanti.js';
 export { palworldDefinition } from './palworld.js';
+export { cs2Definition } from './cs2.js';
+export { tf2Definition } from './tf2.js';
+export { garrysmodDefinition } from './garrysmod.js';
+export { rustDefinition } from './rust.js';
+export { arkDefinition } from './ark.js';
+export { sevenDaysToDieDefinition } from './sevendaystodie.js';

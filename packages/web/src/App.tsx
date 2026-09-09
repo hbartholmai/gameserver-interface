@@ -343,6 +343,7 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
                 <Mods
                   instanz={instanz}
                   mods={mods}
+                  endungen={vorlage?.modExtensions ?? []}
                   onUmschalten={(mod) =>
                     void aktion(
                       () => api.setModEnabled(instanz.id, mod.file, !mod.enabled),
