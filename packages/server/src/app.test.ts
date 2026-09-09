@@ -93,10 +93,13 @@ describe('API-Durchlauf', () => {
     expect(antwort.statusCode).toBe(403);
   });
 
-  it('liefert die drei Vorlagen', async () => {
+  it('liefert die mitgelieferten Vorlagen in der vorgesehenen Reihenfolge', async () => {
     const antwort = await app.server.inject({ method: 'GET', url: '/api/templates', headers: kopf(false) });
     const ids = antwort.json<{ templates: { id: string }[] }>().templates.map((t) => t.id);
-    expect(ids).toEqual(['minecraft', 'valheim', 'enshrouded']);
+    // Reihenfolge des Startbestands, nicht alphabetisch — so erscheinen sie im Wizard.
+    expect(ids.slice(0, 3)).toEqual(['minecraft', 'minecraft-bedrock', 'valheim']);
+    expect(ids).toContain('factorio');
+    expect(ids.length).toBeGreaterThanOrEqual(7);
   });
 
   it('legt eine Minecraft-Instanz an und startet sie', async () => {

@@ -96,6 +96,11 @@ export interface GameTemplate extends TemplateDescriptor {
   definition: TemplateDefinition;
   /** Bildet die Formularwerte auf Container-Umgebungsvariablen ab. */
   env(values: FieldValues, ctx: TemplateContext): Record<string, string>;
+  /**
+   * Startargumente des Containers. Leeres Ergebnis heißt: das Kommando des
+   * Images bleibt unangetastet.
+   */
+  args(values: FieldValues, ctx: TemplateContext): string[];
   /** Optionale Konfigurationsdateien, die vor dem Start ins Volume geschrieben werden. */
   configFiles?(values: FieldValues, ctx: TemplateContext): ConfigFile[];
   logPatterns: LogPatterns;

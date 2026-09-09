@@ -50,6 +50,26 @@ export const envMappingSchema = z.object({
 });
 export type EnvMapping = z.infer<typeof envMappingSchema>;
 
+/**
+ * Ein Startargument des Containers.
+ *
+ * Nicht jedes Image lässt sich über Umgebungsvariablen einrichten: `ryshe/terraria`
+ * etwa kennt genau zwei und erwartet alles Weitere als Argument — ohne
+ * `-autocreate` bleibt der Server sogar im interaktiven Einrichtungsdialog
+ * stehen und kommt nie hoch. Die Quellen sind dieselben wie bei `env`.
+ */
+export const argMappingSchema = z.object({
+  /** Feste Zeichenkette davor, etwa `-world`. Leer lassen für einen bloßen Wert. */
+  flag: z.string().default(''),
+  source: envSourceSchema.optional(),
+  fallback: z.string().optional(),
+  boolean: z.object({ whenTrue: z.string(), whenFalse: z.string() }).optional(),
+  trim: z.boolean().default(false),
+  /** Argument samt Flag weglassen, wenn der Wert leer ist. */
+  omitWhenEmpty: z.boolean().default(false),
+});
+export type ArgMapping = z.infer<typeof argMappingSchema>;
+
 /** Ein regulärer Ausdruck als Daten. */
 export const patternSchema = z.object({
   source: z.string().min(1),
@@ -172,6 +192,11 @@ export const templateDefinitionSchema = z.object({
   volumes: z.array(volumeSpecSchema).min(1),
   fields: z.array(fieldSpecSchema).default([]),
   env: z.array(envMappingSchema).default([]),
+  /**
+   * Startargumente des Containers. Fehlt bei den meisten Vorlagen — dann bleibt
+   * das Kommando des Images unangetastet, was der Normalfall ist.
+   */
+  args: z.array(argMappingSchema).optional(),
   logPatterns: logPatternsDefinitionSchema,
   backup: backupDefinitionSchema,
   validations: z.array(validationRuleSchema).default([]),

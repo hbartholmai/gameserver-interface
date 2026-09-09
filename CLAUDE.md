@@ -52,7 +52,7 @@ Drei Pakete, npm workspaces:
 
 ### Vorlagen sind der zentrale Erweiterungspunkt
 
-Eine Vorlage beschreibt deklarativ Image, Ports, Volumes, Formularfelder, Env-Abbildung, Fähigkeiten, Log-Muster, Prüfregeln und Backup-Pfade. Daraus entstehen **Anlege-Wizard, Config-Reiter und Container**.
+Eine Vorlage beschreibt deklarativ Image, Ports, Volumes, Formularfelder, Env-Abbildung, Startargumente, Fähigkeiten, Log-Muster, Prüfregeln und Backup-Pfade. Daraus entstehen **Anlege-Wizard, Config-Reiter und Container**.
 
 Vorlagen sind **Daten, nicht Code**. Sie liegen als JSON in der Tabelle `templates` und werden beim Start zu lauffähigen `GameTemplate`-Objekten kompiliert:
 
@@ -62,12 +62,14 @@ DB templates ──▶ compileTemplate() ──▶ Registry ──▶ getTemplat
 
 - `packages/shared/src/schema/template-definition.ts` — das Datenschema (`TemplateDefinition`)
 - `packages/shared/src/templates/compile.ts` — macht daraus wieder `env()`, `logPatterns`, Prüfregeln
-- `packages/shared/src/templates/{minecraft,valheim,enshrouded}.ts` — **Startbestand**, kein Laufzeitpfad
+- `packages/shared/src/templates/*.ts` — **Startbestand**, kein Laufzeitpfad; `index.ts` führt sie in `BUILTIN_DEFINITIONS`
 - `packages/server/src/services/templates.ts` — Laden, Seeding, Schlüssigkeitsprüfung
 
 Ein weiteres Spiel braucht damit im Normalfall **gar keine Codeänderung**: es entsteht im Editor unter „Vorlagen" oder als KI-Entwurf. Siehe `docs/vorlage-hinzufuegen.md`.
 
 **Die Registry ist ein Modul-Singleton** (`setTemplates()` / `getTemplate()`). Tests, die Vorlagen brauchen, rufen im Setup `loadBuiltinTemplates()` — sonst wirft `getTemplate()` eine `UnknownTemplateError`.
+
+**Die Umgebung ist der Regelfall, `args` der Ausweg.** Fast jedes Image richtet sich vollständig über Env ein. Wo nicht — Terraria kennt nur `WORLD_FILENAME` und `CONFIG_FILENAME` — trägt die Vorlage `args` ein; das ersetzt das Kommando des Images. Leere Liste heißt: Kommando unangetastet lassen, sonst startete der Container ins Leere. `omitWhenEmpty` lässt bei leerem Wert **auch das Flag** entfallen, damit ein optionales Passwort nicht als `-password ""` ankommt.
 
 **Seeding fügt nur ein, es überschreibt nie.** Fehlende mitgelieferte Vorlagen werden beim Start ergänzt, vorhandene bleiben unangetastet — sonst setzte jedes Panel-Update die Anpassungen des Betreibers lautlos zurück.
 

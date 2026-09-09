@@ -12,6 +12,11 @@ export interface ContainerSpec {
   /** Vollständiger Image-Bezeichner inklusive Tag. */
   image: string;
   env: Record<string, string>;
+  /**
+   * Startargumente. Leer heißt: das Kommando des Images bleibt unangetastet —
+   * die meisten Images richten sich vollständig über Env ein.
+   */
+  cmd?: string[];
   ports: PortBinding[];
   binds: BindMount[];
   memoryMb: number;

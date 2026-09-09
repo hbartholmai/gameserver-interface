@@ -10,6 +10,10 @@ import { applyValidations, compileTemplate } from './compile.js';
 import { minecraftDefinition } from './minecraft.js';
 import { valheimDefinition } from './valheim.js';
 import { enshroudedDefinition } from './enshrouded.js';
+import { minecraftBedrockDefinition } from './minecraft-bedrock.js';
+import { factorioDefinition } from './factorio.js';
+import { terrariaDefinition } from './terraria.js';
+import { luantiDefinition } from './luanti.js';
 
 /**
  * Die mitgelieferten Vorlagen. Sie sind **Startbestand**, kein Laufzeitpfad:
@@ -19,8 +23,12 @@ import { enshroudedDefinition } from './enshrouded.js';
  */
 export const BUILTIN_DEFINITIONS: TemplateDefinition[] = [
   minecraftDefinition,
+  minecraftBedrockDefinition,
   valheimDefinition,
   enshroudedDefinition,
+  factorioDefinition,
+  terrariaDefinition,
+  luantiDefinition,
 ];
 
 /**
@@ -159,3 +167,7 @@ export { renderFakeLine, DEFAULT_FAKE_LOG } from './fakelog.js';
 export { minecraftDefinition } from './minecraft.js';
 export { valheimDefinition } from './valheim.js';
 export { enshroudedDefinition } from './enshrouded.js';
+export { minecraftBedrockDefinition } from './minecraft-bedrock.js';
+export { factorioDefinition } from './factorio.js';
+export { terrariaDefinition } from './terraria.js';
+export { luantiDefinition } from './luanti.js';

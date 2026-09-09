@@ -51,6 +51,17 @@ Worauf zu achten ist:
     Images mit einer Passwortprüfung abbrechen.
   - *Ja/Nein übersetzen* — nötig bei Ja/Nein-Feldern, weil die Images sehr
     unterschiedliche Werte erwarten: `TRUE`, `true`, `-crossplay`.
+- **Startargumente** — der Ausweg für Images, die sich nicht allein über
+  Umgebungsvariablen einrichten lassen. Sie ersetzen das Kommando des Images;
+  bleibt die Liste leer, bleibt das Kommando unangetastet. Jeder Eintrag wird zu
+  Flag und Wert, `-port` und `7777` also getrennt. *Leer weglassen* lässt bei
+  leerem Wert **auch das Flag** entfallen — nötig, damit ein optionales Passwort
+  nicht als `-password ""` beim Server ankommt.
+
+  Der Regelfall bleibt die Umgebung. Greif erst hierher, wenn die Dokumentation
+  des Images belegt, dass es eine Einstellung nur als Argument kennt: Terraria
+  ist so ein Fall — das Image liest genau zwei Umgebungsvariablen, alles Weitere
+  erwartet der Server auf der Kommandozeile.
 - **Log-Muster** — bei Beitritt und Abgang muss **Gruppe 1** der Spielername
   sein. Gibt es kein Abgangsmuster, leer lassen und bei der Spielerliste etwas
   wählen, das eine Zählung liefert (Steam-Query), sonst bleiben Spieler in der
