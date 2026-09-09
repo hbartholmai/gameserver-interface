@@ -20,7 +20,6 @@
     "test:watch": "vitest",
     "dev": "concurrently -n server,web -c green,cyan \"npm run dev -w @gsp/server\" \"npm run dev -w @gsp/web\"",
     "start": "node packages/server/dist/index.js",
-    "lint": "eslint packages --ext .ts,.tsx",
     "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
     "rebuild": "npm run clean && npm run build"
   },

@@ -157,6 +157,13 @@ Aufbewahrungsfrist entfernt nur automatische Snapshots, manuelle bleiben
 erhalten. Eine Wiederherstellung stoppt die Instanz, ersetzt die Weltdaten und
 startet sie danach wieder.
 
+## Dokumentation
+
+- `CLAUDE.md` — Einstieg für KI-Agenten: Befehle, Architektur, Fallstricke
+- `docs/architektur.md` — Entscheidungen und ihre Begründung
+- `docs/vorlage-hinzufuegen.md` — ein weiteres Spiel ergänzen
+- `docs/entwicklungsprotokoll.md` — Vorgehen, gefundene Fehler, Prüfvorgehen
+
 ## Grenzen und mögliche Erweiterungen
 
 - Nur ein Benutzer mit vollen Rechten; Rollen sind nicht umgesetzt.

@@ -7,3 +7,8 @@ data/
 coverage/
 playwright-report/
 test-results/
+
+# Von tsc erzeugte Reste im Quellbaum des Web-Pakets. Das Paket prüft nur
+# Typen (--noEmit); erzeugte .js/.map dort sind immer Versehen.
+packages/web/src/**/*.js
+packages/web/src/**/*.js.map
