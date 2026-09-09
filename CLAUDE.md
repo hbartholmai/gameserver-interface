@@ -84,10 +84,15 @@ Der Design-Prototyp nimmt an, dass jede Instanz eine Befehlseingabe und Mods hat
 | Minecraft | `rcon` | `rcon` | ja | `plugins` |
 | Valheim | `readonly` | `a2s` | nein | `bepinex` |
 | Enshrouded | `readonly` | `log` | nein | `none` |
+| Palworld | `rcon` | `a2s` | nein | `none` |
 
-Die Tabelle zeigt die mitgelieferten Vorlagen — eigene können jede Kombination haben.
+Ein Ausschnitt der mitgelieferten Vorlagen — eigene können jede Kombination haben.
 
-**Nie gegen `game === '…'` prüfen, immer gegen `capabilities`.** Das gilt seit dem Vorlagenumbau auch im Backend: `games/index.ts` wählt den Adapter über `capabilities.players`, nicht über die Spiel-ID. Ein neues Spiel mit RCON, Steam-Query oder nur Log braucht deshalb **keinen eigenen Adapter** — nur eine Vorlage. Adapter werfen `UnsupportedError`, wenn etwas nicht geht; die Route beantwortet das mit 400 statt 502.
+**Nie gegen `game === '…'` prüfen, immer gegen `capabilities`.** Das gilt seit dem Vorlagenumbau auch im Backend: `games/index.ts` bedient sich an den Adaptern nach `capabilities`, nicht nach der Spiel-ID. Ein neues Spiel mit RCON, Steam-Query oder nur Log braucht deshalb **keinen eigenen Adapter** — nur eine Vorlage. Adapter werfen `UnsupportedError`, wenn etwas nicht geht; die Route beantwortet das mit 400 statt 502.
+
+**`console` und `players` sind zwei Fragen, nicht eine.** `adapterFor()` setzt deshalb zusammen: die Spielerliste kommt vom Adapter zu `players`, `sendCommand` bei `console: 'rcon'` von RCON, Kick und Bann nur zusätzlich bei `moderation`. Bei den ersten drei Vorlagen fiel der Unterschied nicht auf, weil keine die Spalten verschieden belegte; Palworld zählt Spieler per Steam-Abfrage und nimmt Befehle per RCON entgegen.
+
+RCON ist damit nicht mehr Minecrafts Port 25575: `adapter.rconPortName` benennt den Port aus der Vorlage (Vorgabe `rcon`, verbunden wird der **Container**-Port), `adapter.rconListCommand` und `rconListFormat` den Befehl für die Spielerliste und die Form seiner Antwort (`minecraft` oder `csv`).
 
 ### Schichten im Backend
 

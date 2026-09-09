@@ -143,6 +143,19 @@ export const adapterHintsSchema = z.object({
   queryPortName: z.string().optional(),
   /** Feld, das die Slotzahl trägt — für die Anzeige „x / y Spieler“. */
   maxPlayersField: z.string().optional(),
+  /**
+   * Port der RCON-Konsole, nach `PortSpec.name` — nur bei `console: 'rcon'`.
+   * Verbunden wird der **Container**-Port, nicht der Host-Port: RCON wird
+   * üblicherweise nicht veröffentlicht, das Panel erreicht es über das
+   * Container-Netz.
+   */
+  rconPortName: z.string().optional(),
+  /**
+   * Befehl, der die Spielerliste liefert, und das Format seiner Antwort —
+   * nur bei `players: 'rcon'`. Ohne Angabe bleibt es bei Minecrafts `list`.
+   */
+  rconListCommand: z.string().optional(),
+  rconListFormat: z.enum(['minecraft', 'csv']).optional(),
 });
 export type AdapterHints = z.infer<typeof adapterHintsSchema>;
 

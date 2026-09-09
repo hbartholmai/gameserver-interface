@@ -230,6 +230,31 @@ export class TemplateService {
       fehler.push({ field: 'adapter.maxPlayersField', message: 'Unbekanntes Feld' });
     }
 
+    // Konsole und Spielerliste sind unabhängig, beide brauchen aber ihren Port.
+    if (definition.capabilities.console === 'rcon' || definition.capabilities.players === 'rcon') {
+      const name = definition.adapter.rconPortName ?? 'rcon';
+      if (!portNamen.has(name)) {
+        fehler.push({
+          field: 'adapter.rconPortName',
+          message: `Für RCON muss ein Port „${name}“ deklariert sein`,
+        });
+      }
+    }
+    // Kick und Bann laufen ausschließlich über RCON — ohne Konsole gäbe die
+    // Oberfläche Knöpfe aus, die nur `UnsupportedError` liefern könnten.
+    if (definition.capabilities.moderation && definition.capabilities.console !== 'rcon') {
+      fehler.push({
+        field: 'capabilities.moderation',
+        message: 'Kick und Bann brauchen eine Konsole (console: rcon)',
+      });
+    }
+    if (definition.adapter.rconListFormat && definition.capabilities.players !== 'rcon') {
+      fehler.push({
+        field: 'adapter.rconListFormat',
+        message: 'Ein Listenformat ergibt nur bei players: rcon einen Sinn',
+      });
+    }
+
     // Muster werden gegen jede Logzeile ausgeführt. Ein unübersetzbares Muster
     // soll beim Speichern auffallen, nicht im laufenden Betrieb.
     for (const [name, spec] of [

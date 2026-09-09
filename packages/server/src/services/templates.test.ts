@@ -149,6 +149,24 @@ describe('Vorlagendienst', () => {
       expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'backup.preCommands')).toBe(true);
     });
 
+    it('verlangt einen RCON-Port, sobald die Konsole ihn braucht', () => {
+      const kaputt = eigeneVorlage();
+      kaputt.capabilities.console = 'rcon';
+      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'adapter.rconPortName')).toBe(true);
+    });
+
+    it('lehnt Kick und Bann ohne Konsole ab', () => {
+      const kaputt = eigeneVorlage();
+      kaputt.capabilities.moderation = true;
+      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'capabilities.moderation')).toBe(true);
+    });
+
+    it('lehnt ein Listenformat ab, wenn die Spielerliste nicht über RCON kommt', () => {
+      const kaputt = eigeneVorlage();
+      kaputt.adapter.rconListFormat = 'csv';
+      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'adapter.rconListFormat')).toBe(true);
+    });
+
     /**
      * Log-Muster laufen gegen jede Zeile des Servers, und Node kennt keine
      * Zeitgrenze für reguläre Ausdrücke. Ein Muster mit verschachtelten

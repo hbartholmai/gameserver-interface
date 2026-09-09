@@ -14,6 +14,7 @@ import { minecraftBedrockDefinition } from './minecraft-bedrock.js';
 import { factorioDefinition } from './factorio.js';
 import { terrariaDefinition } from './terraria.js';
 import { luantiDefinition } from './luanti.js';
+import { palworldDefinition } from './palworld.js';
 
 /**
  * Die mitgelieferten Vorlagen. Sie sind **Startbestand**, kein Laufzeitpfad:
@@ -29,6 +30,7 @@ export const BUILTIN_DEFINITIONS: TemplateDefinition[] = [
   factorioDefinition,
   terrariaDefinition,
   luantiDefinition,
+  palworldDefinition,
 ];
 
 /**
@@ -171,3 +173,4 @@ export { minecraftBedrockDefinition } from './minecraft-bedrock.js';
 export { factorioDefinition } from './factorio.js';
 export { terrariaDefinition } from './terraria.js';
 export { luantiDefinition } from './luanti.js';
+export { palworldDefinition } from './palworld.js';
