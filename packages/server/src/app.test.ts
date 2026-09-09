@@ -411,6 +411,35 @@ describe('API-Durchlauf', () => {
     expect(versuch.statusCode).toBe(503);
   });
 
+  /**
+   * Mit Schlüssel meldet die Statusroute `available` und die Oberfläche zeigt
+   * den Knopf. Ein echter Aufruf findet nicht statt — geprüft ist damit die
+   * Verdrahtung von Umgebungsvariable bis Route, nicht der Gemini-Aufruf selbst.
+   */
+  it('schaltet den KI-Entwurf frei, sobald ein Schlüssel hinterlegt ist', async () => {
+    const verzeichnis = mkdtempSync(join(tmpdir(), 'gsp-ki-'));
+    const mitSchluessel = await buildApp(
+      loadConfig({
+        GSP_DATA_DIR: verzeichnis,
+        GSP_RUNTIME: 'fake',
+        GSP_LOG_LEVEL: 'silent',
+        GSP_GEMINI_API_KEY: 'test-schluessel',
+        GSP_GEMINI_MODELL: 'gemini-test',
+        TZ: 'Europe/Berlin',
+      }),
+      new FakeRuntime(0, 0),
+    );
+
+    try {
+      const status = mitSchluessel.services.drafts.status();
+      expect(status.available).toBe(true);
+      expect(status.model).toBe('gemini-test');
+    } finally {
+      await mitSchluessel.close();
+      rmSync(verzeichnis, { recursive: true, force: true });
+    }
+  });
+
   it('markiert Instanzen, deren Vorlage sich geändert hat', async () => {
     // Die Minecraft-Instanz ist zu diesem Zeitpunkt gelöscht; die Valheim-Instanz
     // aus dem Maskierungstest besteht noch.

@@ -22,7 +22,8 @@ services:
       # auflöst — deshalb muss hier der Host-Pfad stehen, nicht der im Panel.
       GSP_HOST_DATA_DIR: ${GSP_DATA_DIR:-/srv/gameserver}
       # Optional: schaltet den KI-gestützten Vorlagenentwurf frei.
-      GSP_ANTHROPIC_API_KEY: ${GSP_ANTHROPIC_API_KEY:-}
+      GSP_GEMINI_API_KEY: ${GSP_GEMINI_API_KEY:-}
+      GSP_GEMINI_MODELL: ${GSP_GEMINI_MODELL:-}
     volumes:
       # Zugriff auf die Docker-Engine, um Instanz-Container zu steuern.
       # ACHTUNG: Das entspricht Root-Rechten auf dem Host.

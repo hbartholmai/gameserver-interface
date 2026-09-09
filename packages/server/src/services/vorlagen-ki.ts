@@ -1,8 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 import { templateDefinitionSchema, type TemplateDefinition } from '@gsp/shared';
 import type { Report } from './jobs.js';
-
-const MODELL = 'claude-opus-5';
 
 export interface DraftRequest {
   /** Name des Spiels, wie ihn ein Mensch nennt. */
@@ -28,15 +26,20 @@ export interface DraftStatus {
 }
 
 /**
- * Erzeugt einen Vorlagenentwurf mit Claude.
+ * Erzeugt einen Vorlagenentwurf mit Google Gemini.
  *
- * **Zwei Aufrufe statt einem**, aus zwei Gründen. Erstens vertragen sich
- * strukturierte Ausgaben nicht mit Zitaten, und die Websuche liefert zitierte
- * Ergebnisse. Zweitens sind Belegen und Formen ohnehin zwei Aufgaben: Schritt 1
- * sucht die Dokumentation des Images und schreibt auf, was dort steht;
- * Schritt 2 gießt das ohne Werkzeuge in das Vorlagenschema.
+ * Gemini, weil sein kostenloses Kontingent beides mitbringt, was der Entwurf
+ * braucht: die Google-Suche als Werkzeug und eine gegen ein JSON-Schema
+ * erzwungene Ausgabe. Ein Panel-Betreiber, der ein paar Mal im Jahr eine Vorlage
+ * anlegt, soll dafür keinen kostenpflichtigen Zugang brauchen.
  *
- * Der Sinn der Suche ist genau der Punkt aus `docs/entwicklungsprotokoll.md`:
+ * **Zwei Aufrufe statt einem**, obwohl Gemini Suche und Schema kombinieren kann:
+ * Der erste liefert die Recherche als lesbaren Text, der im Editor über dem
+ * Entwurf steht. Ein einzelner Aufruf gäbe nur Quell-URLs zurück — dann müsste
+ * man jede öffnen, statt „SERVER_PASS setzt das Passwort, laut …“ direkt zu
+ * lesen. Die Prüfbarkeit ist der Zweck der Übung.
+ *
+ * Der Sinn der Suche ist der Punkt aus `docs/entwicklungsprotokoll.md`:
  * „Env-Variablennamen und Portbelegungen der Community-Images gehören belegt.
  * Erfundene Namen fallen erst auf der Zielmaschine auf.“
  *
@@ -48,15 +51,18 @@ export class DraftService {
   /** Ergebnisse fertiger Jobs, bis sie einmal abgeholt wurden. */
   private readonly ergebnisse = new Map<string, DraftResult>();
 
-  constructor(private readonly apiKey: string | undefined) {}
+  constructor(
+    private readonly apiKey: string | undefined,
+    private readonly model: string,
+  ) {}
 
   status(): DraftStatus {
     return {
       available: Boolean(this.apiKey),
       reason: this.apiKey
         ? 'bereit'
-        : 'Kein API-Schlüssel hinterlegt — GSP_ANTHROPIC_API_KEY setzen und das Panel neu starten.',
-      model: MODELL,
+        : 'Kein API-Schlüssel hinterlegt — GSP_GEMINI_API_KEY setzen und das Panel neu starten.',
+      model: this.model,
     };
   }
 
@@ -73,100 +79,110 @@ export class DraftService {
 
   async draft(request: DraftRequest, report: Report): Promise<DraftResult> {
     if (!this.apiKey) throw new Error('Kein API-Schlüssel hinterlegt');
-    const client = new Anthropic({ apiKey: this.apiKey });
+    const ai = new GoogleGenAI({ apiKey: this.apiKey });
 
     report(10, 'Dokumentation wird gesucht');
-    const research = await this.recherche(client, request);
+    const research = await this.recherche(ai, request);
 
     report(70, 'Vorlage wird geformt');
-    const entwurf = await this.formen(client, request, research);
+    const entwurf = await this.formen(ai, request, research);
 
     report(95, 'Entwurf wird geprüft');
     const definition = templateDefinitionSchema.parse(ohneNull(entwurf));
     return { definition, research };
   }
 
-  /** Schritt 1: Websuche, freier Text. */
-  private async recherche(client: Anthropic, request: DraftRequest): Promise<string> {
-    const messages: Anthropic.Beta.BetaMessageParam[] = [
-      { role: 'user', content: rechercheAuftrag(request) },
-    ];
+  /** Schritt 1: Google-Suche, freier Text. */
+  private async recherche(ai: GoogleGenAI, request: DraftRequest): Promise<string> {
+    const antwort = await this.rufe(() =>
+      ai.models.generateContent({
+        model: this.model,
+        contents: rechercheAuftrag(request),
+        config: {
+          // Die Suche läuft serverseitig in einem Durchgang — anders als bei
+          // Anbietern, deren Werkzeuglauf zwischendurch pausiert.
+          tools: [{ googleSearch: {} }],
+        },
+      }),
+    );
 
-    // Serverseitige Werkzeuge pausieren nach einer festen Zahl von Runden
-    // (`pause_turn`); der Lauf wird durch erneutes Senden fortgesetzt.
-    for (let runde = 0; runde < 6; runde += 1) {
-      const antwort = await client.beta.messages.create({
-        model: MODELL,
-        max_tokens: 8000,
-        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 8 }],
-        messages,
-      });
-
-      if (antwort.stop_reason === 'refusal') {
-        throw new Error(
-          'Die Anfrage wurde abgelehnt. Formuliere sie anders oder trage die Vorlage von Hand ein.',
-        );
-      }
-
-      if (antwort.stop_reason === 'pause_turn') {
-        messages.push({ role: 'assistant', content: antwort.content });
-        continue;
-      }
-
-      const text = antwort.content
-        .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === 'text')
-        .map((block) => block.text)
-        .join('\n')
-        .trim();
-      if (!text) throw new Error('Die Recherche lieferte keinen Text.');
-      return text;
-    }
-
-    throw new Error('Die Recherche kam nicht zum Ende. Bitte erneut versuchen.');
+    const text = antwort.text?.trim();
+    if (!text) throw new Error('Die Recherche lieferte keinen Text.');
+    return text;
   }
 
   /** Schritt 2: ohne Werkzeuge, Ausgabe gegen das Entwurfsschema erzwungen. */
   private async formen(
-    client: Anthropic,
+    ai: GoogleGenAI,
     request: DraftRequest,
     research: string,
   ): Promise<unknown> {
-    const antwort = await client.messages.create({
-      model: MODELL,
-      max_tokens: 16000,
-      system: FORM_ANWEISUNG,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            `Spiel: ${request.game}`,
-            `Docker-Image: ${request.image}`,
-            `Bereits vergebene Kennungen (nicht benutzen): ${request.takenIds.join(', ') || 'keine'}`,
-            request.notes ? `Hinweise des Betreibers: ${request.notes}` : '',
-            '',
-            '--- Recherche ---',
-            research,
-          ]
-            .filter(Boolean)
-            .join('\n'),
+    const antwort = await this.rufe(() =>
+      ai.models.generateContent({
+        model: this.model,
+        contents: [
+          `Spiel: ${request.game}`,
+          `Docker-Image: ${request.image}`,
+          `Bereits vergebene Kennungen (nicht benutzen): ${request.takenIds.join(', ') || 'keine'}`,
+          request.notes ? `Hinweise des Betreibers: ${request.notes}` : '',
+          '',
+          '--- Recherche ---',
+          research,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        config: {
+          systemInstruction: FORM_ANWEISUNG,
+          responseMimeType: 'application/json',
+          // `responseJsonSchema` nimmt echtes JSON Schema; `responseSchema`
+          // erwartet Geminis eigenen Type-Dialekt.
+          responseJsonSchema: ENTWURF_SCHEMA,
         },
-      ],
-      output_config: { format: { type: 'json_schema', schema: ENTWURF_SCHEMA } },
-    });
+      }),
+    );
 
-    if (antwort.stop_reason === 'refusal') throw new Error('Die Anfrage wurde abgelehnt.');
-    if (antwort.stop_reason === 'max_tokens') {
-      throw new Error('Der Entwurf wurde abgeschnitten. Bitte mit weniger Wünschen erneut versuchen.');
-    }
-
-    const text = antwort.content
-      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-      .map((block) => block.text)
-      .join('');
+    const text = antwort.text?.trim();
+    if (!text) throw new Error('Der Entwurf blieb leer.');
     try {
       return JSON.parse(text) as unknown;
     } catch {
       throw new Error('Der Entwurf war kein gültiges JSON.');
+    }
+  }
+
+  /**
+   * Übersetzt die Fehler der API in Sätze, die im Panel etwas erklären.
+   *
+   * Bei einem kostenlosen Kontingent ist das keine Kür: „Interner Fehler“ neben
+   * einem erschöpften Tageslimit lässt den Betreiber im Dunkeln, während die
+   * Lösung schlicht Abwarten wäre.
+   */
+  private async rufe<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      const text = err instanceof Error ? err.message : String(err);
+
+      if (/429|RESOURCE_EXHAUSTED|quota/i.test(text)) {
+        throw new Error(
+          'Das kostenlose Kontingent ist erschöpft — 10 Anfragen pro Minute, 1.500 pro Tag, ' +
+            '5.000 Suchen im Monat. Später erneut versuchen.',
+        );
+      }
+      if (/404|NOT_FOUND|is not found|not supported/i.test(text)) {
+        throw new Error(
+          `Das Modell „${this.model}“ ist unter diesem Schlüssel nicht verfügbar. ` +
+            'GSP_GEMINI_MODELL prüfen — die Kennungen ändern sich.',
+        );
+      }
+      if (/40[13]|API key not valid|PERMISSION_DENIED|UNAUTHENTICATED/i.test(text)) {
+        throw new Error('Der Gemini-Schlüssel wurde abgelehnt. GSP_GEMINI_API_KEY prüfen.');
+      }
+      if (/schema/i.test(text)) {
+        // Google lehnt sehr große oder tief verschachtelte Schemas ab.
+        throw new Error(`Gemini hat das Ausgabeschema abgelehnt: ${text}`);
+      }
+      throw new Error(`Gemini meldet: ${text}`);
     }
   }
 }

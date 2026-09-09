@@ -104,10 +104,14 @@ Backups und Mod-Verwaltung arbeiten dadurch direkt auf Host-Pfaden.
 
 Vorlagen liegen als Daten in der Datenbank und lassen sich im Panel unter
 „Vorlagen" bearbeiten oder neu anlegen — ein weiteres Spiel braucht keinen
-Eingriff in den Code. Ist `GSP_ANTHROPIC_API_KEY` gesetzt, kann Claude einen
-Entwurf vorschlagen: er recherchiert die Dokumentation des Images und füllt die
-Vorlage aus. Gespeichert wird nichts automatisch — der Entwurf landet mit seinen
-Belegen im Editor. Siehe `docs/vorlage-hinzufuegen.md`.
+Eingriff in den Code. Ist `GSP_GEMINI_API_KEY` gesetzt, kann Google Gemini einen
+Entwurf vorschlagen: es recherchiert die Dokumentation des Images per Google-Suche
+und füllt die Vorlage aus. Gespeichert wird nichts automatisch — der Entwurf
+landet mit seinen Belegen im Editor. Siehe `docs/vorlage-hinzufuegen.md`.
+
+Den Schlüssel gibt es kostenlos im [Google AI Studio](https://aistudio.google.com/apikey),
+ohne Kreditkarte. Statt Kosten gelten Mengengrenzen — für gelegentliche Entwürfe
+reichlich bemessen (10 Anfragen pro Minute, 1.500 pro Tag, 5.000 Suchen im Monat).
 
 ## Einstellungen
 
@@ -125,7 +129,8 @@ Belegen im Editor. Siehe `docs/vorlage-hinzufuegen.md`.
 | `GSP_SECURE_COOKIES` | `false` | Sitzungscookie nur über HTTPS senden |
 | `GSP_SESSION_TTL_HOURS` | `336` | Gültigkeit einer Sitzung |
 | `GSP_WEB_ROOT` | — | Verzeichnis des gebauten Frontends |
-| `GSP_ANTHROPIC_API_KEY` | — | Schlüssel für den KI-Vorlagenentwurf. Ohne ihn bleibt der Knopf ausgeblendet. |
+| `GSP_GEMINI_API_KEY` | — | Schlüssel für den KI-Vorlagenentwurf ([kostenlos](https://aistudio.google.com/apikey)). Ohne ihn bleibt der Knopf ausgeblendet. |
+| `GSP_GEMINI_MODELL` | `gemini-3.8-flash` | Modell für den Entwurf. Googles Kennungen ändern sich; bei „Modell nicht verfügbar" hier eine aktuelle eintragen. |
 | `TZ` | `Europe/Berlin` | Zeitzone für Instanzen und Zeitpläne |
 
 `GSP_DATA_DIR` muss ein Pfad sein, den der **Docker-Daemon** auflösen kann, denn

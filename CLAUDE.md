@@ -161,19 +161,38 @@ Echte Docker-Container lassen sich in dieser Umgebung **nicht** prüfen (kein Da
 
 ## KI-Vorlagenentwurf
 
-`GSP_ANTHROPIC_API_KEY` schaltet den Knopf „Vorlage entwerfen lassen" frei —
+Anbieter ist **Google Gemini** (`@google/genai`), weil sein kostenloses
+Kontingent beides mitbringt, was der Entwurf braucht: die Google-Suche als
+Werkzeug und eine gegen ein JSON-Schema erzwungene Ausgabe. Ein Betreiber, der
+ein paar Mal im Jahr eine Vorlage anlegt, soll dafür keinen kostenpflichtigen
+Zugang brauchen.
+
+`GSP_GEMINI_API_KEY` schaltet den Knopf „Vorlage entwerfen lassen" frei —
 bewusst eine Umgebungsvariable, nicht die Datenbank, weil sie sonst in jedem
 Backup läge. Ohne Schlüssel meldet `GET /api/templates/ki/status` das, und die
 Oberfläche blendet den Knopf aus.
 
+`GSP_GEMINI_MODELL` ist konfigurierbar, weil Googles Kennungen sich schneller
+ändern als dieses Panel. Wer sie im Code fest verdrahtet, baut einen 404 für
+übermorgen ein.
+
 Der Entwurf läuft in **zwei** Aufrufen (`services/vorlagen-ki.ts`): erst
-Recherche mit Websuche und freiem Text, dann Formen ohne Werkzeuge gegen ein
-JSON-Schema. Getrennt, weil strukturierte Ausgaben sich nicht mit Zitaten
-vertragen — und weil Belegen und Formen zwei Aufgaben sind.
+Recherche mit Google-Suche und freiem Text, dann Formen ohne Werkzeuge gegen
+das JSON-Schema. Gemini könnte beides in einem — die Trennung bleibt trotzdem,
+weil der erste Aufruf die Belege als **lesbaren Text** liefert. Ein einzelner
+Aufruf gäbe nur Quell-URLs; man müsste jede öffnen, statt sie zu lesen.
 
 **Ein Entwurf wird nie automatisch gespeichert.** Er landet im Editor, mit den
 Belegen daneben, und durchläuft beim Speichern dieselbe Prüfung wie eine
 handgeschriebene Vorlage.
+
+Der Weg braucht einen Schlüssel und ist deshalb in der Entwicklung nicht
+durchspielbar. `scripts/entwurf-testen.mjs` erzeugt einen Entwurf auf der
+Kommandozeile — ohne Panel, ohne Anmeldung:
+
+```bash
+GSP_GEMINI_API_KEY=... node scripts/entwurf-testen.mjs "Terraria" "ryshe/terraria"
+```
 
 ## Weiterführend
 

@@ -216,17 +216,41 @@ Fake-Runtime (es gibt dort keinen RCON-Server).
 
 ### Der KI-Vorlagenentwurf
 
-Zwei Aufrufe statt einem: erst Recherche mit Websuche und freiem Text, dann
-Formen ohne Werkzeuge gegen ein JSON-Schema. Getrennt, weil strukturierte
-Ausgaben sich nicht mit Zitaten vertragen und die Websuche zitierte Ergebnisse
-liefert — und weil Belegen und Formen zwei Aufgaben sind.
+**Der Anbieter wurde nachträglich gewechselt.** Zuerst gebaut mit der
+Anthropic-API, dann auf Google Gemini umgestellt — nicht aus technischen
+Gründen, sondern weil ein kostenpflichtiger Zugang für ein Feature, das ein
+Betreiber vielleicht drei Mal im Jahr benutzt, eine unverhältnismäßige Hürde
+ist. Der Knopf erscheint ohne Schlüssel gar nicht, das Feature wäre für die
+meisten unsichtbar geblieben.
 
-Das Ausgabeschema ist von Hand geschrieben, nicht aus dem Zod-Schema erzeugt.
-Der SDK-Helfer `zodOutputFormat` setzt Zod 4 voraus, das Projekt nutzt Zod 3;
-und das Definitionsschema arbeitet mit `.default()`, was für strukturierte
-Ausgaben ungünstig ist, weil das Modell Optionales gern weglässt. Im
-Entwurfsschema ist deshalb alles verlangt, „nicht vorhanden" ist `null` und
-wird danach entfernt.
+Gemini, weil sein kostenloses Kontingent **beide** benötigten Fähigkeiten
+mitbringt: die Google-Suche als Werkzeug und eine gegen ein JSON-Schema
+erzwungene Ausgabe. Freie Modelle bei OpenRouter, Groq oder Mistral haben keine
+eingebaute Websuche; dort hätte die Recherche neu gebaut werden müssen — und
+ohne Recherche erfindet ein Modell Variablennamen, was genau der Fehler ist,
+vor dem Abschnitt 2 warnt.
+
+Zwei Aufrufe statt einem: erst Recherche mit Google-Suche und freiem Text, dann
+Formen ohne Werkzeuge gegen ein JSON-Schema.
+
+**Die Begründung dafür hat sich mit dem Wechsel geändert**, die Trennung nicht.
+Bei Anthropic war sie erzwungen: strukturierte Ausgaben vertragen sich dort
+nicht mit Zitaten. Gemini kann beides in einem Aufruf. Geblieben ist sie
+trotzdem, weil der erste Aufruf die Belege als **lesbaren Text** liefert; ein
+einzelner Aufruf gäbe nur Quell-URLs zurück, und man müsste jede öffnen, statt
+„`SERVER_PASS` setzt das Passwort, laut …" direkt zu lesen. Die Prüfbarkeit ist
+der Zweck der ganzen Übung.
+
+**Merke:** Wenn eine Entwurfsentscheidung ihre ursprüngliche Begründung verliert,
+gehört sie neu begründet oder rückgängig gemacht — nicht mit einer Erklärung
+stehengelassen, die nicht mehr stimmt.
+
+Das Ausgabeschema ist von Hand geschrieben, nicht aus dem Zod-Schema erzeugt:
+das Definitionsschema arbeitet mit `.default()`, was für strukturierte Ausgaben
+ungünstig ist, weil das Modell Optionales gern weglässt. Im Entwurfsschema ist
+deshalb alles verlangt, „nicht vorhanden" ist `null` und wird danach entfernt.
+Geprüft: Gemini unterstützt `anyOf`, `enum`, `required`, `additionalProperties`
+und `type: ["string", "null"]`, also blieb das Schema beim Wechsel unverändert.
 
 ### Was hier nicht prüfbar ist
 
@@ -237,8 +261,16 @@ Bind-Mount-Auflösung im Compose-Betrieb.
 
 Dazu seit dem Vorlagenumbau: ob ein KI-erzeugter Entwurf gegen ein reales Image
 tatsächlich startet, und ob die Env-Namen eines neu angelegten Spiels stimmen.
-Der Entwurf selbst braucht außerdem einen API-Schlüssel und wurde ohne einen
-solchen nur bis zur Statusroute geprüft (503 ohne Schlüssel).
+
+Der Entwurf braucht einen API-Schlüssel. Geprüft ist damit nur, was ohne einen
+geht: die Statusroute (`available: false`, Entwurf 503), die Verdrahtung mit
+gesetztem Schlüssel, und dass die Fehlerübersetzung greift — ein ungültiger
+Schlüssel liefert „Der Gemini-Schlüssel wurde abgelehnt" statt eines Stapels.
+Dass der Aufruf die API erreicht, ist damit belegt; dass das Schema angenommen
+wird und der Entwurf taugt, nicht.
+
+`scripts/entwurf-testen.mjs` beantwortet alle drei Fragen in einem Lauf, sobald
+ein Schlüssel vorliegt.
 
 Diese Punkte gehören in jedem Bericht ausdrücklich als ungeprüft benannt.
 
