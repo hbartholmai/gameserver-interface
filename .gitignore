@@ -12,3 +12,7 @@ test-results/
 # Typen (--noEmit); erzeugte .js/.map dort sind immer Versehen.
 packages/web/src/**/*.js
 packages/web/src/**/*.js.map
+
+# IDE-Verzeichnisse
+.idea/
+.vscode/
