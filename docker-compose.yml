@@ -21,6 +21,8 @@ services:
       # vom Daemon des Hosts gestartet, der Bind-Mounts aus seiner eigenen Sicht
       # auflöst — deshalb muss hier der Host-Pfad stehen, nicht der im Panel.
       GSP_HOST_DATA_DIR: ${GSP_DATA_DIR:-/srv/gameserver}
+      # Optional: schaltet den KI-gestützten Vorlagenentwurf frei.
+      GSP_ANTHROPIC_API_KEY: ${GSP_ANTHROPIC_API_KEY:-}
     volumes:
       # Zugriff auf die Docker-Engine, um Instanz-Container zu steuern.
       # ACHTUNG: Das entspricht Root-Rechten auf dem Host.

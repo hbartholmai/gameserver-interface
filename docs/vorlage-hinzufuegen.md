@@ -1,116 +1,119 @@
 # Ein weiteres Spiel ergänzen
 
-Im Normalfall reichen zwei Dateien: eine neue Vorlage und ein Eintrag in der
-Liste. Ein eigener Adapter ist nur nötig, wenn das Spiel ein Protokoll spricht,
-das noch niemand nutzt.
+Seit Vorlagen Daten statt Code sind, braucht ein weiteres Spiel im Normalfall
+**keine Codeänderung**. Es entsteht im Panel unter „Vorlagen" — von Hand oder als
+KI-Entwurf, den man prüft, bevor er gespeichert wird.
 
 ## 1. Vorher klären
 
-Diese vier Fragen entscheiden über `capabilities` — und sie sind die
+Diese vier Fragen entscheiden über die **Fähigkeiten** — und sie sind die
 Hauptquelle für falsche Annahmen. Die Antworten gehören belegt, nicht geraten.
 
 | Frage | Wirkt auf |
 | --- | --- |
-| Nimmt der Server Befehle entgegen (RCON, stdin)? | `console: 'rcon' \| 'readonly'` |
-| Woher kommt die Spielerliste — RCON, Steam-Query, nur Log? | `players` |
-| Gibt es serverseitiges Kick/Bann? | `moderation` |
-| Unterstützt das Spiel Mods, und wo liegen sie? | `mods`, `modsPath`, `modExtensions` |
+| Nimmt der Server Befehle entgegen (RCON, stdin)? | Konsole: `rcon` / `nur lesend` |
+| Woher kommt die Spielerliste — RCON, Steam-Query, nur Log? | Spielerliste |
+| Gibt es serverseitiges Kick/Bann? | Kick & Bann |
+| Unterstützt das Spiel Mods, und wo liegen sie? | Mods, Mod-Verzeichnis, Endungen |
 
 Dazu: Welche Ports, welche Volumes, welche Umgebungsvariablen dokumentiert das
 gewählte Image, und woran erkennt man im Log, dass der Server hochgefahren ist?
 
-## 2. Spiel-ID aufnehmen
+Die Fähigkeiten sind keine Beschriftung: Sie bestimmen, welche Bedienelemente die
+Oberfläche zeigt **und welcher Adapter den Server abfragt**. Ein Spiel mit RCON,
+Steam-Query oder nur Log braucht deshalb keinen eigenen Adapter.
 
-`packages/shared/src/schema/common.ts`:
+## 2. Vorlage anlegen
 
-```ts
-export const gameIdSchema = z.enum(['minecraft', 'valheim', 'enshrouded', 'neuesspiel']);
-```
+**Panel → Vorlagen → „+ Vorlage von Hand"**, oder — wenn ein API-Schlüssel
+hinterlegt ist — **„+ Vorlage entwerfen lassen"**. Der Entwurf sucht die
+Dokumentation des Images und schlägt eine Vorlage vor; gespeichert wird sie
+nicht, sondern landet im Editor, mit den Belegen daneben.
 
-Der Compiler zeigt danach alle Stellen, die vollständig sein müssen —
-`TEMPLATES` und `ADAPTERS` sind `Record<GameId, …>`.
-
-## 3. Vorlage schreiben
-
-`packages/shared/src/templates/neuesspiel.ts`. Als Muster eignet sich
-`valheim.ts` (mittlerer Funktionsumfang) besser als `minecraft.ts` (Sonderfall
-mit RCON).
+**Prüfe den Entwurf, bevor du speicherst.** Genau dafür stehen die Belege da:
+Erfundene Variablennamen und Ports fallen sonst erst auf der Zielmaschine auf,
+wo niemand mehr nachsehen kann, was gemeint war.
 
 Worauf zu achten ist:
 
-- **`fields`** — `editable: false` für alles, was nach dem Anlegen nicht mehr
-  änderbar ist (Weltname, Seed). `secret: true` für Passwörter; die werden in
-  der API maskiert. `help` erklärt Grenzen des Spiels, keine Selbstverständ­lichkeiten.
-- **`ports`** — `internalOnly: true` für Ports, die nicht auf dem Host landen
-  sollen (RCON). Der `defaultHost` ist nur ein Vorschlag; der Wizard sucht bei
-  Kollision den nächsten freien Port.
-- **`env(values, ctx)`** — Host-Ports kommen aus `ctx.hostPorts`, nicht aus den
-  Feldwerten. Leere optionale Werte weglassen statt als leeren String zu setzen.
-- **`logPatterns.join`** — Gruppe 1 muss der Spielername sein. Gibt es kein
-  Abgangsmuster, `leave` weglassen und in `capabilities.players` etwas wählen,
-  das eine Zählung liefert (`a2s`), sonst bleiben Spieler in der Liste stehen.
-- **`backup.paths`** — nur Pfade innerhalb der deklarierten `volumes`; ein Test
-  prüft das. `preCommands` nur, wenn `console: 'rcon'` — ebenfalls getestet.
+- **Kennung** — steckt später in Container-Labels und Instanzdatensätzen und
+  lässt sich nicht mehr ändern. Kleinbuchstaben, Ziffern, Bindestriche.
+- **Felder** — „Später änderbar" aus für alles, was nach dem Anlegen feststeht
+  (Weltname, Seed). „Geheim" für Passwörter; die werden in der API maskiert.
+  Der Hilfetext erklärt Grenzen des Spiels, keine Selbstverständlichkeiten.
+- **Ports** — „Nur intern" für Ports, die nicht auf dem Host landen sollen
+  (RCON). Der Vorschlag ist nur ein Vorschlag; der Wizard sucht bei Kollision
+  den nächsten freien Port.
+- **Umgebungsvariablen** — hier entsteht die Container-Umgebung. Was fehlt,
+  sieht der Server nicht. Zwei Einstellungen lohnen besondere Beachtung:
+  - *Leer weglassen* — die Variable wird gar nicht gesetzt statt leer. Richtig
+    für optionale Passwörter und Seeds; ein leeres `SERVER_PASS` lässt manche
+    Images mit einer Passwortprüfung abbrechen.
+  - *Ja/Nein übersetzen* — nötig bei Ja/Nein-Feldern, weil die Images sehr
+    unterschiedliche Werte erwarten: `TRUE`, `true`, `-crossplay`.
+- **Log-Muster** — bei Beitritt und Abgang muss **Gruppe 1** der Spielername
+  sein. Gibt es kein Abgangsmuster, leer lassen und bei der Spielerliste etwas
+  wählen, das eine Zählung liefert (Steam-Query), sonst bleiben Spieler in der
+  Liste stehen.
+- **Backup-Pfade** — nur Pfade innerhalb der deklarierten Volumes; der Server
+  lehnt anderes ab. Vorbefehle nur mit RCON.
 
-Registrieren in `packages/shared/src/templates/index.ts` (`TEMPLATES`,
-`TEMPLATE_LIST`, Re-Export).
+## 3. Die Musterprobe benutzen
 
-Spielspezifische Prüfungen, die sich nicht aus den Feld-Specs ergeben — etwa
-Mindestlängen von Passwörtern —, kommen in `validateSettings()` in derselben
-Datei.
+Im Abschnitt „Log-Muster" gibt es ein Feld **Probe**. Füge dort eine echte
+Logzeile des Servers ein — der Editor zeigt sofort, ob Beitritt, Abgang und
+Startmeldung greifen, welcher Name in Gruppe 1 landet und wie die bereinigte
+Zeile aussieht.
 
-## 4. Adapter
+Das ist der wichtigste Handgriff dieses Ablaufs. Ein falsches Muster fällt sonst
+erst im Betrieb auf: keine Spieler in der Liste, oder eine Instanz, die für
+immer auf „Startet" steht.
 
-Bei `console: 'readonly'` und `players: 'log'` genügt eine Kopie von
-`games/enshrouded.ts`: `probe()` liest aus `ctx.logPlayers`, alles Schreibende
-wirft `UnsupportedError` mit einem Satz, der erklärt **warum** — dieser Text
-erscheint in der Oberfläche.
+## 4. Beispielzeilen für den Betrieb ohne Docker
 
-Nutzt das Spiel Steam-Query, lässt sich `queryA2sInfo()` aus `util/a2s.ts`
-direkt verwenden (siehe `games/valheim.ts`).
+Mit `GSP_RUNTIME=fake` erzeugt das Panel Logzeilen aus dem Abschnitt
+„Beispielzeilen ohne Docker". Sie müssen zu den Mustern **derselben Vorlage**
+passen — der Server prüft das beim Speichern und lehnt sonst ab.
 
-Registrieren in `packages/server/src/games/index.ts`.
+Platzhalter: `{time}`, `{name}`, `{n}`. Trage die Zeilen im echten Format des
+Spiels ein; Wunschformat hier bedeutet, dass es ohne Docker läuft und in
+Produktion nicht.
 
-## 5. Fake-Runtime lehren
-
-`FORMATTERS` in `packages/server/src/runtime/fake.ts` um einen Eintrag unter der
-neuen Spiel-ID erweitern, der Zeilen **im echten Format des Spiels** erzeugt.
-
-Das ist keine Kür: Die Simulation ist die einzige Stelle, an der die Parser
-ohne echten Server geprüft werden. Wunschformat hier bedeutet, dass die Tests
-grün sind und die Produktion nicht funktioniert.
-
-## 6. Tests
-
-In `packages/shared/src/templates/` gibt es zwei Suiten, die neue Vorlagen
-automatisch erfassen, weil sie über `TEMPLATE_LIST` laufen: Eindeutigkeit von
-Feld- und Port-Namen, Mod-Pfad passend zu `capabilities.mods`, Backup-Pfade
-innerhalb der Volumes, Vorbefehle nur mit RCON, gültige Standardwerte.
-
-Selbst zu ergänzen sind:
-
-- `logparser.test.ts` — Beitritt, Abgang, Startmeldung, Zeitstempel-Entfernung
-  an echten Beispielzeilen aus dem Log des Spiels.
-- `templates.test.ts` — die Env-Abbildung, besonders Sonderfälle wie
-  weggelassene Werte.
-
-## 7. Prüfen
+## 5. Ausprobieren
 
 ```bash
-npm run build -w @gsp/shared && npm run typecheck && npm test
+GSP_RUNTIME=fake npm run dev
 ```
 
-Danach mit der Fake-Runtime durch die Oberfläche:
-
-```bash
-npm run build
-GSP_RUNTIME=fake GSP_DATA_DIR=/tmp/gsp-neu GSP_WEB_ROOT=$PWD/packages/web/dist \
-  node packages/server/dist/index.js
-```
-
-Instanz über den Wizard anlegen und prüfen: Erreicht sie `Online` (greift das
-`ready`-Muster?), erscheinen im Konsolen-Reiter geparste Zeilen, tauchen Spieler
-in der Liste auf, blendet die UI die richtigen Bedienelemente aus?
+Instanz über den Wizard aus der neuen Vorlage anlegen und prüfen: Erreicht sie
+`Online` (greift das Startmuster?), erscheinen im Konsolen-Reiter geparste
+Zeilen, tauchen Spieler in der Liste auf, blendet die Oberfläche die richtigen
+Bedienelemente aus?
 
 Ein Test gegen den echten Container bleibt Sache einer Maschine mit
 Docker-Daemon — das im Bericht so benennen.
+
+## Eine Vorlage bearbeiten
+
+Auch die mitgelieferten Vorlagen sind editierbar. Zwei Dinge gelten dabei:
+
+- **Laufende Instanzen bleiben unberührt.** Sie werden als „Vorlage geändert"
+  markiert; erst ein Neuaufbau übernimmt den neuen Stand. Die Container-Umgebung
+  ist unveränderlich, deshalb ginge es gar nicht anders.
+- **Ein Panel-Update setzt nichts zurück.** Beim Start werden nur *fehlende*
+  mitgelieferte Vorlagen ergänzt, vorhandene nie überschrieben.
+
+Eine Vorlage lässt sich nicht löschen, solange Instanzen darauf beruhen.
+
+## Wann doch Code nötig ist
+
+Nur, wenn das Spiel ein Protokoll spricht, das noch keiner der drei Adapter
+kennt (`games/minecraft.ts` für RCON, `games/valheim.ts` für Steam-Query,
+`games/enshrouded.ts` für reines Log). Dann kommt ein vierter Adapter dazu und
+`capabilities.players` in `packages/shared/src/schema/template.ts` bekommt einen
+weiteren Wert.
+
+Wer eine Vorlage als **Startbestand** mitliefern will — also so, dass eine
+frische Installation sie bekommt —, legt sie in
+`packages/shared/src/templates/` an und trägt sie in `BUILTIN_DEFINITIONS`
+ein. Für den laufenden Betrieb ist das nicht nötig.

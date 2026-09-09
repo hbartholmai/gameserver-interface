@@ -104,6 +104,82 @@ die Instanzen hätten ins Leere gemountet. Dafür gibt es jetzt
 Aufgefallen beim Schreiben des Compose-Files, nicht durch einen Test. Solche
 Fehler findet nur, wer den Betriebsweg gedanklich durchgeht.
 
+## 3a. Umbau: Vorlagen als Daten (nachgereicht)
+
+Zwei Wünsche führten zu einem größeren Umbau: Vorlagen sollten zur Laufzeit
+anlegbar und editierbar sein, und der Aufbau einer Instanz verfolgbar. Was dabei
+auffiel:
+
+### Der Fortschritt wurde gemessen und weggeworfen
+
+`services/instances.ts` meldete den Anlege-Fortschritt vollständig — Pull mit
+echten Layer-Bytes, Container erstellen, starten — und schickte ihn über
+`TOPIC.jobs`. `App.tsx` filterte alles außer `status === 'failed'` heraus, und
+der Wizard nahm aus der Antwort nur die ID. Der aufwendige Teil war fertig, der
+billige fehlte.
+
+**Merke:** Bevor man eine Messung baut, nachsehen, ob sie schon da ist und nur
+niemand zuhört.
+
+### Für die zweite Hälfte gibt es keinen ehrlichen Prozentsatz
+
+Der Job ist bei 100 %, sobald der *Container* läuft. Der *Server* fängt dann
+erst an, seine Welt zu erzeugen — bei Minecraft und Valheim Minuten. Ein Balken
+dafür wäre erfunden gewesen. Stattdessen: verstrichene Zeit, die Dauer des
+letzten Starts (neue Spalte `last_boot_sec`, je Instanz statt je Vorlage, weil
+eine wachsende Welt länger braucht) und der mitlaufende Log-Strom.
+
+### Eine tote CSS-Regel unter demselben Namen
+
+Der Aufbaudialog fiel auf 200 px zusammen, die Fußzeile überlappte den Inhalt.
+Ursache war eine bereits vorhandene, **von keiner Komponente benutzte** Regel
+`.fortschritt { height: 4px }` in `tabs.css` — ein Rest aus dem ursprünglichen
+Bau, der die neue Definition überschrieb. Gefunden nur, weil die Geometrie
+gemessen wurde statt das CSS gelesen.
+
+### „Container fehlt" als Aufbaufortschritt
+
+Während des Image-Pulls existiert der Container noch nicht, die Instanz meldet
+also korrekterweise `Fehler`. Im Aufbaudialog gelesen stand dort „Container
+fehlt — Starten erzeugt ihn neu", was alarmierend wirkt, obwohl alles seinen
+Gang geht. Ein laufender Job hat jetzt Vorrang vor dem Instanzstatus.
+
+### Der Migrationstest war die eigentliche Arbeit
+
+Beim Umbau der Vorlagen von Code zu Daten lag das Risiko nicht im neuen Schema,
+sondern in den Feinheiten der alten `env()`-Funktionen: `?? '…'`-Vorgaben, der
+Unterschied zwischen `x ?` und `x === false ?`, das Trimmen des Seeds, die
+weggelassenen Variablen. `migration.test.ts` hält die alten Funktionen wortgleich
+fest und vergleicht sie über mehrere Wertesätze — Standardwerte, alle Booleans
+invertiert, alles leer, gar nichts gesetzt.
+
+**Ohne diesen Test wäre der Umbau nicht verantwortbar gewesen.** Ein falsch
+übersetztes `SERVER_PUBLIC` fällt sonst erst auf, wenn ein Server nicht mehr in
+der Liste erscheint.
+
+### Beispielzeilen, die zu keinem Muster passen
+
+Beim Schreiben der Routentests bekam die Testvorlage keine `fakeLog`-Angabe. Die
+Fake-Runtime erzeugte daraufhin generische Zeilen, die zum `ready`-Muster der
+Vorlage nicht passten — die Instanz blieb für immer auf „Startet", und der Test
+lief in seinen Timeout.
+
+Das ist derselbe Fallstrick, vor dem `CLAUDE.md` für `FORMATTERS` in
+`runtime/fake.ts` warnte, nur aus der anderen Richtung. Jetzt prüft der
+Vorlagendienst beim Speichern, dass die Beispielzeilen zu den Mustern derselben
+Vorlage passen, und ein Test tut dasselbe für die mitgelieferten. Der Merksatz
+ist damit erledigt.
+
+### Der Editor war 12.131 Pixel hoch
+
+Mit allen Abschnitten offen war er für Valheim (8 Felder, 11 Variablen)
+unbenutzbar. Sichtbar wurde das erst im Screenshot; im Code sieht ein Formular
+mit vielen Abschnitten unauffällig aus. Aufklappbare Abschnitte mit Anzahl im
+Kopf: 1.190 px.
+
+**Merke:** Bei generierten Formularen nicht die Komponente ansehen, sondern die
+Höhe messen — mit echten Daten, nicht mit einem Beispiel.
+
 ## 4. Prüfvorgehen
 
 ### Ohne Docker
@@ -138,13 +214,33 @@ Zwei Konsolenmeldungen sind erwartbar und **kein** Fehler: 401 beim Prüfen eine
 noch nicht bestehenden Sitzung, 502 bei einem RCON-Befehl gegen die
 Fake-Runtime (es gibt dort keinen RCON-Server).
 
+### Der KI-Vorlagenentwurf
+
+Zwei Aufrufe statt einem: erst Recherche mit Websuche und freiem Text, dann
+Formen ohne Werkzeuge gegen ein JSON-Schema. Getrennt, weil strukturierte
+Ausgaben sich nicht mit Zitaten vertragen und die Websuche zitierte Ergebnisse
+liefert — und weil Belegen und Formen zwei Aufgaben sind.
+
+Das Ausgabeschema ist von Hand geschrieben, nicht aus dem Zod-Schema erzeugt.
+Der SDK-Helfer `zodOutputFormat` setzt Zod 4 voraus, das Projekt nutzt Zod 3;
+und das Definitionsschema arbeitet mit `.default()`, was für strukturierte
+Ausgaben ungünstig ist, weil das Modell Optionales gern weglässt. Im
+Entwurfsschema ist deshalb alles verlangt, „nicht vorhanden" ist `null` und
+wird danach entfernt.
+
 ### Was hier nicht prüfbar ist
 
 Echte Docker-Container — es gibt keinen Daemon. Ungeprüft bleiben damit: die
 Env-Variablen gegen die tatsächlichen Images, Enshrouded unter Wine, die
 Aktualisierung per Image-Pull, RCON gegen einen echten Minecraft-Server und die
-Bind-Mount-Auflösung im Compose-Betrieb. Diese Punkte gehören in jedem Bericht
-ausdrücklich als ungeprüft benannt.
+Bind-Mount-Auflösung im Compose-Betrieb.
+
+Dazu seit dem Vorlagenumbau: ob ein KI-erzeugter Entwurf gegen ein reales Image
+tatsächlich startet, und ob die Env-Namen eines neu angelegten Spiels stimmen.
+Der Entwurf selbst braucht außerdem einen API-Schlüssel und wurde ohne einen
+solchen nur bis zur Statusroute geprüft (503 ohne Schlüssel).
+
+Diese Punkte gehören in jedem Bericht ausdrücklich als ungeprüft benannt.
 
 ## 5. Wiederkehrende Stolpersteine der Umgebung
 
