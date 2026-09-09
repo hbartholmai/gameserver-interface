@@ -26,7 +26,9 @@ if (!spiel || !image) {
 }
 
 const schluessel = process.env.GSP_GEMINI_API_KEY;
-const modell = process.env.GSP_GEMINI_MODELL || 'gemini-3.8-flash';
+// Dieselbe Vorgabe wie in `config.ts`: nicht das neueste Modell, weil das
+// durchgehend überlastet antwortet.
+const modell = process.env.GSP_GEMINI_MODELL || 'gemini-3.7-flash';
 
 if (!schluessel) {
   console.error(

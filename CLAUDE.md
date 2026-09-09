@@ -176,11 +176,25 @@ Oberfläche blendet den Knopf aus.
 ändern als dieses Panel. Wer sie im Code fest verdrahtet, baut einen 404 für
 übermorgen ein.
 
-Der Entwurf läuft in **zwei** Aufrufen (`services/vorlagen-ki.ts`): erst
-Recherche mit Google-Suche und freiem Text, dann Formen ohne Werkzeuge gegen
-das JSON-Schema. Gemini könnte beides in einem — die Trennung bleibt trotzdem,
-weil der erste Aufruf die Belege als **lesbaren Text** liefert. Ein einzelner
-Aufruf gäbe nur Quell-URLs; man müsste jede öffnen, statt sie zu lesen.
+**Die Recherche macht kein Modell.** `services/image-doku.ts` holt die
+Beschreibung des Images bei Docker Hub und, wo sie dünn ist, das README des
+verlinkten GitHub-Repos. Googles Suchwerkzeug ist im kostenlosen Kontingent
+**nicht** enthalten — es antwortet dort mit `RESOURCE_EXHAUSTED`, schon beim
+ersten Aufruf.
+
+Der direkte Weg ist ohnehin der bessere: Primärquelle statt Suchtreffer, kein
+Kontingent, reproduzierbar. Gemessen: 25.000 Zeichen bei
+`lloesche/valheim-server`, 15.000 bei `mornedhels/enshrouded-server`, 8.000 bei
+`ryshe/terraria` — jeweils mit den echten Variablennamen. Nur
+`itzg/minecraft-server` ist mit 1.400 Zeichen dünn; dort greift das README.
+
+Dem Modell bleibt damit eine Aufgabe: die Dokumentation ins Schema gießen
+(`services/vorlagen-ki.ts`).
+
+**Nicht das neueste Modell als Vorgabe.** `gemini-3.8-flash` antwortete im Test
+durchgehend mit „high demand" (503), die Generation darunter lief. Deshalb
+`gemini-3.7-flash` als Standard, eine Wiederholung bei Überlastung, und
+`GSP_GEMINI_MODELL` zum Umschalten.
 
 **Ein Entwurf wird nie automatisch gespeichert.** Er landet im Editor, mit den
 Belegen daneben, und durchläuft beim Speichern dieselbe Prüfung wie eine

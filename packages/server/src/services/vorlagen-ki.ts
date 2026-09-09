@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { templateDefinitionSchema, type TemplateDefinition } from '@gsp/shared';
+import { imageDokuHolen } from './image-doku.js';
 import type { Report } from './jobs.js';
 
 export interface DraftRequest {
@@ -33,15 +34,17 @@ export interface DraftStatus {
  * erzwungene Ausgabe. Ein Panel-Betreiber, der ein paar Mal im Jahr eine Vorlage
  * anlegt, soll dafür keinen kostenpflichtigen Zugang brauchen.
  *
- * **Zwei Aufrufe statt einem**, obwohl Gemini Suche und Schema kombinieren kann:
- * Der erste liefert die Recherche als lesbaren Text, der im Editor über dem
- * Entwurf steht. Ein einzelner Aufruf gäbe nur Quell-URLs zurück — dann müsste
- * man jede öffnen, statt „SERVER_PASS setzt das Passwort, laut …“ direkt zu
- * lesen. Die Prüfbarkeit ist der Zweck der Übung.
+ * **Die Recherche macht kein Modell**, sondern `image-doku.ts`: sie holt die
+ * Beschreibung des Images bei Docker Hub und, wo nötig, das README des
+ * verlinkten Repositories. Googles Suchwerkzeug ist im kostenlosen Kontingent
+ * nicht enthalten (`RESOURCE_EXHAUSTED` schon beim ersten Aufruf) — und die
+ * Primärquelle ist der bessere Beleg als eine Sammlung von Suchtreffern.
  *
- * Der Sinn der Suche ist der Punkt aus `docs/entwicklungsprotokoll.md`:
+ * Damit bleibt für das Modell nur eine Aufgabe: die Dokumentation in das
+ * Vorlagenschema gießen. Das ist der Punkt aus `docs/entwicklungsprotokoll.md`:
  * „Env-Variablennamen und Portbelegungen der Community-Images gehören belegt.
- * Erfundene Namen fallen erst auf der Zielmaschine auf.“
+ * Erfundene Namen fallen erst auf der Zielmaschine auf.“ Belegt sind sie jetzt
+ * nachweislich, weil der Text aus der Quelle stammt und nicht aus dem Modell.
  *
  * Der Entwurf wird **nie** automatisch gespeichert — er geht in den Editor,
  * mit der Recherche daneben, und durchläuft beim Speichern dieselbe
@@ -81,37 +84,21 @@ export class DraftService {
     if (!this.apiKey) throw new Error('Kein API-Schlüssel hinterlegt');
     const ai = new GoogleGenAI({ apiKey: this.apiKey });
 
-    report(10, 'Dokumentation wird gesucht');
-    const research = await this.recherche(ai, request);
+    report(10, 'Dokumentation wird geholt');
+    const doku = await imageDokuHolen(request.image);
+    // Die Belege, die im Editor über dem Entwurf stehen: die Quellen zuerst,
+    // damit erkennbar ist, worauf sich der Entwurf stützt.
+    const research = [`Quellen: ${doku.quellen.join(', ')}`, '', doku.text].join('\n');
 
-    report(70, 'Vorlage wird geformt');
-    const entwurf = await this.formen(ai, request, research);
+    report(40, 'Vorlage wird geformt');
+    const entwurf = await this.formen(ai, request, doku.text);
 
     report(95, 'Entwurf wird geprüft');
     const definition = templateDefinitionSchema.parse(ohneNull(entwurf));
     return { definition, research };
   }
 
-  /** Schritt 1: Google-Suche, freier Text. */
-  private async recherche(ai: GoogleGenAI, request: DraftRequest): Promise<string> {
-    const antwort = await this.rufe(() =>
-      ai.models.generateContent({
-        model: this.model,
-        contents: rechercheAuftrag(request),
-        config: {
-          // Die Suche läuft serverseitig in einem Durchgang — anders als bei
-          // Anbietern, deren Werkzeuglauf zwischendurch pausiert.
-          tools: [{ googleSearch: {} }],
-        },
-      }),
-    );
-
-    const text = antwort.text?.trim();
-    if (!text) throw new Error('Die Recherche lieferte keinen Text.');
-    return text;
-  }
-
-  /** Schritt 2: ohne Werkzeuge, Ausgabe gegen das Entwurfsschema erzwungen. */
+  /** Formt die geholte Dokumentation in das Vorlagenschema. */
   private async formen(
     ai: GoogleGenAI,
     request: DraftRequest,
@@ -159,14 +146,21 @@ export class DraftService {
    */
   private async rufe<T>(fn: () => Promise<T>): Promise<T> {
     try {
-      return await fn();
+      return await mitWiederholung(fn);
     } catch (err) {
       const text = err instanceof Error ? err.message : String(err);
 
+      if (istUeberlastet(text)) {
+        throw new Error(
+          `Das Modell „${this.model}“ ist überlastet und war es auch nach mehreren Versuchen. ` +
+            'Später erneut versuchen, oder über GSP_GEMINI_MODELL ein anderes wählen — ' +
+            'die jeweils neueste Generation ist am stärksten gefragt.',
+        );
+      }
       if (/429|RESOURCE_EXHAUSTED|quota/i.test(text)) {
         throw new Error(
-          'Das kostenlose Kontingent ist erschöpft — 10 Anfragen pro Minute, 1.500 pro Tag, ' +
-            '5.000 Suchen im Monat. Später erneut versuchen.',
+          'Das kostenlose Kontingent ist erschöpft — 10 Anfragen pro Minute, 1.500 pro Tag. ' +
+            'Später erneut versuchen.',
         );
       }
       if (/404|NOT_FOUND|is not found|not supported/i.test(text)) {
@@ -187,24 +181,34 @@ export class DraftService {
   }
 }
 
-function rechercheAuftrag(request: DraftRequest): string {
-  return [
-    `Ich richte einen dedizierten Server für „${request.game}“ auf Basis des Docker-Images \`${request.image}\` ein.`,
-    '',
-    'Suche die Dokumentation dieses Images und trage zusammen, was ich brauchen werde:',
-    '- Die Umgebungsvariablen, die das Image auswertet, mit genauer Schreibweise und Bedeutung.',
-    '- Welche Ports der Server belegt, mit Protokoll (tcp/udp).',
-    '- Welche Verzeichnisse im Container die Welt- und Konfigurationsdaten enthalten.',
-    '- Ob der Server RCON oder eine Steam-Abfrage (A2S) anbietet, und über welchen Port.',
-    '- Ob und wo Mods abgelegt werden.',
-    '- Beispielhafte Logzeilen: Beitritt eines Spielers, Abgang, und die Zeile, an der man erkennt, dass der Server fertig hochgefahren ist.',
-    '',
-    request.notes ? `Zusätzliche Hinweise des Betreibers: ${request.notes}` : '',
-    '',
-    'Nenne zu jeder Angabe, woher sie stammt. Wenn du etwas nicht belegen kannst, schreibe das ausdrücklich hin, statt zu raten — eine erfundene Variable fällt erst auf der Zielmaschine auf.',
-  ]
-    .filter(Boolean)
-    .join('\n');
+/** Überlastung des Modells, im Unterschied zu einem erschöpften Kontingent. */
+function istUeberlastet(text: string): boolean {
+  return /503|UNAVAILABLE|high demand|overloaded/i.test(text);
+}
+
+/**
+ * Wiederholt einen Aufruf, wenn das Modell gerade überlastet ist.
+ *
+ * Auf gefragten Modellen ist das kein Randfall: Im Test antwortete die jeweils
+ * neueste Generation durchgehend mit „high demand“, während die darunter lief.
+ * Ohne Wiederholung wäre ein halb fertiger Entwurf verloren, obwohl ein paar
+ * Sekunden Warten gereicht hätten.
+ */
+async function mitWiederholung<T>(fn: () => Promise<T>, versuche = 3): Promise<T> {
+  let letzter: unknown;
+  for (let i = 0; i < versuche; i += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      letzter = err;
+      const text = err instanceof Error ? err.message : String(err);
+      // Nur bei Überlastung erneut versuchen. Ein falscher Schlüssel oder ein
+      // abgelehntes Schema werden beim zweiten Mal genauso falsch sein.
+      if (!istUeberlastet(text) || i === versuche - 1) throw err;
+      await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+    }
+  }
+  throw letzter;
 }
 
 const FORM_ANWEISUNG = [
@@ -215,7 +219,10 @@ const FORM_ANWEISUNG = [
   '- `env` bildet Formularfelder auf Umgebungsvariablen ab. Jedes `field` muss in `fields` vorkommen, jeder `port` in `ports`.',
   '- Passwörter: `secret: true` und `omitWhenEmpty: true`, damit eine leere Eingabe die Variable weglässt statt sie leer zu setzen.',
   '- Boolesche Felder brauchen `boolean` mit den Zeichenketten, die das Image erwartet (oft `TRUE`/`FALSE` oder `true`/`false`).',
-  '- Log-Muster sind JavaScript-Ausdrücke als Zeichenkette. Bei `join` und `leave` muss **Gruppe 1** der Spielername sein. Halte sie einfach; verschachtelte Wiederholungen wie `(a+)+` werden abgelehnt.',
+  '- Log-Muster sind JavaScript-Ausdrücke als Zeichenkette. Bei `join` und `leave` muss **Gruppe 1** der Spielername sein.',
+  '- Die Muster laufen gegen die **rohe** Logzeile, mitsamt Zeitstempel und Präfix der Engine. Ein Anker `^` am Anfang passt deshalb fast nie: `^(\w+) joined` greift bei `[12:34:56] [Server thread/INFO]: Kai joined` nicht. Ohne Anker schreiben, oder das Präfix im Muster mit abbilden.',
+  '- Prüfe deine Muster gegen deine eigenen `fakeLog`-Zeilen, bevor du antwortest: das Beitrittsmuster muss aus der Beitrittszeile den Namen in Gruppe 1 liefern, das Startmuster auf der Startzeile greifen. Passt es nicht zusammen, wird die Vorlage abgelehnt.',
+  '- Halte die Muster einfach; verschachtelte Wiederholungen wie `(a+)+` werden abgelehnt.',
   '- `backup.paths` müssen innerhalb der angegebenen `volumes` liegen. `preCommands` nur, wenn es RCON gibt.',
   '- `fakeLog` sind Beispielzeilen im echten Format des Spiels, mit den Platzhaltern {time}, {name} und {n}. Sie müssen zu deinen eigenen Mustern passen.',
   '- Beschriftungen, Hilfetexte und Hinweise auf Deutsch. Feldkennungen und Variablennamen technisch, wie das Image sie erwartet.',
