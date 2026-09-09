@@ -28,6 +28,11 @@ export interface Config {
    * zeigen die Mounts der Instanzen ins Leere.
    */
   hostVolumeDir: string;
+  /**
+   * Schlüssel für den KI-Vorlagenentwurf. Bewusst aus der Umgebung und nicht
+   * aus der Datenbank — dort läge er in jedem Backup.
+   */
+  anthropicApiKey: string | undefined;
   dbPath: string;
   /** `docker` steuert echte Container, `fake` simuliert sie im Speicher. */
   runtime: 'docker' | 'fake';
@@ -56,6 +61,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     dataDir,
     backupDir: resolve(env.GSP_BACKUP_DIR ?? `${dataDir}/backups`),
     volumeDir,
+    anthropicApiKey: env.GSP_ANTHROPIC_API_KEY || undefined,
     hostVolumeDir: env.GSP_HOST_DATA_DIR
       ? resolve(env.GSP_HOST_DATA_DIR, 'instances')
       : volumeDir,

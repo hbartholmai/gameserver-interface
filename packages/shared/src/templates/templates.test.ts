@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
-  TEMPLATE_LIST,
+  BUILTIN_DEFINITIONS,
+  DEFAULT_FAKE_LOG,
+  compileTemplate,
   defaultValues,
   getTemplate,
+  listTemplates,
+  loadBuiltinTemplates,
+  renderFakeLine,
   toDescriptor,
   validateSettings,
 } from './index.js';
@@ -14,9 +19,15 @@ const ctx: TemplateContext = {
   timezone: 'Europe/Berlin',
 };
 
+// Vorlagen liegen jetzt in einer Registry, die der Server aus der Datenbank
+// füllt. Für Tests genügt der eingebaute Startbestand.
+beforeAll(() => {
+  loadBuiltinTemplates();
+});
+
 describe('Vorlagen', () => {
   it('liefert für jedes Spiel eine Vorlage mit eindeutigen Feld- und Port-Namen', () => {
-    for (const template of TEMPLATE_LIST) {
+    for (const template of listTemplates()) {
       const feldIds = template.fields.map((f) => f.id);
       expect(new Set(feldIds).size, `${template.id}: doppelte Feld-ID`).toBe(feldIds.length);
 
@@ -26,14 +37,14 @@ describe('Vorlagen', () => {
   });
 
   it('gibt nur Vorlagen mit Mod-Pfad als mod-fähig aus', () => {
-    for (const template of TEMPLATE_LIST) {
+    for (const template of listTemplates()) {
       const hatPfad = template.modsPath !== undefined;
       expect(hatPfad, `${template.id}`).toBe(template.capabilities.mods !== 'none');
     }
   });
 
   it('sichert nur Pfade, die in einem Volume der Vorlage liegen', () => {
-    for (const template of TEMPLATE_LIST) {
+    for (const template of listTemplates()) {
       for (const pfad of template.backup.paths) {
         const passend = template.volumes.some((v) => pfad.startsWith(v.containerPath));
         expect(passend, `${template.id}: ${pfad} liegt in keinem Volume`).toBe(true);
@@ -42,7 +53,7 @@ describe('Vorlagen', () => {
   });
 
   it('setzt Vorbefehle nur, wo eine schreibbare Konsole existiert', () => {
-    for (const template of TEMPLATE_LIST) {
+    for (const template of listTemplates()) {
       if ((template.backup.preCommands ?? []).length > 0) {
         expect(template.capabilities.console, template.id).toBe('rcon');
       }
@@ -139,9 +150,52 @@ describe('Validierung', () => {
       valheim: { password: 'sicher123' },
       enshrouded: { adminPassword: 'admin123' },
     };
-    for (const template of TEMPLATE_LIST) {
+    for (const template of listTemplates()) {
       const werte = { ...defaultValues(template), ...gueltig[template.id] };
       expect(validateSettings(template, werte), template.id).toEqual([]);
+    }
+  });
+});
+
+/**
+ * Bis zu diesem Umbau lagen die Log-Muster in den Vorlagen und die simulierten
+ * Zeilen der Fake-Runtime in einer eigenen Tabelle im Server-Paket. Wer eines
+ * änderte und das andere vergaß, hatte grüne Tests und eine Produktion, die
+ * keine Spieler mehr erkannte — `CLAUDE.md` warnte ausdrücklich davor.
+ *
+ * Seit beides in derselben Definition steht, lässt sich das prüfen statt
+ * dokumentieren.
+ */
+describe('Simulierte Logzeilen passen zu den Mustern derselben Vorlage', () => {
+  // Direkt über die Definitionen statt über die Registry: `describe` sammelt
+  // seine Fälle ein, bevor `beforeAll` gelaufen ist.
+  for (const template of BUILTIN_DEFINITIONS.map(compileTemplate)) {
+    it(template.label, () => {
+      const spec = template.definition.fakeLog ?? DEFAULT_FAKE_LOG;
+      const muster = template.logPatterns;
+
+      const beitritt = renderFakeLine(spec, 'join', 'Freyja_88', 4711);
+      expect(muster.join.exec(beitritt)?.[1], beitritt).toBe('Freyja_88');
+
+      const start = renderFakeLine(spec, 'ready', '', 1200);
+      expect(muster.ready.test(start), start).toBe(true);
+
+      if (muster.leave) {
+        const abgang = renderFakeLine(spec, 'leave', 'Freyja_88', 9001);
+        expect(muster.leave.exec(abgang)?.[1], abgang).toBe('Freyja_88');
+      }
+
+      // Beiläufige Zeilen dürfen keinen Beitritt vortäuschen.
+      const geplauder = renderFakeLine(spec, 'chatter', 'Freyja_88', 42);
+      expect(muster.join.test(geplauder), geplauder).toBe(false);
+    });
+  }
+});
+
+describe('Kompilierte Vorlagen', () => {
+  it('behalten ihre Definition bei sich', () => {
+    for (const definition of BUILTIN_DEFINITIONS) {
+      expect(compileTemplate(definition).definition).toEqual(definition);
     }
   });
 });

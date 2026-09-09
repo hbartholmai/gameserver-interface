@@ -1,0 +1,33 @@
+# Der Build-Kontext darf nur Quellen enthalten. Alles Erzeugte entsteht im
+# Image neu — sonst überschreibt der Host-Stand das, was `npm ci` und
+# `npm run build` im Container gerade erst angelegt haben.
+
+# Auf Windows legt npm die Workspace-Verknüpfungen als Junctions an. BuildKit
+# kann die nicht in den Kontext-Tar schreiben ("unknown file mode") und bricht
+# schon beim Laden des Kontexts ab. Ausserdem sind native Module wie
+# better-sqlite3 hier fuer das Host-Betriebssystem uebersetzt.
+node_modules
+**/node_modules
+
+# tsc haelt den Stand anhand der .tsbuildinfo fuer aktuell und emittiert dann
+# nichts — der Server-Build scheitert danach an "Cannot find module '@gsp/shared'".
+**/dist
+**/*.tsbuildinfo
+
+# Laufzeitdaten und Geheimnisse gehoeren nicht ins Image.
+data
+.env
+.env.local
+
+# Fuer den Build ohne Belang.
+.git
+.gitignore
+.idea
+.vscode
+design_handoff_gameserver_panel
+docs
+coverage
+playwright-report
+test-results
+*.md
+!README.md

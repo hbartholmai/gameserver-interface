@@ -102,6 +102,13 @@ Die Container-Laufzeit liegt hinter der Schnittstelle `Runtime`
 Instanz-Volumes sind Bind-Mounts unterhalb von `GSP_DATA_DIR/instances/<id>`.
 Backups und Mod-Verwaltung arbeiten dadurch direkt auf Host-Pfaden.
 
+Vorlagen liegen als Daten in der Datenbank und lassen sich im Panel unter
+„Vorlagen" bearbeiten oder neu anlegen — ein weiteres Spiel braucht keinen
+Eingriff in den Code. Ist `GSP_ANTHROPIC_API_KEY` gesetzt, kann Claude einen
+Entwurf vorschlagen: er recherchiert die Dokumentation des Images und füllt die
+Vorlage aus. Gespeichert wird nichts automatisch — der Entwurf landet mit seinen
+Belegen im Editor. Siehe `docs/vorlage-hinzufuegen.md`.
+
 ## Einstellungen
 
 | Variable | Vorgabe | Bedeutung |
@@ -118,6 +125,7 @@ Backups und Mod-Verwaltung arbeiten dadurch direkt auf Host-Pfaden.
 | `GSP_SECURE_COOKIES` | `false` | Sitzungscookie nur über HTTPS senden |
 | `GSP_SESSION_TTL_HOURS` | `336` | Gültigkeit einer Sitzung |
 | `GSP_WEB_ROOT` | — | Verzeichnis des gebauten Frontends |
+| `GSP_ANTHROPIC_API_KEY` | — | Schlüssel für den KI-Vorlagenentwurf. Ohne ihn bleibt der Knopf ausgeblendet. |
 | `TZ` | `Europe/Berlin` | Zeitzone für Instanzen und Zeitpläne |
 
 `GSP_DATA_DIR` muss ein Pfad sein, den der **Docker-Daemon** auflösen kann, denn

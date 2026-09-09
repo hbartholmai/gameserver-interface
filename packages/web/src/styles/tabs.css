@@ -380,6 +380,319 @@
   font-size: 12px;
 }
 
+/* --- Aufbau einer Instanz -------------------------------------------------- */
+
+.fortschritt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.fortschritt__kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-5);
+}
+.fortschritt__phase {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-gedaempft);
+}
+.fortschritt__zahl {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--akzent);
+}
+.fortschritt__bytes {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-leise);
+}
+.fortschritt__hinweis {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-leise);
+}
+.fortschritt__hinweis--gut {
+  color: var(--akzent);
+}
+.fortschritt__hinweis--fehler {
+  color: var(--gefahr);
+}
+
+.aufbau {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-7);
+}
+/* Feste Hoehe, damit der Dialog beim Nachruecken der Zeilen nicht springt. */
+.aufbau__log {
+  height: 152px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--s-1);
+  border: 1px solid var(--rahmen-leise);
+  background: var(--flaeche-tief);
+  padding: var(--s-5);
+}
+.aufbau__leer {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-label);
+}
+.aufbau__zeile {
+  display: flex;
+  gap: var(--s-5);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.aufbau__zeit {
+  flex: none;
+  color: var(--text-label);
+}
+.aufbau__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-sekundaer);
+}
+.aufbau__text--warn {
+  color: var(--warnung);
+}
+.aufbau__text--error {
+  color: var(--gefahr);
+}
+.aufbau__text--cmd {
+  color: var(--akzent);
+}
+
+/* Im Detailkopf steht die Zeile neben den Kennzahlen und darf nicht zu breit werden. */
+.detailkopf .fortschritt {
+  max-width: 320px;
+  flex: 1 1 240px;
+}
+
+/* --- Vorlagenverwaltung ---------------------------------------------------- */
+
+.vorlagen {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: var(--s-8);
+  padding: var(--s-8);
+}
+.vorlagen__liste {
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  align-self: flex-start;
+  position: sticky;
+  top: var(--s-8);
+}
+.vorlagen__editor {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 720px;
+}
+
+.vorlagenzeile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  border: 1px solid var(--rahmen-leise);
+  background: var(--flaeche-1);
+  padding: var(--s-4) var(--s-5);
+  cursor: pointer;
+  font-family: inherit;
+}
+.vorlagenzeile:hover {
+  border-color: var(--rahmen-kraeftig);
+}
+.vorlagenzeile--gewaehlt {
+  border-color: var(--akzent);
+  background: var(--akzent-selektion);
+}
+.vorlagenzeile__name {
+  font-size: 13px;
+  color: var(--text-primaer);
+}
+.vorlagenzeile__meta {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-label);
+}
+
+.vorlageneditor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.vorlageneditor__kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-5);
+  border-bottom: 1px solid var(--rahmen);
+  padding-bottom: var(--s-5);
+  margin-bottom: var(--s-3);
+}
+.vorlageneditor__name {
+  margin: 0;
+  font-family: var(--font-technik);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-primaer);
+}
+.vorlageneditor__meta {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-label);
+}
+
+/* Aufklappbarer Abschnitt: alles gleichzeitig offen waeren ueber 12.000 px. */
+.abschnitt {
+  border: 1px solid var(--rahmen-leise);
+  background: var(--flaeche-1);
+}
+.abschnitt__kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+  padding: var(--s-4) var(--s-5);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.abschnitt__kopf:hover .abschnitt__titel {
+  color: var(--akzent);
+}
+.abschnitt__pfeil {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-label);
+  width: 10px;
+}
+.abschnitt__titel {
+  flex: 1;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-gedaempft);
+}
+.abschnitt__zahl {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-label);
+}
+.abschnitt__inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  border-top: 1px solid var(--rahmen-leise);
+  padding: var(--s-7) var(--s-5);
+}
+
+/* Ein Eintrag einer bearbeitbaren Liste — Felder, Ports, Env-Abbildung. */
+.editorliste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.editorkarte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  border: 1px solid var(--rahmen-leise);
+  background: var(--flaeche-1);
+  padding: var(--s-5);
+}
+.editorkarte__kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-5);
+  border-bottom: 1px solid var(--rahmen-leise);
+  padding-bottom: var(--s-3);
+}
+.editorkarte__nummer {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-label);
+}
+.editorkarte__aktionen {
+  display: flex;
+  gap: var(--s-2);
+}
+
+/* Musterprobe: zeigt sofort, ob ein Log-Muster greift. */
+.probe {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--rahmen-leise);
+  background: var(--flaeche-tief);
+  padding: var(--s-4);
+  margin-top: var(--s-2);
+}
+.probe__zeile {
+  display: flex;
+  gap: var(--s-5);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.probe__name {
+  flex: 0 0 76px;
+  color: var(--text-label);
+}
+.probe__an {
+  color: var(--akzent);
+  word-break: break-all;
+}
+.probe__aus {
+  color: var(--text-leise);
+}
+
+.recherche {
+  border: 1px solid var(--rahmen);
+  background: var(--flaeche-1);
+  padding: var(--s-5);
+  font-size: 12px;
+  color: var(--text-sekundaer);
+}
+.recherche summary {
+  cursor: pointer;
+  color: var(--warnung);
+}
+.recherche__text {
+  margin: var(--s-5) 0 0;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--text-gedaempft);
+}
+
+.vorlageneditor textarea {
+  width: 100%;
+  resize: vertical;
+}
+
 /* --- Anmeldung ------------------------------------------------------------ */
 
 .anmeldung {
@@ -521,12 +834,7 @@
   flex: none;
 }
 
-.fortschritt {
-  height: 4px;
-  background: var(--balken-track);
-}
-.fortschritt > span {
-  display: block;
-  height: 4px;
-  background: var(--akzent);
-}
+/* Hier stand ein ungenutzter 4-px-Balken unter demselben Namen `.fortschritt`.
+   Er wurde von keiner Komponente verwendet, überschrieb aber die Regeln der
+   Aufbauansicht weiter oben. Wer wieder einen schlanken Balken braucht: `.balken`
+   gibt es bereits. */

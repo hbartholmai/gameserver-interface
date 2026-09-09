@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { gameIdSchema, type LogLevel } from './common.js';
+// Nur als Typ — zur Laufzeit gibt es dadurch keinen Zyklus mit dem
+// Definitionsschema, das umgekehrt Werte von hier importiert.
+import type { TemplateDefinition } from './template-definition.js';
 
 /**
  * Ein Formularfeld einer Vorlage. Aus diesen Specs generiert das Frontend
@@ -85,6 +88,12 @@ export type FieldValues = Record<string, string | number | boolean>;
 
 /** Vollständige Vorlage inklusive der nicht serialisierbaren Backend-Logik. */
 export interface GameTemplate extends TemplateDescriptor {
+  /**
+   * Die Daten, aus denen diese Vorlage kompiliert wurde. Der Server braucht
+   * sie für die Adapter-Hinweise, die Fake-Runtime und zum Zurückschreiben in
+   * die Datenbank.
+   */
+  definition: TemplateDefinition;
   /** Bildet die Formularwerte auf Container-Umgebungsvariablen ab. */
   env(values: FieldValues, ctx: TemplateContext): Record<string, string>;
   /** Optionale Konfigurationsdateien, die vor dem Start ins Volume geschrieben werden. */

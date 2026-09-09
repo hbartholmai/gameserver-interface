@@ -8,8 +8,28 @@ import type {
   Mod,
   Player,
   SessionInfo,
+  TemplateDefinition,
   TemplateDescriptor,
 } from '@gsp/shared';
+
+/** Eine Vorlage in der Verwaltungsansicht — mit Nutzungszahl und Herkunft. */
+export interface VorlagenInfo {
+  definition: TemplateDefinition;
+  builtin: boolean;
+  rev: string;
+  instances: number;
+}
+
+export interface KiStatus {
+  available: boolean;
+  reason: string;
+  model: string;
+}
+
+export interface KiEntwurf {
+  definition: TemplateDefinition;
+  research: string;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -73,6 +93,29 @@ export const api = {
   templates: () => request<{ templates: TemplateDescriptor[] }>('/api/templates'),
   suggestedPorts: (game: string) =>
     request<{ ports: Record<string, number> }>(`/api/templates/${game}/ports`),
+
+  // --- Vorlagenverwaltung ---
+  vorlagen: () => request<{ templates: VorlagenInfo[] }>('/api/templates/manage'),
+  vorlageAnlegen: (definition: TemplateDefinition) =>
+    request<{ definition: TemplateDefinition }>('/api/templates', {
+      method: 'POST',
+      body: JSON.stringify(definition),
+    }),
+  vorlageSpeichern: (id: string, definition: TemplateDefinition) =>
+    request<{ definition: TemplateDefinition }>(`/api/templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(definition),
+    }),
+  vorlageLoeschen: (id: string) =>
+    request<{ ok: true }>(`/api/templates/${id}`, { method: 'DELETE' }),
+
+  kiStatus: () => request<KiStatus>('/api/templates/ki/status'),
+  kiEntwurfStarten: (game: string, image: string, notes: string) =>
+    request<{ job: Job }>('/api/templates/ki/entwurf', {
+      method: 'POST',
+      body: JSON.stringify({ game, image, notes }),
+    }),
+  kiEntwurfHolen: (jobId: string) => request<KiEntwurf>(`/api/templates/ki/entwurf/${jobId}`),
 
   instances: () => request<{ instances: Instance[] }>('/api/instances'),
   instance: (id: string) => request<Instance>(`/api/instances/${id}`),

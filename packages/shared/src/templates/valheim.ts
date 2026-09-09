@@ -1,5 +1,4 @@
-import type { GameTemplate } from '../schema/template.js';
-import { levelFromKeywords } from './util.js';
+import type { TemplateDefinition } from '../schema/template-definition.js';
 
 /**
  * Valheim auf Basis von `lloesche/valheim-server`.
@@ -9,7 +8,7 @@ import { levelFromKeywords } from './util.js';
  * Panel-Konsole ist deshalb read-only. Die Spielerzahl kommt per Steam-A2S-Query
  * vom Query-Port, die Namen aus den `ZDOID`-Zeilen des Logs.
  */
-export const valheimTemplate: GameTemplate = {
+export const valheimDefinition: TemplateDefinition = {
   id: 'valheim',
   label: 'Valheim',
   summary: 'Dedizierter Valheim-Server mit BepInEx-Unterstützung. Spielerzahl per Steam-Query, Konsole nur lesend.',
@@ -20,7 +19,7 @@ export const valheimTemplate: GameTemplate = {
   notes: [
     'Valheim kennt kein RCON — die Konsole zeigt nur den Log-Stream, Befehle sind nicht möglich.',
     'Kick und Bann müssen im Spiel über die Admin-Konsole (F5) erfolgen.',
-    'Das Serverpasswort muss mindestens 5 Zeichen haben und darf nicht im Server- oder Weltnamen vorkommen.',
+    'Ein gesetztes Serverpasswort muss mindestens 5 Zeichen haben und darf nicht im Server- oder Weltnamen vorkommen.',
   ],
   capabilities: {
     console: 'readonly',
@@ -47,9 +46,11 @@ export const valheimTemplate: GameTemplate = {
       help: 'Name der Weltdatei — nach dem Anlegen nicht mehr änderbar.',
     },
     {
+      // Optional: ein Valheim-Server darf ohne Passwort laufen. Ist eines
+      // gesetzt, greifen die Regeln des Spiels (siehe `validations`).
       id: 'password', label: 'Passwort', type: 'password', default: '',
-      required: true, maxLength: 64, editable: true, restartRequired: true, secret: true,
-      help: 'Mindestens 5 Zeichen, darf nicht Teil des Server- oder Weltnamens sein.',
+      required: false, maxLength: 64, editable: true, restartRequired: true, secret: true,
+      help: 'Leer lassen für einen offenen Server. Sonst mindestens 5 Zeichen, und nicht Teil des Server- oder Weltnamens.',
     },
     {
       id: 'public', label: 'Öffentlich gelistet', type: 'boolean', default: true,
@@ -83,32 +84,69 @@ export const valheimTemplate: GameTemplate = {
     },
   ],
 
-  env(values, ctx) {
-    const env: Record<string, string> = {
-      SERVER_NAME: String(values.serverName ?? 'Valheim Server'),
-      WORLD_NAME: String(values.worldName ?? 'Dedicated'),
-      SERVER_PASS: String(values.password ?? ''),
-      SERVER_PORT: String(ctx.hostPorts.game ?? 2456),
-      SERVER_PUBLIC: values.public === false ? 'false' : 'true',
-      SERVER_ARGS: values.crossplay === false ? '' : '-crossplay',
-      SERVER_PRESET: String(values.preset ?? 'normal'),
-      BEPINEX: values.bepinex ? 'true' : 'false',
-      // Backups macht das Panel, damit Zeitplan und Aufbewahrung an einer Stelle liegen.
-      BACKUPS: 'false',
-      UPDATE_CRON: String(values.updateCron ?? ''),
-      TZ: ctx.timezone,
-    };
-    return env;
-  },
+  env: [
+    { name: 'SERVER_NAME', source: { kind: 'field', field: 'serverName' }, fallback: 'Valheim Server', trim: false, omitWhenEmpty: false },
+    { name: 'WORLD_NAME', source: { kind: 'field', field: 'worldName' }, fallback: 'Dedicated', trim: false, omitWhenEmpty: false },
+    // Ohne Passwort darf die Variable nicht gesetzt sein: ein leeres SERVER_PASS
+    // lässt das Image mit einer Passwortprüfung abbrechen.
+    { name: 'SERVER_PASS', source: { kind: 'field', field: 'password' }, trim: false, omitWhenEmpty: true },
+    { name: 'SERVER_PORT', source: { kind: 'port', port: 'game' }, fallback: '2456', trim: false, omitWhenEmpty: false },
+    {
+      name: 'SERVER_PUBLIC', source: { kind: 'field', field: 'public' },
+      boolean: { whenTrue: 'true', whenFalse: 'false' }, fallback: 'true', trim: false, omitWhenEmpty: false,
+    },
+    {
+      name: 'SERVER_ARGS', source: { kind: 'field', field: 'crossplay' },
+      boolean: { whenTrue: '-crossplay', whenFalse: '' }, fallback: '-crossplay', trim: false, omitWhenEmpty: false,
+    },
+    { name: 'SERVER_PRESET', source: { kind: 'field', field: 'preset' }, fallback: 'normal', trim: false, omitWhenEmpty: false },
+    {
+      name: 'BEPINEX', source: { kind: 'field', field: 'bepinex' },
+      boolean: { whenTrue: 'true', whenFalse: 'false' }, fallback: 'false', trim: false, omitWhenEmpty: false,
+    },
+    // Backups macht das Panel, damit Zeitplan und Aufbewahrung an einer Stelle liegen.
+    { name: 'BACKUPS', source: { kind: 'const', value: 'false' }, trim: false, omitWhenEmpty: false },
+    { name: 'UPDATE_CRON', source: { kind: 'field', field: 'updateCron' }, fallback: '', trim: false, omitWhenEmpty: false },
+    { name: 'TZ', source: { kind: 'timezone' }, trim: false, omitWhenEmpty: false },
+  ],
 
   logPatterns: {
     // `Got character ZDOID from Freyja_88 : -12345:6` — beim Beitritt und bei jedem Respawn.
-    join: /Got character ZDOID from (\S+)\s*:/,
+    join: { source: 'Got character ZDOID from (\\S+)\\s*:', flags: '' },
     // Valheim protokolliert beim Verlassen keinen Namen, nur die Socket-Kennung.
     // Die Spielerliste wird deshalb gegen die A2S-Zählung abgeglichen.
-    ready: /(DungeonDB Start|Game server connected)/,
-    level: levelFromKeywords,
-    clean: (line) => line.replace(/^\s*\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}:\s*/, '').trimEnd(),
+    ready: { source: '(DungeonDB Start|Game server connected)', flags: '' },
+    clean: {
+      pattern: { source: '^\\s*\\d{2}\\/\\d{2}\\/\\d{4} \\d{2}:\\d{2}:\\d{2}:\\s*', flags: '' },
+      replacement: '',
+    },
+  },
+
+  validations: [
+    {
+      rule: 'minLength',
+      field: 'password',
+      value: 5,
+      message: 'Valheim verlangt mindestens 5 Zeichen',
+      onlyWhenSet: true,
+    },
+    {
+      rule: 'notContainedIn',
+      field: 'password',
+      fields: ['serverName', 'worldName'],
+      message: 'Das Passwort darf nicht im Server- oder Weltnamen vorkommen',
+      onlyWhenSet: true,
+    },
+  ],
+
+  adapter: { queryPortName: 'query' },
+
+  fakeLog: {
+    timeFormat: 'dmy',
+    join: '{time}: Got character ZDOID from {name} : -{n}:1',
+    leave: '{time}: Closing socket {n}',
+    ready: '{time}: DungeonDB Start {n}',
+    chatter: '{time}: World saved ( {n}ms )',
   },
 
   modsPath: '/config/bepinex/plugins',
@@ -116,5 +154,7 @@ export const valheimTemplate: GameTemplate = {
 
   backup: {
     paths: ['/config/worlds_local'],
+    preCommands: [],
+    postCommands: [],
   },
 };

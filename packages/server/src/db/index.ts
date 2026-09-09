@@ -104,6 +104,33 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_player_sessions ON player_sessions(instance_id, left_at);
   `,
+
+  // 2 — Dauer des letzten erfolgreichen Starts. Für die Phase zwischen
+  // laufendem Container und Startmeldung des Servers gibt es keinen
+  // Prozentsatz; der Erfahrungswert der Instanz ist der einzige ehrliche
+  // Anhaltspunkt, den die Oberfläche dort zeigen kann.
+  `
+  ALTER TABLE instances ADD COLUMN last_boot_sec INTEGER;
+  `,
+
+  // 3 — Vorlagen als Daten. Bis hierher waren sie TypeScript-Objekte im
+  // Quelltext; jetzt liegen sie als JSON hier und werden beim Start zu
+  // lauffähigen Vorlagen kompiliert. `builtin` merkt sich, welche mitgeliefert
+  // wurden — nur fehlende davon werden beim Start ergänzt, vorhandene nie
+  // überschrieben, sonst verlöre ein Panel-Update jede Anpassung.
+  //
+  // `template_rev` hält fest, mit welchem Stand der Vorlage ein Container
+  // erzeugt wurde. Weicht er ab, zeigt die Oberfläche „Vorlage geändert“.
+  `
+  CREATE TABLE templates (
+    id         TEXT PRIMARY KEY,
+    definition TEXT NOT NULL,
+    builtin    INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL
+  );
+
+  ALTER TABLE instances ADD COLUMN template_rev TEXT;
+  `,
 ];
 
 export function openDb(path: string): Db {

@@ -62,6 +62,13 @@ export interface PullProgress {
   /** 0–100, `null` solange die Gesamtgröße unbekannt ist. */
   percent: number | null;
   message: string;
+  /**
+   * Bereits geladene und erwartete Bytes über alle Layer. `null`, solange
+   * Docker noch keine Größen gemeldet hat. Roh, nicht formatiert — die
+   * Darstellung entsteht im Frontend.
+   */
+  currentBytes: number | null;
+  totalBytes: number | null;
 }
 
 export interface RuntimeHealth {

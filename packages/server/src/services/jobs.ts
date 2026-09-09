@@ -4,6 +4,16 @@ import type { Db } from '../db/index.js';
 import type { Hub } from './hub.js';
 
 /**
+ * Meldet den Fortschritt eines Jobs. `bytes` nur während des Image-Pulls —
+ * dort sind echte Zahlen bekannt, in den übrigen Phasen nicht.
+ */
+export type Report = (
+  progress: number | null,
+  message: string,
+  bytes?: { done: number | null; total: number | null },
+) => void;
+
+/**
  * Langlaufende Aktionen (Image-Pull, Update, Backup, Wiederherstellung) laufen
  * als Job mit Fortschritt. Damit bekommt die UI die Übergangszustände aus dem
  * Design — „UPDATE LÄUFT…“, Pull-Fortschritt beim Anlegen — mit echten Daten
@@ -22,7 +32,7 @@ export class JobService {
   start(
     kind: Job['kind'],
     instanceId: string | null,
-    run: (report: (progress: number | null, message: string) => void) => Promise<void>,
+    run: (report: Report) => Promise<void>,
   ): Job {
     const job: Job = {
       id: randomUUID(),
@@ -31,6 +41,8 @@ export class JobService {
       status: 'running',
       progress: null,
       message: 'gestartet',
+      bytesDone: null,
+      bytesTotal: null,
       error: null,
       startedAt: new Date().toISOString(),
       finishedAt: null,
@@ -38,9 +50,14 @@ export class JobService {
     this.persist(job);
     this.publish(job);
 
-    const report = (progress: number | null, message: string) => {
+    const report: Report = (progress, message, bytes) => {
       job.progress = progress;
       job.message = message;
+      // Die Byte-Zahlen gelten nur für die Pull-Phase und werden danach wieder
+      // geleert, damit die Oberfläche sie nicht neben „Container wird erstellt“
+      // stehen lässt.
+      job.bytesDone = bytes?.done ?? null;
+      job.bytesTotal = bytes?.total ?? null;
       this.persist(job);
       this.publish(job);
     };
@@ -124,6 +141,10 @@ function rowToJob(row: Record<string, unknown>): Job {
     status: row.status as Job['status'],
     progress: row.progress === null ? null : Number(row.progress),
     message: String(row.message ?? ''),
+    // Byte-Zahlen sind reine Live-Angaben der laufenden Pull-Phase und werden
+    // nicht gespeichert — ein aus der Datenbank gelesener Job hat sie nicht.
+    bytesDone: null,
+    bytesTotal: null,
     error: row.error === null ? null : String(row.error),
     startedAt: String(row.started_at),
     finishedAt: row.finished_at === null ? null : String(row.finished_at),

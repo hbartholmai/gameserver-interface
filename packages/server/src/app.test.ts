@@ -32,8 +32,8 @@ describe('API-Durchlauf', () => {
         GSP_LOG_LEVEL: 'silent',
         TZ: 'Europe/Berlin',
       }),
-      // Ohne Startverzögerung, damit Tests nicht warten müssen.
-      new FakeRuntime(0),
+      // Ohne Startverzögerung und ohne simulierten Pull, damit Tests nicht warten müssen.
+      new FakeRuntime(0, 0),
     );
   });
 
@@ -303,7 +303,190 @@ describe('API-Durchlauf', () => {
     });
     expect(detail.statusCode).toBe(404);
   });
+
+  // --- Vorlagenverwaltung ---------------------------------------------------
+
+  it('antwortet auf eine unbekannte Vorlage mit 404 statt abzustürzen', async () => {
+    // Vor dem Umbau war `GameId` ein Enum und dieser Fall unmöglich; seit
+    // Vorlagen anlegbar sind, ist er ein normaler Zustand.
+    const antwort = await app.server.inject({
+      method: 'GET',
+      url: '/api/templates/gibtsnicht/ports',
+      headers: kopf(false),
+    });
+    expect(antwort.statusCode).toBe(404);
+  });
+
+  it('legt eine eigene Vorlage an, nutzt sie und lehnt das Löschen dann ab', async () => {
+    const angelegt = await app.server.inject({
+      method: 'POST',
+      url: '/api/templates',
+      headers: kopf(),
+      payload: eigeneVorlage(),
+    });
+    expect(angelegt.statusCode, angelegt.body).toBe(201);
+
+    // Sie steht sofort im Wizard.
+    const liste = await app.server.inject({ method: 'GET', url: '/api/templates', headers: kopf(false) });
+    expect(liste.json<{ templates: { id: string }[] }>().templates.map((t) => t.id)).toContain('kartoffelkrieg');
+
+    // Und eine Instanz daraus lässt sich anlegen.
+    const instanz = await app.server.inject({
+      method: 'POST',
+      url: '/api/instances',
+      headers: kopf(),
+      payload: {
+        game: 'kartoffelkrieg',
+        name: 'Acker',
+        ports: [{ name: 'game', host: 7777 }],
+        memoryMb: 2048,
+        cpus: 2,
+        settings: { welt: 'Acker' },
+        backupCron: '0 4 * * *',
+        backupKeepDays: 7,
+      },
+    });
+    expect(instanz.statusCode, instanz.body).toBe(201);
+    const neueId = instanz.json<{ id: string }>().id;
+
+    // Erst abwarten, bis der Anlege-Job durch ist. Wird die Instanz vorher
+    // gelöscht, schreibt der Job noch, wenn `afterAll` die Datenbank schließt.
+    await warteAuf(async () => {
+      const detail = await app.server.inject({
+        method: 'GET',
+        url: `/api/instances/${neueId}`,
+        headers: kopf(false),
+      });
+      return detail.json<{ status: string }>().status === 'Online';
+    });
+
+    const gesperrt = await app.server.inject({
+      method: 'DELETE',
+      url: '/api/templates/kartoffelkrieg',
+      headers: kopf(),
+    });
+    expect(gesperrt.statusCode).toBe(400);
+    expect(gesperrt.json<{ error: string }>().error).toMatch(/genutzt/);
+
+    await app.server.inject({
+      method: 'DELETE',
+      url: `/api/instances/${neueId}?data=true`,
+      headers: kopf(),
+    });
+    const geloescht = await app.server.inject({
+      method: 'DELETE',
+      url: '/api/templates/kartoffelkrieg',
+      headers: kopf(),
+    });
+    expect(geloescht.statusCode).toBe(200);
+  });
+
+  it('lehnt eine unschlüssige Vorlage mit Feldfehlern ab', async () => {
+    const kaputt = eigeneVorlage();
+    kaputt.env = [{ name: 'X', source: { kind: 'field', field: 'gibtsNicht' }, trim: false, omitWhenEmpty: false }];
+    const antwort = await app.server.inject({
+      method: 'POST',
+      url: '/api/templates',
+      headers: kopf(),
+      payload: kaputt,
+    });
+    expect(antwort.statusCode).toBe(400);
+    expect(antwort.json<{ fields: { message: string }[] }>().fields[0]?.message).toMatch(/Unbekanntes Feld/);
+  });
+
+  it('meldet den KI-Entwurf ohne Schlüssel als nicht verfügbar', async () => {
+    const antwort = await app.server.inject({
+      method: 'GET',
+      url: '/api/templates/ki/status',
+      headers: kopf(false),
+    });
+    expect(antwort.json<{ available: boolean }>().available).toBe(false);
+
+    const versuch = await app.server.inject({
+      method: 'POST',
+      url: '/api/templates/ki/entwurf',
+      headers: kopf(),
+      payload: { game: 'Irgendwas', image: 'beispiel/image' },
+    });
+    expect(versuch.statusCode).toBe(503);
+  });
+
+  it('markiert Instanzen, deren Vorlage sich geändert hat', async () => {
+    // Die Minecraft-Instanz ist zu diesem Zeitpunkt gelöscht; die Valheim-Instanz
+    // aus dem Maskierungstest besteht noch.
+    const liste = await app.server.inject({ method: 'GET', url: '/api/instances', headers: kopf(false) });
+    const valheim = liste
+      .json<{ instances: { id: string; game: string; templateStale: boolean }[] }>()
+      .instances.find((i) => i.game === 'valheim');
+    expect(valheim?.templateStale).toBe(false);
+
+    const definition = (
+      await app.server.inject({
+        method: 'GET',
+        url: '/api/templates/valheim/definition',
+        headers: kopf(false),
+      })
+    ).json<{ definition: Record<string, unknown> }>().definition;
+
+    const gespeichert = await app.server.inject({
+      method: 'PUT',
+      url: '/api/templates/valheim',
+      headers: kopf(),
+      payload: { ...definition, defaultMemoryMb: 12288 },
+    });
+    expect(gespeichert.statusCode, gespeichert.body).toBe(200);
+
+    const nachher = await app.server.inject({
+      method: 'GET',
+      url: `/api/instances/${valheim?.id}`,
+      headers: kopf(false),
+    });
+    // Die Instanz läuft unverändert weiter — erst ein Neuaufbau übernimmt den Stand.
+    expect(nachher.json<{ templateStale: boolean }>().templateStale).toBe(true);
+    expect(nachher.json<{ status: string }>().status).not.toBe('Fehler');
+  });
 });
+
+/** Minimale, gültige Vorlage für die Routentests. */
+function eigeneVorlage(): Record<string, unknown> {
+  return {
+    id: 'kartoffelkrieg',
+    label: 'Kartoffelkrieg',
+    summary: 'Nur für Tests.',
+    image: 'beispiel/kartoffelkrieg',
+    defaultTag: 'latest',
+    defaultMemoryMb: 2048,
+    defaultCpus: 2,
+    notes: [],
+    capabilities: { console: 'readonly', players: 'log', mods: 'none', moderation: false },
+    ports: [
+      { name: 'game', label: 'Spielport', container: 7777, protocol: 'udp', defaultHost: 7777, internalOnly: false },
+    ],
+    volumes: [{ name: 'data', containerPath: '/data', role: 'data' }],
+    fields: [
+      {
+        id: 'welt', label: 'Welt', type: 'text', default: 'Acker',
+        required: true, editable: true, restartRequired: true, secret: false,
+      },
+    ],
+    env: [{ name: 'WORLD', source: { kind: 'field', field: 'welt' }, trim: false, omitWhenEmpty: false }],
+    logPatterns: {
+      join: { source: 'Spieler (\\S+) betritt', flags: '' },
+      ready: { source: 'Server bereit', flags: '' },
+    },
+    fakeLog: {
+      timeFormat: 'iso',
+      join: '[{time}] Spieler {name} betritt den Acker',
+      leave: '[{time}] Spieler {name} verlaesst den Acker',
+      ready: '[{time}] Server bereit',
+      chatter: '[{time}] Feld gepfluegt ({n} ms)',
+    },
+    backup: { paths: ['/data'], preCommands: [], postCommands: [] },
+    validations: [],
+    adapter: {},
+    modExtensions: [],
+  };
+}
 
 /** Wartet, bis eine Bedingung zutrifft — für Aktionen, die als Job laufen. */
 async function warteAuf(bedingung: () => Promise<boolean>, timeoutMs = 8000): Promise<void> {

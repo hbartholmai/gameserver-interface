@@ -52,9 +52,26 @@ Drei Pakete, npm workspaces:
 
 ### Vorlagen sind der zentrale Erweiterungspunkt
 
-Eine Vorlage in `packages/shared/src/templates/` beschreibt deklarativ Image, Ports, Volumes, Formularfelder, Env-Abbildung, Fähigkeiten, Log-Muster und Backup-Pfade. Daraus entstehen **Anlege-Wizard, Config-Reiter und Container** — ein weiteres Spiel braucht im Normalfall nur eine neue Datei plus Eintrag in `templates/index.ts`. Siehe `docs/vorlage-hinzufuegen.md`.
+Eine Vorlage beschreibt deklarativ Image, Ports, Volumes, Formularfelder, Env-Abbildung, Fähigkeiten, Log-Muster, Prüfregeln und Backup-Pfade. Daraus entstehen **Anlege-Wizard, Config-Reiter und Container**.
 
-`GameTemplate` enthält Funktionen und RegExp und ist damit nicht serialisierbar. `toDescriptor()` schneidet den JSON-fähigen Teil heraus — nur der geht über `GET /api/templates` ans Frontend.
+Vorlagen sind **Daten, nicht Code**. Sie liegen als JSON in der Tabelle `templates` und werden beim Start zu lauffähigen `GameTemplate`-Objekten kompiliert:
+
+```
+DB templates ──▶ compileTemplate() ──▶ Registry ──▶ getTemplate() / listTemplates()
+```
+
+- `packages/shared/src/schema/template-definition.ts` — das Datenschema (`TemplateDefinition`)
+- `packages/shared/src/templates/compile.ts` — macht daraus wieder `env()`, `logPatterns`, Prüfregeln
+- `packages/shared/src/templates/{minecraft,valheim,enshrouded}.ts` — **Startbestand**, kein Laufzeitpfad
+- `packages/server/src/services/templates.ts` — Laden, Seeding, Schlüssigkeitsprüfung
+
+Ein weiteres Spiel braucht damit im Normalfall **gar keine Codeänderung**: es entsteht im Editor unter „Vorlagen" oder als KI-Entwurf. Siehe `docs/vorlage-hinzufuegen.md`.
+
+**Die Registry ist ein Modul-Singleton** (`setTemplates()` / `getTemplate()`). Tests, die Vorlagen brauchen, rufen im Setup `loadBuiltinTemplates()` — sonst wirft `getTemplate()` eine `UnknownTemplateError`.
+
+**Seeding fügt nur ein, es überschreibt nie.** Fehlende mitgelieferte Vorlagen werden beim Start ergänzt, vorhandene bleiben unangetastet — sonst setzte jedes Panel-Update die Anpassungen des Betreibers lautlos zurück.
+
+`GameTemplate` enthält Funktionen und RegExp und ist damit nicht serialisierbar. `toDescriptor()` schneidet den JSON-fähigen Teil heraus — nur der geht über `GET /api/templates` ans Frontend. Es zählt die Felder ausdrücklich auf; wer dem Descriptor ein Feld hinzufügt, muss es dort eintragen.
 
 ### Fähigkeiten statt Annahmen
 
@@ -66,7 +83,9 @@ Der Design-Prototyp nimmt an, dass jede Instanz eine Befehlseingabe und Mods hat
 | Valheim | `readonly` | `a2s` | nein | `bepinex` |
 | Enshrouded | `readonly` | `log` | nein | `none` |
 
-**Neue Bedienelemente immer gegen `capabilities` prüfen, nie gegen `game === '…'`.** Adapter werfen `UnsupportedError`, wenn etwas nicht geht; die Route beantwortet das mit 400 statt 502.
+Die Tabelle zeigt die mitgelieferten Vorlagen — eigene können jede Kombination haben.
+
+**Nie gegen `game === '…'` prüfen, immer gegen `capabilities`.** Das gilt seit dem Vorlagenumbau auch im Backend: `games/index.ts` wählt den Adapter über `capabilities.players`, nicht über die Spiel-ID. Ein neues Spiel mit RCON, Steam-Query oder nur Log braucht deshalb **keinen eigenen Adapter** — nur eine Vorlage. Adapter werfen `UnsupportedError`, wenn etwas nicht geht; die Route beantwortet das mit 400 statt 502.
 
 ### Schichten im Backend
 
@@ -77,6 +96,8 @@ services/        Geschäftslogik
   ticker.ts      Messtakt, verteilt Schnappschüsse an WebSocket-Abonnenten
   logs.ts        Log-Stream, Zeileneinstufung, Spieler-Tracking
   jobs.ts        langlaufende Aktionen mit Fortschritt
+  templates.ts   Vorlagen laden, seeden, prüfen; füllt die Registry
+  vorlagen-ki.ts KI-Entwurf: Recherche mit Websuche, dann Formen
 games/           pro Spiel ein Adapter (RCON, A2S, Log)
 runtime/         Container-Abstraktion: DockerRuntime | FakeRuntime
 db/              SQLite, handgeschriebenes SQL, Migrationen in db/index.ts
@@ -86,7 +107,9 @@ Der Datenfluss zur UI: `Ticker` misst im Takt von `GSP_REFRESH_MS`, schickt eine
 
 ### FakeRuntime
 
-`GSP_RUNTIME=fake` ersetzt Docker durch eine Simulation im Speicher — Test-Double *und* Entwicklungsmodus. Sie erzeugt Logzeilen im **echten Format** der jeweiligen Spiele, damit dieselben Parser laufen wie in Produktion. Wer ein Log-Muster ändert, muss auch `FORMATTERS` in `runtime/fake.ts` anpassen, sonst testet man an der Realität vorbei.
+`GSP_RUNTIME=fake` ersetzt Docker durch eine Simulation im Speicher — Test-Double *und* Entwicklungsmodus. Sie erzeugt Logzeilen im **echten Format** der jeweiligen Spiele, damit dieselben Parser laufen wie in Produktion.
+
+Diese Zeilen stammen aus `fakeLog` **derselben Vorlage** wie die Muster. Früher lagen sie in einer eigenen Tabelle im Server-Paket, und wer ein Muster änderte, musste daran denken, sie mitzupflegen — sonst testete man an der Realität vorbei. Heute prüft ein Test in `templates.test.ts`, dass die erzeugten Zeilen zu den Mustern passen, und der Vorlagendienst lehnt eine Vorlage ab, bei der das nicht stimmt.
 
 Die Fake-Laufzeit hält Container nur im Speicher: Nach einem Neustart des Panels fehlen sie, die Instanzen gehen auf `Fehler`. Das ist gewollt — `start()` erzeugt einen fehlenden Container aus der gespeicherten Konfiguration neu.
 
@@ -117,6 +140,7 @@ Zahlen werden über `@gsp/shared/format` deutsch formatiert (`5,4 GB`, `71 h 30 
   Docker Desktop für Windows liegt der Daemon in einer Linux-VM; ein Pfad wie
   `D:\ServerTest` wird dort zu `/app/D:ServerTest`. Richtig ist
   `/run/desktop/mnt/host/d/ServerTest` — siehe README, Abschnitt Einstellungen.
+- **`getTemplate()` kann werfen.** Seit `GameId` ein Muster statt eines Enums ist, kann eine Vorlage fehlen. Routen fangen die `UnknownTemplateError` global ab und antworten mit 404; in Tests vorher `loadBuiltinTemplates()` rufen.
 - **`npm run build -w @gsp/shared` vergessen** ist die häufigste Ursache für „Cannot find module '@gsp/shared'" oder implizite `any` im Web-Paket.
 - **Container-Umgebungen sind unveränderlich.** Geänderte Einstellungen wirken erst nach `recreate()` — stoppen, entfernen, neu erstellen. Weltdaten überleben das, weil sie in Bind-Mounts liegen.
 - **Geheimnisse maskieren.** `maskSecrets()` ersetzt Werte von Feldern mit `secret: true` durch `********`. Der Config-Reiter schickt unveränderte Geheimnisse nicht mit zurück, sonst würde die Maske als neues Passwort gespeichert.
@@ -134,6 +158,22 @@ npm run rebuild && npm run typecheck && npm test
 Für Änderungen an der Oberfläche zusätzlich ein Durchlauf mit Playwright gegen `GSP_RUNTIME=fake` — anmelden, Instanz über den Wizard anlegen, Reiter durchklicken, Screenshots ansehen. Ein Vorgehen dafür steht in `docs/entwicklungsprotokoll.md`.
 
 Echte Docker-Container lassen sich in dieser Umgebung **nicht** prüfen (kein Daemon). Was auf einer Maschine mit Docker zu testen ist, steht im README unter „Schnellstart"; solche Punkte im Bericht ausdrücklich als ungeprüft kennzeichnen.
+
+## KI-Vorlagenentwurf
+
+`GSP_ANTHROPIC_API_KEY` schaltet den Knopf „Vorlage entwerfen lassen" frei —
+bewusst eine Umgebungsvariable, nicht die Datenbank, weil sie sonst in jedem
+Backup läge. Ohne Schlüssel meldet `GET /api/templates/ki/status` das, und die
+Oberfläche blendet den Knopf aus.
+
+Der Entwurf läuft in **zwei** Aufrufen (`services/vorlagen-ki.ts`): erst
+Recherche mit Websuche und freiem Text, dann Formen ohne Werkzeuge gegen ein
+JSON-Schema. Getrennt, weil strukturierte Ausgaben sich nicht mit Zitaten
+vertragen — und weil Belegen und Formen zwei Aufgaben sind.
+
+**Ein Entwurf wird nie automatisch gespeichert.** Er landet im Editor, mit den
+Belegen daneben, und durchläuft beim Speichern dieselbe Prüfung wie eine
+handgeschriebene Vorlage.
 
 ## Weiterführend
 

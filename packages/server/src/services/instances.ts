@@ -24,6 +24,8 @@ import type { Hub } from './hub.js';
 import type { JobService } from './jobs.js';
 import type { LogService } from './logs.js';
 import type { MetricsService } from './metrics.js';
+// Nur als Typ: der Vorlagendienst importiert umgekehrt `ValidationError` von hier.
+import type { TemplateService } from './templates.js';
 import { instanceRoot, slug, volumePath } from './paths.js';
 
 export class ValidationError extends Error {
@@ -59,6 +61,7 @@ export class InstanceService {
     private readonly backups: BackupService,
     private readonly jobs: JobService,
     private readonly hub: Hub,
+    private readonly templates: TemplateService,
   ) {}
 
   list(): InstanceRecord[] {
@@ -123,6 +126,8 @@ export class InstanceService {
       backupCron: request.backupCron,
       backupKeepDays: request.backupKeepDays,
       peakPlayers: 0,
+      lastBootSec: null,
+      templateRev: null,
       createdAt: new Date().toISOString(),
     };
 
@@ -133,7 +138,10 @@ export class InstanceService {
       report(5, 'Image wird geladen');
       const image = `${template.image}:${record.tag}`;
       await this.runtime.pull(image, (progress) => {
-        report(progress.percent === null ? null : 5 + progress.percent * 0.7, progress.message);
+        report(progress.percent === null ? null : 5 + progress.percent * 0.7, progress.message, {
+          done: progress.currentBytes,
+          total: progress.totalBytes,
+        });
       });
 
       report(80, 'Container wird erstellt');
@@ -188,7 +196,13 @@ export class InstanceService {
       labels: { [INSTANCE_LABEL]: record.id, game: record.game },
     });
 
-    this.store.updateInstance(record.id, { containerId });
+    // Mit welchem Stand der Vorlage dieser Container gebaut wurde. Weicht die
+    // Vorlage später ab, meldet das DTO `templateStale` und die Oberfläche bietet
+    // „Neu aufbauen“ an — dieselbe Mechanik wie bei geänderten Einstellungen.
+    this.store.updateInstance(record.id, {
+      containerId,
+      templateRev: this.templates.revOf(record.game),
+    });
   }
 
   // --- Steuerung ------------------------------------------------------------
@@ -261,7 +275,10 @@ export class InstanceService {
       try {
         report(5, 'Image wird geladen');
         await this.runtime.pull(`${template.image}:${instance.tag}`, (progress) => {
-          report(progress.percent === null ? null : progress.percent * 0.8, progress.message);
+          report(progress.percent === null ? null : progress.percent * 0.8, progress.message, {
+            done: progress.currentBytes,
+            total: progress.totalBytes,
+          });
         });
         report(85, 'Container wird neu erstellt');
         await this.recreate(id);
@@ -407,6 +424,14 @@ export class InstanceService {
     if (state.running) {
       // Der Übergang endet, sobald der Server seine Startmeldung geschrieben hat.
       if (this.logs.isReady(instance.id)) {
+        // Genau in diesem Takt liegt der Übergang noch vor — danach ist er
+        // gelöscht, die Dauer wird also einmal je Start geschrieben.
+        if (transition?.kind === 'starting') {
+          const dauerSek = Math.max(1, Math.round((Date.now() - transition.since) / 1000));
+          this.store.updateInstance(instance.id, { lastBootSec: dauerSek });
+          // Der Aufrufer hält den Datensatz in der Hand und baut gleich das DTO.
+          instance.lastBootSec = dauerSek;
+        }
         this.transitions.delete(instance.id);
         return { status: 'Online', running: true, uptimeSec, error: null };
       }
@@ -464,6 +489,9 @@ export class InstanceService {
       backupCount: backups.length,
       updateNote: this.updating.has(instance.id) ? 'Update läuft' : 'Version ist aktuell',
       updateAvailable: false,
+      lastBootSec: instance.lastBootSec,
+      templateStale:
+        instance.templateRev !== null && instance.templateRev !== this.templates.revOf(instance.game),
       createdAt: instance.createdAt,
     };
   }

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getTemplate } from './index.js';
+import { getTemplate, loadBuiltinTemplates } from './index.js';
+
+// Die Muster werden auf Modulebene gelesen — die Registry muss vorher stehen.
+loadBuiltinTemplates();
 
 describe('Minecraft-Logmuster', () => {
   const { logPatterns } = getTemplate('minecraft');

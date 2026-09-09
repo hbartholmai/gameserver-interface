@@ -45,6 +45,21 @@ export function formatUptime(seconds: number): string {
   return h > 0 ? `${h} h ${String(m).padStart(2, '0')} m` : `${m} m`;
 }
 
+/**
+ * Kurze Dauer mit Sekundengenauigkeit: `2 m 40 s`, `45 s`, `1 h 05 m`.
+ * `formatUptime` rundet auf Minuten und wäre für Startvorgänge zu grob — ein
+ * 90-Sekunden-Start stünde dort als „1 m“.
+ */
+export function formatDauer(seconds: number | null): string {
+  if (seconds === null || !Number.isFinite(seconds) || seconds < 0) return '—';
+  const ganz = Math.floor(seconds);
+  if (ganz < 60) return `${ganz} s`;
+  const m = Math.floor(ganz / 60);
+  const s = ganz % 60;
+  if (m < 60) return `${m} m ${String(s).padStart(2, '0')} s`;
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} m`;
+}
+
 /** Spielzeit in der Spielerliste: `2 h 14 min`, `48 min`. */
 export function formatPlaytime(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return '—';
