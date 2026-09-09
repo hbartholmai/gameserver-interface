@@ -186,6 +186,13 @@ function eigeneVorlage(): TemplateDefinition {
       join: { source: 'Spieler (\\S+) betritt', flags: '' },
       ready: { source: 'Server bereit', flags: '' },
     },
+    fakeLog: {
+      timeFormat: 'iso',
+      join: '[{time}] Spieler {name} betritt den Acker',
+      leave: '[{time}] Spieler {name} verlaesst den Acker',
+      ready: '[{time}] Server bereit',
+      chatter: '[{time}] Feld gepfluegt ({n} ms)',
+    },
     backup: { paths: ['/data'], preCommands: [], postCommands: [] },
     validations: [],
     adapter: {},

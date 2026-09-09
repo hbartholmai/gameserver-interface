@@ -56,7 +56,7 @@ export const banRequestSchema = z.object({
 export const jobSchema = z.object({
   id: z.string(),
   instanceId: z.string().nullable(),
-  kind: z.enum(['create', 'update', 'backup', 'restore', 'delete']),
+  kind: z.enum(['create', 'update', 'backup', 'restore', 'delete', 'draft']),
   status: z.enum(['pending', 'running', 'done', 'failed']),
   /** 0–100, `null` wenn kein Fortschritt bekannt ist. */
   progress: z.number().nullable(),

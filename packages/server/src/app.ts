@@ -22,9 +22,11 @@ import { MetricsService } from './services/metrics.js';
 import { ModService } from './services/mods.js';
 import { Scheduler } from './services/scheduler.js';
 import { TemplateService } from './services/templates.js';
+import { DraftService } from './services/vorlagen-ki.js';
 import { Ticker } from './services/ticker.js';
 import { authRoutes, SESSION_COOKIE } from './routes/auth.js';
 import { instanceRoutes } from './routes/instances.js';
+import { templateRoutes } from './routes/templates.js';
 import { websocketRoute } from './routes/ws.js';
 
 export interface App {
@@ -45,6 +47,7 @@ export interface Services {
   mods: ModService;
   jobs: JobService;
   templates: TemplateService;
+  drafts: DraftService;
   instances: InstanceService;
   ticker: Ticker;
   scheduler: Scheduler;
@@ -88,6 +91,7 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   const instances = new InstanceService(config, store, runtime, logs, metrics, backups, jobs, hub, templates);
   const ticker = new Ticker(config, runtime, store, instances, metrics, hub);
   const scheduler = new Scheduler(instances);
+  const drafts = new DraftService(config.anthropicApiKey);
 
   const server = Fastify({
     logger: { level: process.env.GSP_LOG_LEVEL ?? 'info' },
@@ -140,6 +144,7 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
 
   await server.register(authRoutes, { auth, config });
   await server.register(instanceRoutes, { instances, store, logs, mods, backups, jobs, ticker, templates });
+  await server.register(templateRoutes, { templates, instances, jobs, drafts });
   await server.register(websocketRoute, { auth, hub, logs, ticker });
 
   if (config.webRoot) {
@@ -152,7 +157,7 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   }
 
   const services: Services = {
-    store, auth, runtime, hub, logs, metrics, backups, mods, jobs, templates, instances, ticker, scheduler,
+    store, auth, runtime, hub, logs, metrics, backups, mods, jobs, templates, drafts, instances, ticker, scheduler,
   };
 
   return {

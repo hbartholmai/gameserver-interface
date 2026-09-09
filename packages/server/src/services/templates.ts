@@ -1,6 +1,7 @@
 import {
   BUILTIN_DEFINITIONS,
   compileTemplate,
+  renderFakeLine,
   setTemplates,
   templateDefinitionSchema,
   type GameTemplate,
@@ -255,6 +256,40 @@ export class TemplateService {
         new RegExp(spec.source, spec.flags);
       } catch (err) {
         fehler.push({ field: name, message: err instanceof Error ? err.message : 'Ungültiges Muster' });
+      }
+    }
+
+    /*
+     * Wenn Beispielzeilen angegeben sind, müssen sie zu den Mustern derselben
+     * Vorlage passen. Sonst erkennt der Log-Parser im Betrieb ohne Docker
+     * nichts — die Instanz bliebe für immer auf „Startet“ stehen, und der
+     * Fehler fiele erst beim Ausprobieren auf. Für die mitgelieferten Vorlagen
+     * prüft das ein Test; hier gilt dasselbe für selbst angelegte.
+     */
+    if (definition.fakeLog && fehler.length === 0) {
+      const muster = compileTemplate(definition).logPatterns;
+      const beitritt = renderFakeLine(definition.fakeLog, 'join', 'Testspieler', 42);
+      if (muster.join.exec(beitritt)?.[1] !== 'Testspieler') {
+        fehler.push({
+          field: 'fakeLog.join',
+          message: `„${beitritt}“ passt nicht zum Beitrittsmuster — Gruppe 1 muss der Spielername sein`,
+        });
+      }
+      const start = renderFakeLine(definition.fakeLog, 'ready', '', 1200);
+      if (!muster.ready.test(start)) {
+        fehler.push({
+          field: 'fakeLog.ready',
+          message: `„${start}“ passt nicht zum Startmuster — die Instanz käme nie über „Startet“ hinaus`,
+        });
+      }
+      if (muster.leave) {
+        const abgang = renderFakeLine(definition.fakeLog, 'leave', 'Testspieler', 9001);
+        if (muster.leave.exec(abgang)?.[1] !== 'Testspieler') {
+          fehler.push({
+            field: 'fakeLog.leave',
+            message: `„${abgang}“ passt nicht zum Abgangsmuster`,
+          });
+        }
       }
     }
 
