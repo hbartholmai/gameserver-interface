@@ -8,10 +8,13 @@ const FILTER: Filter[] = ['Alle', 'Info', 'Warn'];
 
 export function Konsole({
   instanz,
+  vorlage,
   zeilen,
   onBefehl,
 }: {
   instanz: Instance;
+  /** Beschriftung der Vorlage. Früher stand hier ein fester Spielname im Text. */
+  vorlage: string;
   zeilen: LogLine[];
   onBefehl: (befehl: string) => Promise<void>;
 }) {
@@ -104,9 +107,8 @@ export function Konsole({
 
       {!schreibbar && (
         <p className="hinweis">
-          {instanz.game === 'valheim'
-            ? 'Valheim bietet kein RCON — Admin-Befehle gibt es nur in der Spielkonsole (F5).'
-            : 'Enshrouded bietet keine Serverkonsole — Verwaltung erfolgt im Spiel über eine Admin-Rolle.'}
+          {vorlage} nimmt keine Befehle über den Server entgegen; die Konsole zeigt nur den
+          Log-Strom. Warum, steht in den Hinweisen der Vorlage.
         </p>
       )}
     </div>

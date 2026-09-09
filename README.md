@@ -3,8 +3,9 @@
 Web-Panel zur Verwaltung mehrerer Gameserver-Instanzen auf einem Linux-Host.
 Jede Instanz läuft als Docker-Container; das Panel steuert sie, streamt die
 Logs, verwaltet Spieler, Backups, Mods und die Serverkonfiguration — und legt
-neue Instanzen aus fertigen Vorlagen für **Minecraft**, **Valheim** und
-**Enshrouded** an.
+neue Instanzen aus zwanzig mitgelieferten Vorlagen an — von **Minecraft** über
+**Counter-Strike 2** und **Rust** bis **Satisfactory**. Weitere kommen ohne
+Codeänderung dazu.
 
 Die Oberfläche setzt den Design-Handoff in `design_handoff_gameserver_panel/`
 um (Variante v2, dunkles Panel).
@@ -52,17 +53,37 @@ npm run typecheck  # Typprüfung über alle Pakete
 npm run build      # Produktionsbuild
 ```
 
-## Was die drei Vorlagen können
+## Was die mitgelieferten Vorlagen können
 
 Der Design-Prototyp nimmt an, dass jede Instanz eine Befehlseingabe und eine
-Mod-Liste hat. Das trifft nur auf Minecraft zu. Die Oberfläche blendet
+Mod-Liste hat. Real gilt das für die wenigsten Spiele. Die Oberfläche blendet
 Bedienelemente entsprechend aus oder deaktiviert sie mit Hinweis.
+
+Der Startbestand deckt gängige Mehrspielerspiele ab; er ist ein Anfang, kein
+Rahmen — eigene Vorlagen entstehen im Editor unter „Vorlagen".
 
 | | Image | Konsole schreiben | Spielerliste | Kick / Bann | Mods |
 | --- | --- | --- | --- | --- | --- |
-| **Minecraft** | `itzg/minecraft-server` | ja, über RCON | Namen per RCON | ja | Plugins (`.jar`) |
-| **Valheim** | `lloesche/valheim-server` | nein | Zahl per Steam-Query, Namen aus dem Log | nein | BepInEx (`.dll`) |
+| **Minecraft** | `itzg/minecraft-server` | ja, über RCON | Namen per RCON | ja | .jar |
+| **Minecraft (Bedrock)** | `itzg/minecraft-bedrock-server` | nein | nur aus dem Log | nein | keine |
+| **Valheim** | `lloesche/valheim-server` | nein | Zahl per Steam-Abfrage, Namen aus dem Log | nein | BepInEx (.dll) |
 | **Enshrouded** | `mornedhels/enshrouded-server` | nein | nur aus dem Log | nein | keine |
+| **Factorio** | `factoriotools/factorio` | nein | nur aus dem Log | nein | .zip |
+| **Terraria** | `ryshe/terraria` | nein | nur aus dem Log | nein | .dll |
+| **Luanti (Minetest)** | `linuxserver/minetest` | nein | nur aus dem Log | nein | keine |
+| **Palworld** | `thijsvanloef/palworld-server-docker` | ja, über RCON | Zahl per Steam-Abfrage, Namen aus dem Log | nein | keine |
+| **Counter-Strike 2** | `joedwards32/cs2` | ja, über RCON | Zahl per Steam-Abfrage, Namen aus dem Log | nein | keine |
+| **Team Fortress 2** | `cm2network/tf2` | ja, über RCON | Zahl per Steam-Abfrage, Namen aus dem Log | nein | keine |
+| **Garry's Mod** | `hackebein/garrysmod` | nein | Zahl per Steam-Abfrage, Namen aus dem Log | nein | keine |
+| **Rust** | `didstopia/rust-server` | nein | Zahl per Steam-Abfrage, Namen aus dem Log | nein | .cs |
+| **ARK: Survival Evolved** | `hermsi/ark-server` | ja, über RCON | Zahl per Steam-Abfrage, Namen aus dem Log | nein | keine |
+| **7 Days to Die** | `vinanrra/7dtd-server` | nein | Zahl per Steam-Abfrage, Namen aus dem Log | nein | BepInEx (.dll) |
+| **Project Zomboid** | `renegademaster/zomboid-dedicated-server` | ja, über RCON | nur aus dem Log | nein | keine |
+| **V Rising** | `trueosiris/vrising` | ja, über RCON | Zahl per Steam-Abfrage, Namen aus dem Log | nein | keine |
+| **Satisfactory** | `wolveix/satisfactory-server` | nein | nur aus dem Log | nein | keine |
+| **Don't Starve Together** | `jamesits/dst-server` | nein | nur aus dem Log | nein | keine |
+| **Core Keeper** | `escaping/core-keeper-dedicated` | nein | nur aus dem Log | nein | keine |
+| **Barotrauma** | `goldfish92/barotrauma-dedicated-server` | nein | Zahl per Steam-Abfrage, Namen aus dem Log | nein | .sub |
 
 Hintergrund:
 
@@ -74,9 +95,12 @@ Hintergrund:
   erfolgt über **Server-Rollen** (Admin, Freund, Gast) mit je eigenem Passwort;
   ein einzelnes Serverpasswort kennt das Spiel nicht mehr. Es gibt nur noch
   einen Port (15637/udp).
-- Ein **Ping je Spieler** ist bei keinem der drei Spiele über das
-  Serverprotokoll abrufbar und wird als `—` angezeigt. Der Ping im Detailkopf
-  ist die Antwortzeit der Serverabfrage.
+- **Kick und Bann** hängen an einer einzigen Fähigkeit, und das Panel führt nur
+  Namen. Spiele, die für den Bann eine Steam-Kennung verlangen — Palworld,
+  Counter-Strike 2, ARK —, sagen sie deshalb nicht zu; über die Konsole geht
+  beides trotzdem.
+- Ein **Ping je Spieler** liefert keines dieser Serverprotokolle; er wird als
+  `—` angezeigt. Der Ping im Detailkopf ist die Antwortzeit der Serverabfrage.
 - Die **Spielzeit** führt das Panel selbst — kein Spiel liefert sie.
 - Ob für eine Mod eine **neuere Version** vorliegt, kann das Panel nicht
   feststellen; es ist keine Mod-Quelle angebunden.

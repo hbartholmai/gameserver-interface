@@ -21,6 +21,12 @@ import { garrysmodDefinition } from './garrysmod.js';
 import { rustDefinition } from './rust.js';
 import { arkDefinition } from './ark.js';
 import { sevenDaysToDieDefinition } from './sevendaystodie.js';
+import { zomboidDefinition } from './zomboid.js';
+import { vrisingDefinition } from './vrising.js';
+import { satisfactoryDefinition } from './satisfactory.js';
+import { dstDefinition } from './dst.js';
+import { coreKeeperDefinition } from './corekeeper.js';
+import { barotraumaDefinition } from './barotrauma.js';
 
 /**
  * Die mitgelieferten Vorlagen. Sie sind **Startbestand**, kein Laufzeitpfad:
@@ -43,6 +49,12 @@ export const BUILTIN_DEFINITIONS: TemplateDefinition[] = [
   rustDefinition,
   arkDefinition,
   sevenDaysToDieDefinition,
+  zomboidDefinition,
+  vrisingDefinition,
+  satisfactoryDefinition,
+  dstDefinition,
+  coreKeeperDefinition,
+  barotraumaDefinition,
 ];
 
 /**
@@ -193,3 +205,9 @@ export { garrysmodDefinition } from './garrysmod.js';
 export { rustDefinition } from './rust.js';
 export { arkDefinition } from './ark.js';
 export { sevenDaysToDieDefinition } from './sevendaystodie.js';
+export { zomboidDefinition } from './zomboid.js';
+export { vrisingDefinition } from './vrising.js';
+export { satisfactoryDefinition } from './satisfactory.js';
+export { dstDefinition } from './dst.js';
+export { coreKeeperDefinition } from './corekeeper.js';
+export { barotraumaDefinition } from './barotrauma.js';

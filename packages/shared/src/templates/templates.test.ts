@@ -153,6 +153,8 @@ describe('Validierung', () => {
       // Rust hat kein erzeugtes Geheimnis: sein Web-RCON braucht ein Passwort,
       // das der Betreiber selbst kennt.
       rust: { rconPassword: 'sicher123' },
+      zomboid: { adminPassword: 'sicher123' },
+      dst: { clusterToken: 'pds-g^abcdefghi-q^jklmnopqrstuvwxyz0123456789=' },
     };
     for (const template of listTemplates()) {
       const werte = { ...defaultValues(template), ...gueltig[template.id] };

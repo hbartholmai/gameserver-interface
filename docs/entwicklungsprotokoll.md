@@ -180,6 +180,28 @@ Kopf: 1.190 px.
 **Merke:** Bei generierten Formularen nicht die Komponente ansehen, sondern die
 Höhe messen — mit echten Daten, nicht mit einem Beispiel.
 
+### Ein Rust-Server, dem die Oberfläche „Enshrouded" sagte
+
+Beim Durchklicken der zwanzigsten Vorlage stand im Spieler-Reiter: „Kick und
+Bann sind bei Enshrouded nur im Spiel über eine Admin-Rolle möglich." Die
+Instanz war Rust. Zwei Stellen im Frontend prüften noch gegen
+`instanz.game === 'valheim'` und nannten sonst Enshrouded — genau das, was
+`CLAUDE.md` seit dem Vorlagenumbau verbietet. Mit drei mitgelieferten Vorlagen
+stimmte der Text in zwei von drei Fällen; mit zwanzig in zwei von zwanzig.
+
+Beide Texte nennen jetzt die Beschriftung der Vorlage. Die Begründung, *warum*
+ein Spiel keine Konsole hat, steht ohnehin in den Hinweisen der Vorlage.
+
+**Merke:** Eine Fallunterscheidung über zwei Werte sieht wie eine Auswahl aus,
+ist aber eine Annahme. Sie fällt erst auf, wenn es einen dritten Wert gibt.
+
+### Die Dateiendung im Mod-Reiter war geraten
+
+`.dll` bei BepInEx, sonst `.jar` — das stimmte für Valheim und Minecraft und
+für nichts anderes. Rust lädt `.cs`, Barotrauma `.sub`. Die Endungen standen
+längst in der Vorlage, gehörten aber nicht zum Descriptor und kamen deshalb nie
+im Frontend an.
+
 ## 4. Prüfvorgehen
 
 ### Ohne Docker

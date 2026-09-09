@@ -286,6 +286,7 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
               {tab === 'console' && (
                 <Konsole
                   instanz={instanz}
+                  vorlage={vorlage?.label ?? 'Diese Vorlage'}
                   zeilen={logs}
                   onBefehl={async (befehl) => {
                     try {
@@ -307,6 +308,7 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
               {tab === 'players' && (
                 <Spieler
                   instanz={instanz}
+                  vorlage={vorlage?.label ?? 'dieser Vorlage'}
                   onKick={(name) => void aktion(() => api.kick(instanz.id, name))}
                   onBann={(name) => void aktion(() => api.ban(instanz.id, name))}
                   onAufheben={(name) => void aktion(() => api.unban(instanz.id, name))}
