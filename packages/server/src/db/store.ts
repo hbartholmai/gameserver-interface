@@ -21,7 +21,16 @@ export interface InstanceRecord {
   peakPlayers: number;
   /** Dauer des letzten erfolgreichen Starts in Sekunden, `null` vor dem ersten. */
   lastBootSec: number | null;
+  /** Stand der Vorlage, mit dem der Container erzeugt wurde. */
+  templateRev: string | null;
   createdAt: string;
+}
+
+export interface TemplateRow {
+  id: string;
+  definition: string;
+  builtin: number;
+  updated_at: string;
 }
 
 interface InstanceRow {
@@ -40,6 +49,7 @@ interface InstanceRow {
   backup_keep_days: number;
   peak_players: number;
   last_boot_sec: number | null;
+  template_rev: string | null;
   created_at: string;
 }
 
@@ -60,6 +70,7 @@ function toRecord(row: InstanceRow): InstanceRecord {
     backupKeepDays: row.backup_keep_days,
     peakPlayers: row.peak_players,
     lastBootSec: row.last_boot_sec,
+    templateRev: row.template_rev,
     createdAt: row.created_at,
   };
 }
@@ -82,8 +93,9 @@ export class Store {
       .prepare(
         `INSERT INTO instances
           (id, game, name, tag, container_name, container_id, ports, memory_mb, cpus,
-           settings, secrets, backup_cron, backup_keep_days, peak_players, last_boot_sec, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           settings, secrets, backup_cron, backup_keep_days, peak_players, last_boot_sec,
+           template_rev, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         record.id,
@@ -101,6 +113,7 @@ export class Store {
         record.backupKeepDays,
         record.peakPlayers,
         record.lastBootSec,
+        record.templateRev,
         record.createdAt,
       );
   }
@@ -113,7 +126,7 @@ export class Store {
       .prepare(
         `UPDATE instances SET name = ?, tag = ?, container_id = ?, ports = ?, memory_mb = ?,
            cpus = ?, settings = ?, secrets = ?, backup_cron = ?, backup_keep_days = ?, peak_players = ?,
-           last_boot_sec = ?
+           last_boot_sec = ?, template_rev = ?
          WHERE id = ?`,
       )
       .run(
@@ -129,8 +142,66 @@ export class Store {
         next.backupKeepDays,
         next.peakPlayers,
         next.lastBootSec,
+        next.templateRev,
         id,
       );
+  }
+
+  // --- Vorlagen -------------------------------------------------------------
+
+  listTemplateRows(): TemplateRow[] {
+    return this.db
+      // `rowid` ist die Einfügereihenfolge: die mitgelieferten Vorlagen
+      // erscheinen damit so, wie sie geliefert wurden (Minecraft zuerst),
+      // eigene dahinter in der Reihenfolge ihres Anlegens. Alphabetisch wäre
+      // es zwar stabil, würde aber die bewusste Reihenfolge im Wizard umwerfen.
+      .prepare('SELECT * FROM templates ORDER BY builtin DESC, rowid')
+      .all() as TemplateRow[];
+  }
+
+  getTemplateRow(id: string): TemplateRow | null {
+    const row = this.db.prepare('SELECT * FROM templates WHERE id = ?').get(id) as
+      | TemplateRow
+      | undefined;
+    return row ?? null;
+  }
+
+  /**
+   * Fügt nur ein, wenn die Vorlage fehlt. Bewusst kein Upsert: sonst würde
+   * jedes Panel-Update die Anpassungen des Betreibers an einer mitgelieferten
+   * Vorlage stillschweigend zurücksetzen.
+   */
+  insertTemplateIfMissing(id: string, definition: string, builtin: boolean, at: string): boolean {
+    const ergebnis = this.db
+      .prepare(
+        `INSERT INTO templates (id, definition, builtin, updated_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(id) DO NOTHING`,
+      )
+      .run(id, definition, builtin ? 1 : 0, at);
+    return ergebnis.changes > 0;
+  }
+
+  upsertTemplate(id: string, definition: string, builtin: boolean, at: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO templates (id, definition, builtin, updated_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET definition = excluded.definition, updated_at = excluded.updated_at`,
+      )
+      .run(id, definition, builtin ? 1 : 0, at);
+  }
+
+  deleteTemplate(id: string): void {
+    this.db.prepare('DELETE FROM templates WHERE id = ?').run(id);
+  }
+
+  /** Wie viele Instanzen auf dieser Vorlage beruhen — Sperre gegen das Löschen. */
+  countInstancesByGame(game: string): number {
+    const row = this.db
+      .prepare('SELECT COUNT(*) AS anzahl FROM instances WHERE game = ?')
+      .get(game) as { anzahl: number };
+    return row.anzahl;
   }
 
   deleteInstance(id: string): void {

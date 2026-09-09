@@ -1,5 +1,4 @@
-import type { GameTemplate } from '../schema/template.js';
-import { levelFromKeywords } from './util.js';
+import type { TemplateDefinition } from '../schema/template-definition.js';
 
 /**
  * Enshrouded auf Basis von `mornedhels/enshrouded-server`.
@@ -18,7 +17,7 @@ import { levelFromKeywords } from './util.js';
  * Alle mit `SERVER_` beginnenden Variablen des Images bilden die Optionen der
  * `enshrouded_server.json` ab.
  */
-export const enshroudedTemplate: GameTemplate = {
+export const enshroudedDefinition: TemplateDefinition = {
   id: 'enshrouded',
   label: 'Enshrouded',
   summary: 'Dedizierter Enshrouded-Server unter Wine. Zugang über Server-Rollen, Konsole nur lesend, keine Mods.',
@@ -94,43 +93,68 @@ export const enshroudedTemplate: GameTemplate = {
     },
   ],
 
-  env(values, ctx) {
-    const env: Record<string, string> = {
-      SERVER_NAME: String(values.serverName ?? 'Enshrouded Server'),
-      SERVER_SLOT_COUNT: String(values.slotCount ?? 16),
-      SERVER_IP: '0.0.0.0',
-      SERVER_QUERYPORT: String(ctx.hostPorts.query ?? 15637),
-      SERVER_SAVE_DIR: './savegame',
-      SERVER_LOG_DIR: './logs',
-      SERVER_GAMESETTINGSPRESET: String(values.gameSettingsPreset ?? 'Default'),
-      SERVER_ENABLE_VOICE_CHAT: values.voiceChat ? 'true' : 'false',
-      SERVER_ENABLE_TEXT_CHAT: values.textChat === false ? 'false' : 'true',
-      // Rollen statt eines Serverpassworts — Reihenfolge entspricht den Standardgruppen.
-      SERVER_ROLE_0_NAME: 'Admin',
-      SERVER_ROLE_1_NAME: 'Friend',
-      SERVER_ROLE_2_NAME: 'Guest',
-      // Backups und Neustarts steuert das Panel, nicht das Image.
-      UPDATE_CRON: String(values.updateCron ?? ''),
-      TZ: ctx.timezone,
-    };
-    const admin = String(values.adminPassword ?? '');
-    const friend = String(values.friendPassword ?? '');
-    const guest = String(values.guestPassword ?? '');
-    if (admin) env.SERVER_ROLE_0_PASSWORD = admin;
-    if (friend) env.SERVER_ROLE_1_PASSWORD = friend;
-    if (guest) env.SERVER_ROLE_2_PASSWORD = guest;
-    return env;
-  },
+  env: [
+    { name: 'SERVER_NAME', source: { kind: 'field', field: 'serverName' }, fallback: 'Enshrouded Server', trim: false, omitWhenEmpty: false },
+    { name: 'SERVER_SLOT_COUNT', source: { kind: 'field', field: 'slotCount' }, fallback: '16', trim: false, omitWhenEmpty: false },
+    { name: 'SERVER_IP', source: { kind: 'const', value: '0.0.0.0' }, trim: false, omitWhenEmpty: false },
+    { name: 'SERVER_QUERYPORT', source: { kind: 'port', port: 'query' }, fallback: '15637', trim: false, omitWhenEmpty: false },
+    { name: 'SERVER_SAVE_DIR', source: { kind: 'const', value: './savegame' }, trim: false, omitWhenEmpty: false },
+    { name: 'SERVER_LOG_DIR', source: { kind: 'const', value: './logs' }, trim: false, omitWhenEmpty: false },
+    { name: 'SERVER_GAMESETTINGSPRESET', source: { kind: 'field', field: 'gameSettingsPreset' }, fallback: 'Default', trim: false, omitWhenEmpty: false },
+    {
+      name: 'SERVER_ENABLE_VOICE_CHAT', source: { kind: 'field', field: 'voiceChat' },
+      boolean: { whenTrue: 'true', whenFalse: 'false' }, fallback: 'false', trim: false, omitWhenEmpty: false,
+    },
+    {
+      name: 'SERVER_ENABLE_TEXT_CHAT', source: { kind: 'field', field: 'textChat' },
+      boolean: { whenTrue: 'true', whenFalse: 'false' }, fallback: 'true', trim: false, omitWhenEmpty: false,
+    },
+    // Rollen statt eines Serverpassworts — Reihenfolge entspricht den Standardgruppen.
+    { name: 'SERVER_ROLE_0_NAME', source: { kind: 'const', value: 'Admin' }, trim: false, omitWhenEmpty: false },
+    { name: 'SERVER_ROLE_1_NAME', source: { kind: 'const', value: 'Friend' }, trim: false, omitWhenEmpty: false },
+    { name: 'SERVER_ROLE_2_NAME', source: { kind: 'const', value: 'Guest' }, trim: false, omitWhenEmpty: false },
+    // Backups und Neustarts steuert das Panel, nicht das Image.
+    { name: 'UPDATE_CRON', source: { kind: 'field', field: 'updateCron' }, fallback: '', trim: false, omitWhenEmpty: false },
+    { name: 'TZ', source: { kind: 'timezone' }, trim: false, omitWhenEmpty: false },
+    // Leeres Rollenpasswort sperrt die Rolle — die Variable bleibt dann weg.
+    { name: 'SERVER_ROLE_0_PASSWORD', source: { kind: 'field', field: 'adminPassword' }, trim: false, omitWhenEmpty: true },
+    { name: 'SERVER_ROLE_1_PASSWORD', source: { kind: 'field', field: 'friendPassword' }, trim: false, omitWhenEmpty: true },
+    { name: 'SERVER_ROLE_2_PASSWORD', source: { kind: 'field', field: 'guestPassword' }, trim: false, omitWhenEmpty: true },
+  ],
 
   logPatterns: {
-    join: /(?:Player|Character)\s+['"]?([^'"]+?)['"]?\s+(?:connected|joined)/i,
-    leave: /(?:Player|Character)\s+['"]?([^'"]+?)['"]?\s+(?:disconnected|left)/i,
-    ready: /(Server is now (?:online|listening)|HandleAssignmentReq|Session .* created)/i,
-    level: levelFromKeywords,
-    clean: (line) => line.replace(/^\s*\[?\d{4}-\d{2}-\d{2}[ T][\d:.]+\]?\s*/, '').trimEnd(),
+    join: { source: '(?:Player|Character)\\s+[\'"]?([^\'"]+?)[\'"]?\\s+(?:connected|joined)', flags: 'i' },
+    leave: { source: '(?:Player|Character)\\s+[\'"]?([^\'"]+?)[\'"]?\\s+(?:disconnected|left)', flags: 'i' },
+    ready: { source: '(Server is now (?:online|listening)|HandleAssignmentReq|Session .* created)', flags: 'i' },
+    clean: {
+      pattern: { source: '^\\s*\\[?\\d{4}-\\d{2}-\\d{2}[ T][\\d:.]+\\]?\\s*', flags: '' },
+      replacement: '',
+    },
   },
+
+  validations: [
+    {
+      rule: 'required',
+      field: 'adminPassword',
+      message: 'Ohne Admin-Passwort ist der Server nicht administrierbar',
+    },
+  ],
+
+  adapter: { maxPlayersField: 'slotCount' },
+
+  fakeLog: {
+    timeFormat: 'iso',
+    join: "[{time}] Player '{name}' connected",
+    leave: "[{time}] Player '{name}' disconnected",
+    ready: '[{time}] Server is now online',
+    chatter: '[{time}] Savegame written ({n} ms)',
+  },
+
+  modExtensions: [],
 
   backup: {
     paths: ['/opt/enshrouded/savegame'],
+    preCommands: [],
+    postCommands: [],
   },
 };

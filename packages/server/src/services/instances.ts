@@ -24,6 +24,8 @@ import type { Hub } from './hub.js';
 import type { JobService } from './jobs.js';
 import type { LogService } from './logs.js';
 import type { MetricsService } from './metrics.js';
+// Nur als Typ: der Vorlagendienst importiert umgekehrt `ValidationError` von hier.
+import type { TemplateService } from './templates.js';
 import { instanceRoot, slug, volumePath } from './paths.js';
 
 export class ValidationError extends Error {
@@ -59,6 +61,7 @@ export class InstanceService {
     private readonly backups: BackupService,
     private readonly jobs: JobService,
     private readonly hub: Hub,
+    private readonly templates: TemplateService,
   ) {}
 
   list(): InstanceRecord[] {
@@ -124,6 +127,7 @@ export class InstanceService {
       backupKeepDays: request.backupKeepDays,
       peakPlayers: 0,
       lastBootSec: null,
+      templateRev: null,
       createdAt: new Date().toISOString(),
     };
 
@@ -192,7 +196,13 @@ export class InstanceService {
       labels: { [INSTANCE_LABEL]: record.id, game: record.game },
     });
 
-    this.store.updateInstance(record.id, { containerId });
+    // Mit welchem Stand der Vorlage dieser Container gebaut wurde. Weicht die
+    // Vorlage später ab, meldet das DTO `templateStale` und die Oberfläche bietet
+    // „Neu aufbauen“ an — dieselbe Mechanik wie bei geänderten Einstellungen.
+    this.store.updateInstance(record.id, {
+      containerId,
+      templateRev: this.templates.revOf(record.game),
+    });
   }
 
   // --- Steuerung ------------------------------------------------------------
@@ -480,6 +490,8 @@ export class InstanceService {
       updateNote: this.updating.has(instance.id) ? 'Update läuft' : 'Version ist aktuell',
       updateAvailable: false,
       lastBootSec: instance.lastBootSec,
+      templateStale:
+        instance.templateRev !== null && instance.templateRev !== this.templates.revOf(instance.game),
       createdAt: instance.createdAt,
     };
   }

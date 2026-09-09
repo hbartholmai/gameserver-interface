@@ -5,6 +5,7 @@ import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
+import { UnknownTemplateError } from '@gsp/shared';
 import { AuthService, safeEqual } from './auth/sessions.js';
 import type { Config } from './config.js';
 import { openDb } from './db/index.js';
@@ -20,6 +21,7 @@ import { LogService } from './services/logs.js';
 import { MetricsService } from './services/metrics.js';
 import { ModService } from './services/mods.js';
 import { Scheduler } from './services/scheduler.js';
+import { TemplateService } from './services/templates.js';
 import { Ticker } from './services/ticker.js';
 import { authRoutes, SESSION_COOKIE } from './routes/auth.js';
 import { instanceRoutes } from './routes/instances.js';
@@ -42,6 +44,7 @@ export interface Services {
   backups: BackupService;
   mods: ModService;
   jobs: JobService;
+  templates: TemplateService;
   instances: InstanceService;
   ticker: Ticker;
   scheduler: Scheduler;
@@ -69,6 +72,11 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
     runtimeOverride ??
     (config.runtime === 'fake' ? new FakeRuntime() : new DockerRuntime(config.dockerSocket));
 
+  // Vorlagen zuerst: alle folgenden Dienste schlagen darüber nach, und ohne
+  // gefüllte Registry schlägt schon das Laden bestehender Instanzen fehl.
+  const templates = new TemplateService(store);
+  templates.seedAndLoad();
+
   const hub = new Hub();
   const jobs = new JobService(db, hub);
   jobs.failStaleJobs();
@@ -77,7 +85,7 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   const metrics = new MetricsService(runtime, store, logs, config.publicHost, config.volumeDir);
   const backups = new BackupService(store, config.volumeDir, config.backupDir);
   const mods = new ModService(config.volumeDir);
-  const instances = new InstanceService(config, store, runtime, logs, metrics, backups, jobs, hub);
+  const instances = new InstanceService(config, store, runtime, logs, metrics, backups, jobs, hub, templates);
   const ticker = new Ticker(config, runtime, store, instances, metrics, hub);
   const scheduler = new Scheduler(instances);
 
@@ -116,6 +124,11 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   });
 
   server.setErrorHandler((error, request, reply) => {
+    // Seit Vorlagen zur Laufzeit entstehen und verschwinden können, ist eine
+    // unbekannte Spiel-ID ein normaler Fall — kein interner Fehler.
+    if (error instanceof UnknownTemplateError) {
+      return reply.code(404).send({ error: error.message });
+    }
     if (error instanceof ValidationError) {
       const code = error.message === 'Instanz nicht gefunden' ? 404 : 400;
       return reply.code(code).send({ error: error.message, fields: error.fields });
@@ -126,7 +139,7 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   });
 
   await server.register(authRoutes, { auth, config });
-  await server.register(instanceRoutes, { instances, store, logs, mods, backups, jobs, ticker });
+  await server.register(instanceRoutes, { instances, store, logs, mods, backups, jobs, ticker, templates });
   await server.register(websocketRoute, { auth, hub, logs, ticker });
 
   if (config.webRoot) {
@@ -139,7 +152,7 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   }
 
   const services: Services = {
-    store, auth, runtime, hub, logs, metrics, backups, mods, jobs, instances, ticker, scheduler,
+    store, auth, runtime, hub, logs, metrics, backups, mods, jobs, templates, instances, ticker, scheduler,
   };
 
   return {

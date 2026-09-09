@@ -1,4 +1,4 @@
-import type { GameId, Player } from '@gsp/shared';
+import type { Player } from '@gsp/shared';
 import type { InstanceRecord } from '../db/store.js';
 import type { Store } from '../db/store.js';
 import type { Runtime } from '../runtime/types.js';
@@ -25,8 +25,13 @@ export interface Probe {
   names: string[] | null;
 }
 
+/**
+ * Ein Adapter bedient eine **Fähigkeit**, kein Spiel: welcher zuständig ist,
+ * entscheidet `capabilities.players` der Vorlage. Deshalb trägt er auch keine
+ * Spiel-ID mehr — dieselbe Instanz von `rconAdapter` bedient jede Vorlage mit
+ * RCON.
+ */
 export interface GameAdapter {
-  readonly game: GameId;
   /** Zustandsabfrage über das Spielprotokoll. */
   probe(ctx: AdapterContext): Promise<Probe | null>;
   /** Spielerliste inklusive Spielzeit aus den gespeicherten Sitzungen. */

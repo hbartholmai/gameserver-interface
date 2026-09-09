@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { loadBuiltinTemplates } from '@gsp/shared';
 import { isInside, slug, toHostPath, volumePath } from './paths.js';
 import type { InstanceRecord } from '../db/store.js';
+
+// Die Vorlagen liegen jetzt in einer Registry statt in Modulkonstanten.
+loadBuiltinTemplates();
 
 const valheim: InstanceRecord = {
   id: 'abc123', game: 'valheim', name: 'Midgard', tag: 'latest',
   containerName: 'gsp-midgard-abc123', containerId: null,
   ports: { game: 2456, query: 2457 }, memoryMb: 8192, cpus: 4,
   settings: {}, secrets: {}, backupCron: '', backupKeepDays: 7,
-  peakPlayers: 0, createdAt: new Date().toISOString(),
+  peakPlayers: 0, lastBootSec: null, templateRev: null, createdAt: new Date().toISOString(),
 };
 
 describe('Pfadauflösung', () => {

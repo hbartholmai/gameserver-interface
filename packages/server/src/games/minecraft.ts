@@ -71,8 +71,7 @@ export function parseTps(response: string): string | null {
   return `${value.toFixed(1).replace('.', ',')} TPS`;
 }
 
-export const minecraftAdapter: GameAdapter = {
-  game: 'minecraft',
+export const rconAdapter: GameAdapter = {
 
   async probe(ctx): Promise<Probe | null> {
     const port = ctx.instance.ports.game;

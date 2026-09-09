@@ -1,12 +1,11 @@
-import type { GameTemplate } from '../schema/template.js';
-import { levelFromKeywords } from './util.js';
+import type { TemplateDefinition } from '../schema/template-definition.js';
 
 /**
  * Minecraft auf Basis von `itzg/minecraft-server` — die Vorlage mit dem
  * größten Funktionsumfang: RCON gibt eine echte bidirektionale Konsole,
  * eine Spielerliste mit Ping und serverseitiges Kick/Bann.
  */
-export const minecraftTemplate: GameTemplate = {
+export const minecraftDefinition: TemplateDefinition = {
   id: 'minecraft',
   label: 'Minecraft',
   summary: 'Java Edition mit Paper, Vanilla, Fabric oder Forge. Volle Konsole über RCON, Plugin-Verwaltung und Hot-Backups.',
@@ -99,43 +98,71 @@ export const minecraftTemplate: GameTemplate = {
     },
   ],
 
-  env(values, ctx) {
-    const seed = String(values.seed ?? '').trim();
-    const env: Record<string, string> = {
-      EULA: 'TRUE',
-      TYPE: String(values.type ?? 'PAPER'),
-      VERSION: String(values.version ?? 'LATEST'),
-      MOTD: String(values.motd ?? ''),
-      MAX_PLAYERS: String(values.maxPlayers ?? 20),
-      DIFFICULTY: String(values.difficulty ?? 'normal'),
-      LEVEL: String(values.levelName ?? 'world'),
-      ENABLE_WHITELIST: values.whitelist ? 'TRUE' : 'FALSE',
-      PVP: values.pvp === false ? 'FALSE' : 'TRUE',
-      ONLINE_MODE: values.onlineMode === false ? 'FALSE' : 'TRUE',
-      VIEW_DISTANCE: String(values.viewDistance ?? 10),
-      ENABLE_RCON: 'TRUE',
-      RCON_PORT: '25575',
-      SERVER_PORT: String(ctx.hostPorts.game ?? 25565),
-      TZ: ctx.timezone,
-      // Der Container darf sich nicht selbst abschalten, wenn kurz niemand spielt.
-      ENABLE_AUTOPAUSE: 'FALSE',
-      // Startet den Server neu, statt den Container zu beenden — das Panel steuert den Lebenszyklus.
-      STOP_SERVER_ANNOUNCE_DELAY: '5',
-    };
-    if (seed) env.SEED = seed;
-    if (ctx.rconPassword) env.RCON_PASSWORD = ctx.rconPassword;
-    return env;
-  },
+  env: [
+    { name: 'EULA', source: { kind: 'const', value: 'TRUE' }, trim: false, omitWhenEmpty: false },
+    { name: 'TYPE', source: { kind: 'field', field: 'type' }, fallback: 'PAPER', trim: false, omitWhenEmpty: false },
+    { name: 'VERSION', source: { kind: 'field', field: 'version' }, fallback: 'LATEST', trim: false, omitWhenEmpty: false },
+    { name: 'MOTD', source: { kind: 'field', field: 'motd' }, fallback: '', trim: false, omitWhenEmpty: false },
+    { name: 'MAX_PLAYERS', source: { kind: 'field', field: 'maxPlayers' }, fallback: '20', trim: false, omitWhenEmpty: false },
+    { name: 'DIFFICULTY', source: { kind: 'field', field: 'difficulty' }, fallback: 'normal', trim: false, omitWhenEmpty: false },
+    { name: 'LEVEL', source: { kind: 'field', field: 'levelName' }, fallback: 'world', trim: false, omitWhenEmpty: false },
+    {
+      name: 'ENABLE_WHITELIST', source: { kind: 'field', field: 'whitelist' },
+      boolean: { whenTrue: 'TRUE', whenFalse: 'FALSE' }, fallback: 'FALSE', trim: false, omitWhenEmpty: false,
+    },
+    {
+      name: 'PVP', source: { kind: 'field', field: 'pvp' },
+      boolean: { whenTrue: 'TRUE', whenFalse: 'FALSE' }, fallback: 'TRUE', trim: false, omitWhenEmpty: false,
+    },
+    {
+      name: 'ONLINE_MODE', source: { kind: 'field', field: 'onlineMode' },
+      boolean: { whenTrue: 'TRUE', whenFalse: 'FALSE' }, fallback: 'TRUE', trim: false, omitWhenEmpty: false,
+    },
+    { name: 'VIEW_DISTANCE', source: { kind: 'field', field: 'viewDistance' }, fallback: '10', trim: false, omitWhenEmpty: false },
+    { name: 'ENABLE_RCON', source: { kind: 'const', value: 'TRUE' }, trim: false, omitWhenEmpty: false },
+    { name: 'RCON_PORT', source: { kind: 'const', value: '25575' }, trim: false, omitWhenEmpty: false },
+    { name: 'SERVER_PORT', source: { kind: 'port', port: 'game' }, fallback: '25565', trim: false, omitWhenEmpty: false },
+    { name: 'TZ', source: { kind: 'timezone' }, trim: false, omitWhenEmpty: false },
+    // Der Container darf sich nicht selbst abschalten, wenn kurz niemand spielt.
+    { name: 'ENABLE_AUTOPAUSE', source: { kind: 'const', value: 'FALSE' }, trim: false, omitWhenEmpty: false },
+    // Startet den Server neu, statt den Container zu beenden — das Panel steuert den Lebenszyklus.
+    { name: 'STOP_SERVER_ANNOUNCE_DELAY', source: { kind: 'const', value: '5' }, trim: false, omitWhenEmpty: false },
+    // Leerer Seed bedeutet Zufallswelt; die Variable darf dann nicht gesetzt sein.
+    { name: 'SEED', source: { kind: 'field', field: 'seed' }, trim: true, omitWhenEmpty: true },
+    { name: 'RCON_PASSWORD', source: { kind: 'rconPassword' }, trim: false, omitWhenEmpty: true },
+  ],
 
   logPatterns: {
     // `[12:34:56] [Server thread/INFO]: Kai_Baut[/1.2.3.4:5678] logged in with entity id ...`
-    join: /:\s*([A-Za-z0-9_]{1,16})\[\/[^\]]+\] logged in/,
+    join: { source: ':\\s*([A-Za-z0-9_]{1,16})\\[\\/[^\\]]+\\] logged in', flags: '' },
     // `[Server thread/INFO]: Kai_Baut lost connection: Disconnected`
-    leave: /:\s*([A-Za-z0-9_]{1,16}) lost connection/,
-    ready: /\]: Done \([\d.]+s\)! For help/,
-    level: levelFromKeywords,
+    leave: { source: ':\\s*([A-Za-z0-9_]{1,16}) lost connection', flags: '' },
+    ready: { source: '\\]: Done \\([\\d.]+s\\)! For help', flags: '' },
     // Entfernt `[12:34:56] [Server thread/INFO]: ` — der Zeitstempel steht im Design in eigener Spalte.
-    clean: (line) => line.replace(/^\[\d{2}:\d{2}:\d{2}\]\s*\[[^\]]+\]:\s*/, '').trimEnd(),
+    clean: {
+      pattern: { source: '^\\[\\d{2}:\\d{2}:\\d{2}\\]\\s*\\[[^\\]]+\\]:\\s*', flags: '' },
+      replacement: '',
+    },
+  },
+
+  validations: [
+    {
+      rule: 'pattern',
+      field: 'levelName',
+      pattern: { source: '^[A-Za-z0-9_.-]+$', flags: '' },
+      message: 'Nur Buchstaben, Ziffern und . _ -',
+      onlyWhenSet: true,
+    },
+  ],
+
+  adapter: { maxPlayersField: 'maxPlayers' },
+
+  fakeLog: {
+    timeFormat: 'hms',
+    join: '[{time}] [Server thread/INFO]: {name}[/84.61.12.4:52{n}] logged in with entity id {n}',
+    leave: '[{time}] [Server thread/INFO]: {name} lost connection: Disconnected',
+    ready: '[{time}] [Server thread/INFO]: Done (12.000s)! For help, type "help"',
+    chatter: '[{time}] [Server thread/INFO]: Saved the game ({n} ms)',
   },
 
   modsPath: '/data/plugins',

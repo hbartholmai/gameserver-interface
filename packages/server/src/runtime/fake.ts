@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { DEFAULT_FAKE_LOG, findTemplate, renderFakeLine } from '@gsp/shared';
 import {
   INSTANCE_LABEL,
   type ContainerSpec,
@@ -30,45 +31,20 @@ interface FakeContainer {
 const NAME_POOL = ['skadi', 'Torvald', 'lena_k', 'Ragnvald', 'mo', 'Hilde', 'per_a', 'Sigrun'];
 
 /**
- * Erzeugt Logzeilen im tatsächlichen Format des jeweiligen Spiels, damit die
- * Parser aus den Vorlagen im Fake-Betrieb dieselbe Arbeit leisten wie in
- * Produktion.
+ * Erzeugt die Logzeile aus der `fakeLog`-Angabe der Vorlage. Früher stand hier
+ * eine feste Tabelle je Spiel — und wer ein Log-Muster änderte, musste daran
+ * denken, sie mitzupflegen, sonst liefen die Tests gegen ein Format, das es in
+ * Wirklichkeit nicht gab. Die eigentliche Erzeugung liegt in `@gsp/shared`
+ * neben den Mustern, damit ein Test beide gegeneinander prüfen kann.
  */
-const FORMATTERS: Record<string, (kind: 'join' | 'leave' | 'chatter' | 'ready', name: string, n: number) => string> = {
-  minecraft: (kind, name, n) => {
-    const head = `[${hms()}] [Server thread/INFO]: `;
-    if (kind === 'join') return `${head}${name}[/84.61.12.4:52${n % 100}] logged in with entity id ${n}`;
-    if (kind === 'leave') return `${head}${name} lost connection: Disconnected`;
-    if (kind === 'ready') return `${head}Done (${(n / 100).toFixed(3)}s)! For help, type "help"`;
-    return `${head}Saved the game (${n} ms)`;
-  },
-  valheim: (kind, name, n) => {
-    const head = `${dmy()}: `;
-    if (kind === 'join') return `${head}Got character ZDOID from ${name} : -${n}:1`;
-    if (kind === 'leave') return `${head}Closing socket ${n}`;
-    if (kind === 'ready') return `${head}DungeonDB Start ${n}`;
-    return `${head}World saved ( ${n}ms )`;
-  },
-  enshrouded: (kind, name, n) => {
-    const head = `[${iso()}] `;
-    if (kind === 'join') return `${head}Player '${name}' connected`;
-    if (kind === 'leave') return `${head}Player '${name}' disconnected`;
-    if (kind === 'ready') return `${head}Server is now online`;
-    return `${head}Savegame written (${n} ms)`;
-  },
-};
-
-function pad(n: number): string {
-  return String(n).padStart(2, '0');
-}
-function hms(d = new Date()): string {
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-function dmy(d = new Date()): string {
-  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${hms(d)}`;
-}
-function iso(d = new Date()): string {
-  return d.toISOString().replace('T', ' ').slice(0, 19);
+function formatiere(
+  game: string,
+  kind: 'join' | 'leave' | 'chatter' | 'ready',
+  name: string,
+  n: number,
+): string {
+  const spec = findTemplate(game)?.definition.fakeLog ?? DEFAULT_FAKE_LOG;
+  return renderFakeLine(spec, kind, name, n);
 }
 
 /**
@@ -149,7 +125,7 @@ export class FakeRuntime implements Runtime {
     const game = c.spec.labels.game ?? 'minecraft';
     setTimeout(() => {
       if (!c.running) return;
-      this.emit(c, FORMATTERS[game]!('ready', '', 1200));
+      this.emit(c, formatiere(game, 'ready', '', 1200));
     }, this.startupMs);
     c.timer = setInterval(() => this.tick(c, game), 2000);
     // Der Simulations-Timer darf den Prozess nicht am Beenden hindern.
@@ -252,7 +228,8 @@ export class FakeRuntime implements Runtime {
 
   private tick(c: FakeContainer, game: string): void {
     if (!c.running) return;
-    const format = FORMATTERS[game] ?? FORMATTERS.minecraft!;
+    const format = (kind: 'join' | 'leave' | 'chatter' | 'ready', name: string, n: number) =>
+      formatiere(game, kind, name, n);
     const limit = c.spec.memoryMb * 1024 * 1024;
 
     c.cpuCounter = Math.min(97, Math.max(4, c.cpuCounter + (Math.random() - 0.5) * 9));

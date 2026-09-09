@@ -10,7 +10,15 @@ export type InstanceStatus = z.infer<typeof instanceStatusSchema>;
 export const logLevelSchema = z.enum(['INFO', 'WARN', 'ERROR', 'CMD']);
 export type LogLevel = z.infer<typeof logLevelSchema>;
 
-export const gameIdSchema = z.enum(['minecraft', 'valheim', 'enshrouded']);
+/**
+ * Kennung einer Vorlage. Früher ein geschlossenes Enum der drei eingebauten
+ * Spiele — seit Vorlagen zur Laufzeit anlegbar sind, kann die Menge nicht mehr
+ * im Code feststehen. Das Muster hält sie trotzdem eng: die ID wird zum
+ * Container-Label und zum Pfadbestandteil.
+ */
+export const gameIdSchema = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9-]{1,31}$/, 'Nur Kleinbuchstaben, Ziffern und Bindestriche, 2–32 Zeichen');
 export type GameId = z.infer<typeof gameIdSchema>;
 
 /** Statusfarben aus den Design-Tokens (v2). */

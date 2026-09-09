@@ -2,13 +2,13 @@ import type { FastifyInstance } from 'fastify';
 // Erweitert Request um `file()` für den Mod-Upload.
 import '@fastify/multipart';
 import {
-  TEMPLATE_LIST,
   banRequestSchema,
   commandRequestSchema,
   createInstanceRequestSchema,
   clockHms,
   gameIdSchema,
   getTemplate,
+  listTemplates,
   toDescriptor,
   updateSettingsRequestSchema,
 } from '@gsp/shared';
@@ -20,6 +20,7 @@ import { ValidationError } from '../services/instances.js';
 import type { JobService } from '../services/jobs.js';
 import type { LogService } from '../services/logs.js';
 import type { ModService } from '../services/mods.js';
+import type { TemplateService } from '../services/templates.js';
 import type { Ticker } from '../services/ticker.js';
 
 interface Deps {
@@ -30,10 +31,11 @@ interface Deps {
   backups: BackupService;
   jobs: JobService;
   ticker: Ticker;
+  templates: TemplateService;
 }
 
 export async function instanceRoutes(app: FastifyInstance, deps: Deps): Promise<void> {
-  const { instances, store, logs, mods, backups, jobs, ticker } = deps;
+  const { instances, store, logs, mods, backups, jobs, ticker, templates } = deps;
 
   /** Bricht mit 404 ab, wenn die Instanz nicht existiert. */
   const need = (id: string) => {
@@ -45,7 +47,7 @@ export async function instanceRoutes(app: FastifyInstance, deps: Deps): Promise<
   app.get('/api/host', async () => ticker.hostStatus());
 
   app.get('/api/templates', async () => ({
-    templates: TEMPLATE_LIST.map(toDescriptor),
+    templates: listTemplates().map(toDescriptor),
   }));
 
   /** Freie Portvorschläge für den Anlege-Dialog. */

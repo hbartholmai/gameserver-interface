@@ -104,6 +104,12 @@ export const instanceSchema = z.object({
    * Prozentsatz ist für diese Phase nicht ermittelbar.
    */
   lastBootSec: z.number().nullable(),
+  /**
+   * Die Vorlage wurde bearbeitet, seit dieser Container gebaut wurde. Die
+   * Instanz läuft unverändert weiter; erst ein Neuaufbau übernimmt den neuen
+   * Stand.
+   */
+  templateStale: z.boolean(),
   createdAt: z.string(),
 });
 export type Instance = z.infer<typeof instanceSchema>;

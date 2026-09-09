@@ -1,26 +1,92 @@
 import { z } from 'zod';
-import type { GameId } from '../schema/common.js';
-import type { FieldSpec, FieldValues, GameTemplate, TemplateDescriptor } from '../schema/template.js';
-import { minecraftTemplate } from './minecraft.js';
-import { valheimTemplate } from './valheim.js';
-import { enshroudedTemplate } from './enshrouded.js';
+import type { TemplateDefinition } from '../schema/template-definition.js';
+import type {
+  FieldSpec,
+  FieldValues,
+  GameTemplate,
+  TemplateDescriptor,
+} from '../schema/template.js';
+import { applyValidations, compileTemplate } from './compile.js';
+import { minecraftDefinition } from './minecraft.js';
+import { valheimDefinition } from './valheim.js';
+import { enshroudedDefinition } from './enshrouded.js';
 
-export const TEMPLATES: Record<GameId, GameTemplate> = {
-  minecraft: minecraftTemplate,
-  valheim: valheimTemplate,
-  enshrouded: enshroudedTemplate,
-};
+/**
+ * Die mitgelieferten Vorlagen. Sie sind **Startbestand**, kein Laufzeitpfad:
+ * beim ersten Start schreibt der Server sie in die Datenbank, danach ist die
+ * Datenbank die Quelle. Wer sie hier ändert, ändert nur, was eine frische
+ * Installation bekommt — bestehende werden nie überschrieben.
+ */
+export const BUILTIN_DEFINITIONS: TemplateDefinition[] = [
+  minecraftDefinition,
+  valheimDefinition,
+  enshroudedDefinition,
+];
 
-export const TEMPLATE_LIST: GameTemplate[] = [minecraftTemplate, valheimTemplate, enshroudedTemplate];
+/**
+ * Die aktuell geladenen Vorlagen. Früher eine Konstante; jetzt füllt der Server
+ * sie beim Start aus der Datenbank und nach jeder Bearbeitung neu.
+ *
+ * Bewusst ein Modul-Singleton: die Alternative wäre, eine Registry durch jeden
+ * Dienst und jede Route zu reichen, obwohl es nie eine zweite gibt.
+ */
+let registry = new Map<string, GameTemplate>();
 
-export function getTemplate(game: GameId): GameTemplate {
-  return TEMPLATES[game];
+export class UnknownTemplateError extends Error {
+  constructor(readonly game: string) {
+    super(`Unbekannte Vorlage „${game}“`);
+    this.name = 'UnknownTemplateError';
+  }
+}
+
+/** Ersetzt den geladenen Bestand. */
+export function setTemplates(templates: GameTemplate[]): void {
+  registry = new Map(templates.map((template) => [template.id, template]));
+}
+
+/** Lädt die eingebauten Vorlagen — für Tests und als Notnagel ohne Datenbank. */
+export function loadBuiltinTemplates(): void {
+  setTemplates(BUILTIN_DEFINITIONS.map(compileTemplate));
+}
+
+/**
+ * Wirft, wenn die Vorlage fehlt. Früher konnte das nicht passieren, weil
+ * `GameId` ein Enum war; mit anlegbaren Vorlagen ist eine Instanz denkbar, deren
+ * Vorlage entfernt wurde. Die Routen beantworten das mit 404.
+ */
+export function getTemplate(game: string): GameTemplate {
+  const template = registry.get(game);
+  if (!template) throw new UnknownTemplateError(game);
+  return template;
+}
+
+/** `null` statt Ausnahme — für Stellen, die einen fehlenden Eintrag verkraften. */
+export function findTemplate(game: string): GameTemplate | null {
+  return registry.get(game) ?? null;
+}
+
+export function listTemplates(): GameTemplate[] {
+  return [...registry.values()];
 }
 
 /** Reduziert eine Vorlage auf den JSON-serialisierbaren Teil für die API. */
 export function toDescriptor(template: GameTemplate): TemplateDescriptor {
-  const { env: _env, logPatterns: _log, backup: _backup, configFiles: _cfg, ...descriptor } = template;
-  return descriptor;
+  // Ausdrücklich aufgezählt statt „alles außer den Funktionen“: sonst wandert
+  // jedes neue interne Feld stillschweigend in die API-Antwort.
+  return {
+    id: template.id,
+    label: template.label,
+    summary: template.summary,
+    image: template.image,
+    defaultTag: template.defaultTag,
+    ports: template.ports,
+    volumes: template.volumes,
+    fields: template.fields,
+    capabilities: template.capabilities,
+    defaultMemoryMb: template.defaultMemoryMb,
+    defaultCpus: template.defaultCpus,
+    notes: template.notes,
+  };
 }
 
 /** Vorbelegung eines Formulars aus den Feld-Defaults. */
@@ -68,8 +134,9 @@ function fieldSchema(field: FieldSpec): z.ZodTypeAny {
 }
 
 /**
- * Spielspezifische Prüfungen, die sich nicht aus den Feld-Specs ergeben.
- * Gibt eine Liste von Fehlern je Feld zurück; leer bedeutet gültig.
+ * Prüft die Einstellungen gegen die Feld-Specs und die Regeln der Vorlage.
+ * Die spielspezifischen Sonderfälle standen früher als `if (template.id === …)`
+ * hier im Code; jetzt bringt jede Vorlage ihre Regeln selbst mit.
  */
 export function validateSettings(
   template: GameTemplate,
@@ -83,35 +150,12 @@ export function validateSettings(
     }
   }
 
-  if (template.id === 'valheim') {
-    const pass = String(values.password ?? '');
-    const serverName = String(values.serverName ?? '');
-    const worldName = String(values.worldName ?? '');
-    if (pass.length > 0 && pass.length < 5) {
-      errors.push({ field: 'password', message: 'Valheim verlangt mindestens 5 Zeichen' });
-    }
-    if (pass && (serverName.includes(pass) || worldName.includes(pass))) {
-      errors.push({
-        field: 'password',
-        message: 'Das Passwort darf nicht im Server- oder Weltnamen vorkommen',
-      });
-    }
-  }
-
-  if (template.id === 'enshrouded') {
-    if (!String(values.adminPassword ?? '')) {
-      errors.push({ field: 'adminPassword', message: 'Ohne Admin-Passwort ist der Server nicht administrierbar' });
-    }
-  }
-
-  if (template.id === 'minecraft') {
-    const level = String(values.levelName ?? '');
-    if (level && !/^[A-Za-z0-9_.-]+$/.test(level)) {
-      errors.push({ field: 'levelName', message: 'Nur Buchstaben, Ziffern und . _ -' });
-    }
-  }
-
+  errors.push(...applyValidations(template.definition.validations, values));
   return errors;
 }
 
-export { minecraftTemplate, valheimTemplate, enshroudedTemplate };
+export { compileTemplate, applyValidations } from './compile.js';
+export { renderFakeLine, DEFAULT_FAKE_LOG } from './fakelog.js';
+export { minecraftDefinition } from './minecraft.js';
+export { valheimDefinition } from './valheim.js';
+export { enshroudedDefinition } from './enshrouded.js';
