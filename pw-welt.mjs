@@ -38,42 +38,42 @@ page.on('pageerror', (e) => console.log('SEITENFEHLER:', e.message));
 page.on('console', (m) => { if (m.type() === 'error') console.log('KONSOLE:', m.text()); });
 
 await page.goto(URL);
-await page.waitForSelector('.anmeldung__box');
+await page.waitForSelector('.login__box');
 await page.fill('#benutzer', 'admin');
 await page.fill('#passwort', 'geheim-genug-1234');
 await page.click('button[type=submit]');
-await page.waitForSelector('.seite', { timeout: 15000 });
+await page.waitForSelector('.page', { timeout: 15000 });
 log('angemeldet');
 
 // --- Minecraft-Instanz anlegen (hat Weltdaten) ---
-await page.click('.knopf--gestrichelt');
+await page.click('.button--dashed');
 await page.waitForSelector('.dialog');
-await page.click('.vorlagenkarte');
+await page.click('.templatecard');
 await page.fill('#instanzname', 'Nordheim');
-await page.click('.dialog__fuss .knopf--primaer');
+await page.click('.dialog__foot .button--primary');
 await page.waitForTimeout(6000);
-await page.click('.dialog__kopf .knopf--klein');
+await page.click('.dialog__head .button--small');
 await page.waitForTimeout(1000);
 log('Instanz „Nordheim" angelegt');
 
-await page.locator('.instanzkarte').first().click();
-await page.waitForSelector('.detailkopf__chip', { timeout: 15000 });
+await page.locator('.instancecard').first().click();
+await page.waitForSelector('.detailhead__chip', { timeout: 15000 });
 
 // --- Reiter vorhanden? ---
-const reiter = (await page.locator('.reiter__knopf').allInnerTexts()).map((t) => t.trim());
+const reiter = (await page.locator('.tab__button').allInnerTexts()).map((t) => t.trim());
 log('Reiter:', reiter.join(' | '));
 // Die Reiterbeschriftung steht in Großbuchstaben (CSS `text-transform`).
 pruefe('Reiter „Welt" ist da', reiter.includes('WELT'));
 pruefe('er steht vor „Backups"', reiter.indexOf('WELT') < reiter.indexOf('BACKUPS'));
 
-await page.locator('.reiter__knopf', { hasText: 'Welt' }).click();
+await page.locator('.tab__button', { hasText: 'Welt' }).click();
 await page.waitForTimeout(1200);
 
 /*
  * Den Weltnamen aus der Oberfläche lesen statt ihn zu raten: der Wizard nimmt
  * die Vorgabe der Vorlage, und die heißt bei Minecraft `world`.
  */
-const weltName = (await page.locator('.kachel__wert').first().innerText()).trim();
+const weltName = (await page.locator('.tile__value').first().innerText()).trim();
 log('Weltname laut Oberfläche:', weltName);
 
 if (DATA) {
@@ -88,26 +88,26 @@ if (DATA) {
   globalThis.__instanzen = instanzen;
   globalThis.__welt = weltName;
   // Reiter neu laden, damit die eben angelegten Dateien auftauchen.
-  await page.locator('.reiter__knopf', { hasText: 'Übersicht' }).click();
+  await page.locator('.tab__button', { hasText: 'Übersicht' }).click();
   await page.waitForTimeout(400);
-  await page.locator('.reiter__knopf', { hasText: 'Welt' }).click();
+  await page.locator('.tab__button', { hasText: 'Welt' }).click();
   await page.waitForTimeout(1200);
 }
 await schuss(page, 'welt-1-laufend');
 
-const zeilen = await page.locator('.zeile__datei').allInnerTexts();
+const zeilen = await page.locator('.row__file').allInnerTexts();
 pruefe('alle drei Teile werden aufgelistet', zeilen.length === 3);
 pruefe('fehlende Teile sind als „fehlt" markiert', (await page.locator('text=fehlt').count()) >= 2);
 
 const tauschKnopf = page.getByRole('button', { name: 'Welt austauschen…' });
 pruefe('Austausch ist bei laufender Instanz gesperrt', await tauschKnopf.isDisabled());
-pruefe('Hinweis dazu ist sichtbar', (await page.locator('.hinweis--warnung').count()) > 0);
-pruefe('Herunterladen bleibt frei', !(await page.locator('a.knopf').first().isDisabled?.() ?? false));
+pruefe('Hinweis dazu ist sichtbar', (await page.locator('.hint--warn').count()) > 0);
+pruefe('Herunterladen bleibt frei', !(await page.locator('a.button').first().isDisabled?.() ?? false));
 
 // --- Download ---
 const [download] = await Promise.all([
   page.waitForEvent('download', { timeout: 15000 }),
-  page.locator('a.knopf', { hasText: 'Welt herunterladen' }).click(),
+  page.locator('a.button', { hasText: 'Welt herunterladen' }).click(),
 ]);
 const heruntergeladen = await download.suggestedFilename();
 log('heruntergeladen als:', heruntergeladen);
@@ -118,26 +118,26 @@ pruefe(
 );
 
 // --- Stoppen, dann austauschen ---
-await page.locator('.reiter__knopf', { hasText: 'Übersicht' }).click();
+await page.locator('.tab__button', { hasText: 'Übersicht' }).click();
 await page.getByRole('button', { name: 'Stoppen' }).click();
-await page.waitForSelector('.dialog--schmal');
-await page.locator('.dialog__fuss .knopf--gefahr').click();
+await page.waitForSelector('.dialog--narrow');
+await page.locator('.dialog__foot .button--danger').click();
 await page.waitForTimeout(3000);
 log('Instanz gestoppt');
 
-await page.locator('.reiter__knopf', { hasText: 'Welt' }).click();
+await page.locator('.tab__button', { hasText: 'Welt' }).click();
 await page.waitForTimeout(800);
 pruefe('Austausch ist jetzt frei', !(await tauschKnopf.isDisabled()));
 
 const zipPfad = await baueZip(join(OUT, 'fremde-welt.zip'));
 await page.locator('input[type=file]').setInputFiles(zipPfad);
-await page.waitForSelector('.dialog--schmal');
+await page.waitForSelector('.dialog--narrow');
 await schuss(page, 'welt-2-dialog');
 
-log('Dialogtitel:', (await page.locator('.dialog__titel').innerText()).trim());
-const jaKnopf = page.locator('.dialog__fuss .knopf--gefahr');
+log('Dialogtitel:', (await page.locator('.dialog__title').innerText()).trim());
+const jaKnopf = page.locator('.dialog__foot .button--danger');
 pruefe('Knopf ist ohne Tippwort gesperrt', await jaKnopf.isDisabled());
-pruefe('Sicherungsschalter ist da und vorgewählt', (await page.locator('.feld__schalter button').getAttribute('aria-pressed')) === 'true');
+pruefe('Sicherungsschalter ist da und vorgewählt', (await page.locator('.field__toggle button').getAttribute('aria-pressed')) === 'true');
 
 await page.locator('#bestaetigung-tippen').fill('ersetzen');
 pruefe('nach „ersetzen" frei', !(await jaKnopf.isDisabled()));
@@ -158,19 +158,19 @@ if (DATA) {
 }
 
 // --- Vorlage ohne Weltdaten: kein Reiter ---
-await page.locator('.knopf--gestrichelt').first().click();
+await page.locator('.button--dashed').first().click();
 await page.waitForSelector('.dialog');
-const cs2 = page.locator('.vorlagenkarte', { hasText: 'Counter-Strike' });
+const cs2 = page.locator('.templatecard', { hasText: 'Counter-Strike' });
 if (await cs2.count()) {
   await cs2.first().click();
   await page.fill('#instanzname', 'Ohnewelt');
-  await page.click('.dialog__fuss .knopf--primaer');
+  await page.click('.dialog__foot .button--primary');
   await page.waitForTimeout(6000);
-  await page.click('.dialog__kopf .knopf--klein');
+  await page.click('.dialog__head .button--small');
   await page.waitForTimeout(1000);
-  await page.locator('.instanzkarte', { hasText: 'Ohnewelt' }).click();
+  await page.locator('.instancecard', { hasText: 'Ohnewelt' }).click();
   await page.waitForTimeout(1500);
-  const reiter2 = await page.locator('.reiter__knopf').allInnerTexts();
+  const reiter2 = await page.locator('.tab__button').allInnerTexts();
   pruefe('bei CS2 fehlt der Welt-Reiter', !reiter2.some((t) => t.trim() === 'Welt'));
   await schuss(page, 'welt-5-ohne-welt');
 } else {

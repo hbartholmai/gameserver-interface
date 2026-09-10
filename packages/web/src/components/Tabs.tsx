@@ -19,7 +19,7 @@ const ALLE: { id: TabId; label: string }[] = [
  * Vorlagen ohne Mod-Unterstützung, Welt bei Vorlagen ohne Weltdaten — CS2, TF2
  * und Garry's Mod sichern nur cfg-Verzeichnisse.
  */
-export function sichtbareTabs(
+export function visibleTabs(
   capabilities: Capabilities,
   hatWelt: boolean,
 ): { id: TabId; label: string }[] {
@@ -29,27 +29,27 @@ export function sichtbareTabs(
   );
 }
 
-export function Reiterleiste({
+export function TabBar({
   tabs,
   aktiv,
-  onWechseln,
+  onSwitch,
 }: {
   tabs: { id: TabId; label: string }[];
   aktiv: TabId;
-  onWechseln: (id: TabId) => void;
+  onSwitch: (id: TabId) => void;
 }) {
   return (
-    <nav className="reiter">
+    <nav className="tab">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           type="button"
-          className="reiter__knopf"
+          className="tab__button"
           aria-current={tab.id === aktiv ? 'page' : undefined}
-          onClick={() => onWechseln(tab.id)}
+          onClick={() => onSwitch(tab.id)}
         >
-          {tab.id === aktiv && <span className="reiter__aktiv-overlay" />}
-          <span className="reiter__label">{tab.label}</span>
+          {tab.id === aktiv && <span className="tab__active-overlay" />}
+          <span className="tab__label">{tab.label}</span>
         </button>
       ))}
     </nav>

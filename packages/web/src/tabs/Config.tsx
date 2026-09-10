@@ -1,91 +1,91 @@
 import { useEffect, useState } from 'react';
 import type { Instance, TemplateDescriptor } from '@gsp/shared';
-import { Feld, type Wert } from '../components/Feld.js';
-import { SektionsLabel } from '../components/basis.js';
+import { Field, type Wert } from '../components/Field.js';
+import { SectionLabel } from '../components/basics.js';
 
 export function Config({
-  instanz,
-  vorlage,
-  notiz,
-  beschaeftigt,
-  onSpeichern,
+  instance,
+  template,
+  note,
+  busy,
+  onSave,
 }: {
-  instanz: Instance;
-  vorlage: TemplateDescriptor;
-  notiz: string;
-  beschaeftigt: boolean;
-  onSpeichern: (werte: Record<string, Wert>, neustart: boolean) => void;
+  instance: Instance;
+  template: TemplateDescriptor;
+  note: string;
+  busy: boolean;
+  onSave: (values: Record<string, Wert>, restart: boolean) => void;
 }) {
-  const [werte, setWerte] = useState<Record<string, Wert>>(instanz.settings);
-  const [fehler, setFehler] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, Wert>>(instance.settings);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Wechselt die Instanz, muss das Formular die Werte der neuen übernehmen.
   useEffect(() => {
-    setWerte(instanz.settings);
-    setFehler({});
-  }, [instanz.id, instanz.settings]);
+    setValues(instance.settings);
+    setErrors({});
+  }, [instance.id, instance.settings]);
 
-  const editierbar = vorlage.fields.filter((feld) => feld.editable);
+  const editierbar = template.fields.filter((field) => field.editable);
 
-  const absenden = (neustart: boolean) => {
-    const offen: Record<string, string> = {};
-    for (const feld of editierbar) {
-      const wert = werte[feld.id];
-      if (feld.required && (wert === '' || wert === undefined)) {
-        offen[feld.id] = `${feld.label} ist erforderlich`;
+  const submit = (restart: boolean) => {
+    const open: Record<string, string> = {};
+    for (const field of editierbar) {
+      const value = values[field.id];
+      if (field.required && (value === '' || value === undefined)) {
+        open[field.id] = `${field.label} ist erforderlich`;
       }
     }
-    setFehler(offen);
-    if (Object.keys(offen).length > 0) return;
+    setErrors(open);
+    if (Object.keys(open).length > 0) return;
 
     // Unveränderte Geheimnisse werden nicht mitgeschickt — sonst würde die
     // Maskierung „********“ als neues Passwort gespeichert.
     const nutzlast: Record<string, Wert> = {};
-    for (const feld of editierbar) {
-      const wert = werte[feld.id];
-      if (wert === undefined) continue;
-      if (feld.secret && wert === instanz.settings[feld.id]) continue;
-      nutzlast[feld.id] = wert;
+    for (const field of editierbar) {
+      const value = values[field.id];
+      if (value === undefined) continue;
+      if (field.secret && value === instance.settings[field.id]) continue;
+      nutzlast[field.id] = value;
     }
-    onSpeichern(nutzlast, neustart);
+    onSave(nutzlast, restart);
   };
 
   return (
     <div className="config">
-      <SektionsLabel text="Serverkonfiguration" />
+      <SectionLabel text="Serverkonfiguration" />
 
-      {editierbar.map((feld) => (
-        <Feld
-          key={feld.id}
-          spec={feld}
-          wert={werte[feld.id] ?? ''}
-          fehler={fehler[feld.id]}
-          gesperrt={beschaeftigt}
-          onAendern={(wert) => setWerte((alt) => ({ ...alt, [feld.id]: wert }))}
+      {editierbar.map((field) => (
+        <Field
+          key={field.id}
+          spec={field}
+          value={values[field.id] ?? ''}
+          errors={errors[field.id]}
+          gesperrt={busy}
+          onChange={(value) => setValues((alt) => ({ ...alt, [field.id]: value }))}
         />
       ))}
 
-      <div className="config__fuss">
+      <div className="config__foot">
         <button
           type="button"
-          className="knopf knopf--primaer"
-          disabled={beschaeftigt}
-          onClick={() => absenden(true)}
+          className="button button--primary"
+          disabled={busy}
+          onClick={() => submit(true)}
         >
           Speichern & neu starten
         </button>
         <button
           type="button"
-          className="knopf knopf--sekundaer"
-          disabled={beschaeftigt}
-          onClick={() => absenden(false)}
+          className="button button--secondary"
+          disabled={busy}
+          onClick={() => submit(false)}
         >
           Nur speichern
         </button>
-        {notiz && <span className="config__notiz">{notiz}</span>}
+        {note && <span className="config__note">{note}</span>}
       </div>
 
-      <p className="hinweis">
+      <p className="hint">
         Die Umgebung eines Containers lässt sich nicht nachträglich ändern. „Speichern & neu starten“
         erzeugt den Container neu — die Weltdaten bleiben dabei erhalten. „Nur speichern“ übernimmt die
         Werte erst beim nächsten Neustart.

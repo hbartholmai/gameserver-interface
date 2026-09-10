@@ -1,17 +1,17 @@
 /* --- Grundgerüst ---------------------------------------------------------- */
 
-.seite {
+.page {
   min-height: 100vh;
   background: var(--grund);
   background-image: var(--raster);
   background-size: 32px 32px;
   padding: 0 0 var(--s-11);
 }
-.seite--ohne-raster {
+.page--no-grid {
   background-image: none;
 }
 
-.kopfzeile {
+.header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -21,13 +21,13 @@
   border-bottom: 1px solid var(--rahmen);
   background: var(--flaeche-1);
 }
-.kopfzeile__marke {
+.header__brand {
   display: flex;
   align-items: center;
   gap: var(--s-6);
   flex-wrap: wrap;
 }
-.kopfzeile__wuerfel {
+.header__cube {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -40,7 +40,7 @@
   font-size: 15px;
   letter-spacing: 0.02em;
 }
-.kopfzeile__titel {
+.header__title {
   margin: 0;
   font-family: var(--font-technik);
   font-weight: 600;
@@ -49,7 +49,7 @@
   text-transform: uppercase;
   color: var(--text-primaer);
 }
-.kopfzeile__kontext {
+.header__context {
   font-size: 10px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -58,43 +58,43 @@
 /* Eine Stufe heller als der Rest der Kontextzeile: die Fassung wird gesucht,
    Knotenname und Laufzeit liest man nur nebenbei. Ein Rahmen oder eine Fläche
    wären hier zu viel — der Entwurf kennt keine Plaketten. */
-.kopfzeile__version {
+.header__version {
   font-size: 10px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-weight: 600;
   color: var(--text-sekundaer);
 }
-.kopfzeile__kennzahlen {
+.header__stats {
   display: flex;
   gap: var(--s-4);
   flex-wrap: wrap;
   align-items: center;
 }
-.kachel-klein {
+.tile-small {
   border: 1px solid var(--rahmen);
   background: var(--flaeche-2);
   padding: var(--s-2) var(--s-5);
   min-width: 104px;
 }
-.kachel-klein__label {
+.tile-small__label {
   font-size: 9px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-label);
 }
-.kachel-klein__wert {
+.tile-small__value {
   font-family: var(--font-technik);
   font-weight: 600;
   font-size: 17px;
   letter-spacing: 0.04em;
   color: var(--text-primaer);
 }
-.kachel-klein__wert--akzent {
+.tile-small__value--accent {
   color: var(--akzent);
 }
 
-.rumpf {
+.main {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-8);
@@ -111,7 +111,7 @@
   flex-direction: column;
   gap: var(--s-4);
 }
-.sektionslabel {
+.sectionlabel {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -122,7 +122,7 @@
   color: var(--text-label);
 }
 
-.instanzkarte {
+.instancecard {
   position: relative;
   border: 1px solid var(--rahmen);
   background: var(--flaeche-2);
@@ -136,38 +136,38 @@
   color: inherit;
   width: 100%;
 }
-.instanzkarte:hover {
+.instancecard:hover {
   border-color: var(--rahmen-kraeftig);
 }
-.instanzkarte__auswahl {
+.instancecard__select {
   position: absolute;
   inset: -1px;
   border: 1px solid var(--akzent);
   background: var(--akzent-selektion);
   pointer-events: none;
 }
-.instanzkarte__streifen {
+.instancecard__stripe {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
   width: 3px;
 }
-.instanzkarte__kopf {
+.instancecard__head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--s-4);
   padding-left: var(--s-3);
 }
-.instanzkarte__spiel {
+.instancecard__game {
   display: block;
   font-size: 9px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-label);
 }
-.instanzkarte__name {
+.instancecard__name {
   display: block;
   font-family: var(--font-technik);
   font-weight: 600;
@@ -179,7 +179,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.instanzkarte__zeile {
+.instancecard__row {
   display: flex;
   justify-content: space-between;
   gap: var(--s-3);
@@ -187,12 +187,12 @@
   color: var(--text-gedaempft);
   padding-left: var(--s-3);
 }
-.instanzkarte__balken {
+.instancecard__bar {
   height: 4px;
   background: var(--balken-track);
   margin-left: var(--s-3);
 }
-.instanzkarte__balken > span {
+.instancecard__bar > span {
   display: block;
   height: 4px;
 }
@@ -223,20 +223,20 @@
   padding: var(--s-7);
 }
 
-.detailkopf {
+.detailhead {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-7);
   justify-content: space-between;
   align-items: flex-end;
 }
-.detailkopf__meta {
+.detailhead__meta {
   font-size: 9px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--text-label);
 }
-.detailkopf__name {
+.detailhead__name {
   margin: var(--s-1) 0 var(--s-3);
   font-family: var(--font-technik);
   font-weight: 700;
@@ -246,7 +246,7 @@
   text-transform: uppercase;
   color: var(--text-primaer);
 }
-.detailkopf__status {
+.detailhead__status {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -254,7 +254,7 @@
   font-size: 12px;
   color: var(--text-gedaempft);
 }
-.detailkopf__chip {
+.detailhead__chip {
   display: flex;
   align-items: center;
   gap: var(--s-2);
@@ -264,20 +264,20 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
-.detailkopf__punkt {
+.detailhead__dot {
   width: 6px;
   height: 6px;
   display: inline-block;
   background: currentColor;
   animation: pulse 2s ease-in-out infinite;
 }
-.detailkopf__adresse {
+.detailhead__address {
   color: var(--akzent);
 }
-.detailkopf__trenner {
+.detailhead__divider {
   color: #4a5768;
 }
-.detailkopf__aktionen {
+.detailhead__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-3);
@@ -285,13 +285,13 @@
 
 /* --- Reiter --------------------------------------------------------------- */
 
-.reiter {
+.tab {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-1);
   border-bottom: 1px solid var(--rahmen);
 }
-.reiter__knopf {
+.tab__button {
   position: relative;
   font-family: var(--font-technik);
   font-weight: 600;
@@ -305,11 +305,11 @@
   padding: 9px var(--s-6);
   cursor: pointer;
 }
-.reiter__knopf:hover {
+.tab__button:hover {
   color: var(--text-primaer);
   background: var(--flaeche-2);
 }
-.reiter__aktiv-overlay {
+.tab__active-overlay {
   position: absolute;
   inset: 0;
   border: 1px solid var(--rahmen);
@@ -317,13 +317,13 @@
   background: var(--flaeche-1);
   pointer-events: none;
 }
-.reiter__label {
+.tab__label {
   position: relative;
 }
 
 /* --- Schaltflächen -------------------------------------------------------- */
 
-.knopf {
+.button {
   font-family: var(--font-technik);
   font-weight: 600;
   font-size: 11px;
@@ -336,33 +336,33 @@
 /* Der Welt-Download ist ein Link, kein Knopf: der Browser soll die Datei
    selbst streamen. Damit er trotzdem wie einer aussieht, fehlen ihm nur
    Blockdarstellung und die Unterstreichung. */
-a.knopf {
+a.button {
   display: inline-block;
   text-decoration: none;
   line-height: 1.4;
 }
-.knopf:disabled {
+.button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
-.knopf--primaer {
+.button--primary {
   background: var(--akzent-flaeche);
   border: 1px solid var(--akzent);
   color: var(--akzent);
 }
-.knopf--primaer:hover:not(:disabled) {
+.button--primary:hover:not(:disabled) {
   background: var(--akzent-flaeche-hover);
 }
-.knopf--sekundaer {
+.button--secondary {
   background: var(--flaeche-2);
   border: 1px solid var(--rahmen-kraeftig);
   color: var(--text-sekundaer);
 }
-.knopf--sekundaer:hover:not(:disabled) {
+.button--secondary:hover:not(:disabled) {
   border-color: var(--akzent);
   color: var(--akzent);
 }
-.knopf--gestrichelt {
+.button--dashed {
   background: transparent;
   border: 1px dashed var(--rahmen-kraeftig);
   color: var(--text-gedaempft);
@@ -370,11 +370,11 @@ a.knopf {
   width: 100%;
   margin-top: var(--s-1);
 }
-.knopf--gestrichelt:hover:not(:disabled) {
+.button--dashed:hover:not(:disabled) {
   border-color: var(--akzent);
   color: var(--akzent);
 }
-.knopf--klein {
+.button--small {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
@@ -384,28 +384,28 @@ a.knopf {
   color: var(--text-gedaempft);
   padding: 2px var(--s-3);
 }
-.knopf--klein:hover:not(:disabled) {
+.button--small:hover:not(:disabled) {
   border-color: var(--akzent);
   color: var(--akzent);
 }
-.knopf--klein-warn:hover:not(:disabled) {
+.button--small-warn:hover:not(:disabled) {
   border-color: var(--warnung);
   color: var(--warnung);
 }
-.knopf--klein-gefahr:hover:not(:disabled) {
+.button--small-danger:hover:not(:disabled) {
   border-color: var(--gefahr);
   color: var(--gefahr);
 }
 
 /* Rotes Gegenstück zu `--primaer` für den bestätigenden Knopf einer Rückfrage.
-   Die Literalfarbe steht hier wie bei `.banner--fehler`, nicht in tokens.css:
+   Die Literalfarbe steht hier wie bei `.banner--error`, nicht in tokens.css:
    die Token bilden den Handoff unverändert ab. */
-.knopf--gefahr {
+.button--danger {
   background: rgba(255, 107, 107, 0.1);
   border: 1px solid var(--gefahr);
   color: var(--gefahr);
 }
-.knopf--gefahr:hover:not(:disabled) {
+.button--danger:hover:not(:disabled) {
   background: rgba(255, 107, 107, 0.22);
 }
 
@@ -419,12 +419,12 @@ a.knopf {
   font-size: 12px;
   border-bottom: 1px solid var(--rahmen);
 }
-.banner--fehler {
+.banner--error {
   background: rgba(255, 107, 107, 0.1);
   border-bottom-color: var(--gefahr);
   color: var(--gefahr);
 }
-.banner--warnung {
+.banner--warn {
   background: rgba(240, 180, 41, 0.1);
   border-bottom-color: var(--warnung);
   color: var(--warnung);

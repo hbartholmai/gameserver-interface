@@ -1,103 +1,103 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Job, TemplateDefinition } from '@gsp/shared';
-import { api, ApiError, type KiStatus, type VorlagenInfo } from '../api/client.js';
-import { SektionsLabel } from '../components/basis.js';
-import { VorlagenEditor } from './VorlagenEditor.js';
-import { TextFeld } from './vorlagen-teile.js';
+import { api, ApiError, type KiStatus, type TemplateInfo } from '../api/client.js';
+import { SectionLabel } from '../components/basics.js';
+import { TemplateEditor } from './TemplateEditor.js';
+import { TextField } from './editor-parts.js';
 
 /**
  * Verwaltung der Vorlagen: Liste links, Editor rechts. Erreichbar über die
  * Kopfzeile und bewusst als eigene Ansicht — Vorlagen gehören nicht zu einer
  * einzelnen Instanz, sondern liegen darüber.
  */
-export function Vorlagen({ onSchliessen }: { onSchliessen: () => void }) {
-  const [liste, setListe] = useState<VorlagenInfo[]>([]);
-  const [gewaehlt, setGewaehlt] = useState<string | null>(null);
+export function Templates({ onClose }: { onClose: () => void }) {
+  const [list, setList] = useState<TemplateInfo[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
   const [entwurf, setEntwurf] = useState<TemplateDefinition | null>(null);
   const [istNeu, setIstNeu] = useState(false);
-  const [fehler, setFehler] = useState<{ field: string; message: string }[]>([]);
-  const [meldung, setMeldung] = useState<string | null>(null);
-  const [beschaeftigt, setBeschaeftigt] = useState(false);
+  const [errors, setErrors] = useState<{ field: string; message: string }[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [kiStatus, setKiStatus] = useState<KiStatus | null>(null);
-  const [kiOffen, setKiOffen] = useState(false);
-  const [recherche, setRecherche] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [research, setResearch] = useState<string | null>(null);
 
-  const laden = useCallback(async () => {
-    const antwort = await api.vorlagen();
-    setListe(antwort.templates);
+  const load = useCallback(async () => {
+    const response = await api.manageTemplates();
+    setList(response.templates);
   }, []);
 
   useEffect(() => {
-    void laden().catch(() => setMeldung('Vorlagen konnten nicht geladen werden'));
+    void load().catch(() => setMessage('Vorlagen konnten nicht geladen werden'));
     void api
       .kiStatus()
       .then(setKiStatus)
       .catch(() => setKiStatus(null));
-  }, [laden]);
+  }, [load]);
 
-  const aktuell = liste.find((v) => v.definition.id === gewaehlt) ?? null;
+  const aktuell = list.find((v) => v.definition.id === selected) ?? null;
 
   const waehlen = (id: string) => {
-    const info = liste.find((v) => v.definition.id === id);
+    const info = list.find((v) => v.definition.id === id);
     if (!info) return;
-    setGewaehlt(id);
+    setSelected(id);
     setEntwurf(info.definition);
     setIstNeu(false);
-    setFehler([]);
-    setRecherche(null);
+    setErrors([]);
+    setResearch(null);
   };
 
   const speichern = async () => {
     if (!entwurf) return;
-    setBeschaeftigt(true);
-    setFehler([]);
+    setBusy(true);
+    setErrors([]);
     try {
-      if (istNeu) await api.vorlageAnlegen(entwurf);
-      else await api.vorlageSpeichern(entwurf.id, entwurf);
-      await laden();
-      setGewaehlt(entwurf.id);
+      if (istNeu) await api.createTemplate(entwurf);
+      else await api.saveTemplate(entwurf.id, entwurf);
+      await load();
+      setSelected(entwurf.id);
       setIstNeu(false);
-      setMeldung(`Vorlage „${entwurf.label}“ gespeichert`);
+      setMessage(`Vorlage „${entwurf.label}“ gespeichert`);
     } catch (err) {
       if (err instanceof ApiError) {
-        setFehler(err.fields.length > 0 ? err.fields : [{ field: '', message: err.message }]);
+        setErrors(err.fields.length > 0 ? err.fields : [{ field: '', message: err.message }]);
       } else {
-        setFehler([{ field: '', message: 'Speichern fehlgeschlagen' }]);
+        setErrors([{ field: '', message: 'Speichern fehlgeschlagen' }]);
       }
     } finally {
-      setBeschaeftigt(false);
+      setBusy(false);
     }
   };
 
   const loeschen = async () => {
     if (!entwurf) return;
-    setBeschaeftigt(true);
+    setBusy(true);
     try {
-      await api.vorlageLoeschen(entwurf.id);
-      await laden();
-      setGewaehlt(null);
+      await api.deleteTemplate(entwurf.id);
+      await load();
+      setSelected(null);
       setEntwurf(null);
-      setMeldung('Vorlage gelöscht');
+      setMessage('Vorlage gelöscht');
     } catch (err) {
-      setFehler([{ field: '', message: err instanceof Error ? err.message : 'Löschen fehlgeschlagen' }]);
+      setErrors([{ field: '', message: err instanceof Error ? err.message : 'Löschen fehlgeschlagen' }]);
     } finally {
-      setBeschaeftigt(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="vorlagen">
-      <div className="vorlagen__liste">
-        <SektionsLabel text="Vorlagen" rechts={String(liste.length)} />
-        {liste.map((info) => (
+    <div className="templates">
+      <div className="templates__list">
+        <SectionLabel text="Vorlagen" right={String(list.length)} />
+        {list.map((info) => (
           <button
             key={info.definition.id}
             type="button"
-            className={`vorlagenzeile${info.definition.id === gewaehlt ? ' vorlagenzeile--gewaehlt' : ''}`}
+            className={`templaterow${info.definition.id === selected ? ' templaterow--selected' : ''}`}
             onClick={() => waehlen(info.definition.id)}
           >
-            <span className="vorlagenzeile__name">{info.definition.label}</span>
-            <span className="vorlagenzeile__meta">
+            <span className="templaterow__name">{info.definition.label}</span>
+            <span className="templaterow__meta">
               {info.builtin ? 'mitgeliefert' : 'eigene'}
               {info.instances > 0 ? ` · ${info.instances}×` : ''}
             </span>
@@ -106,13 +106,13 @@ export function Vorlagen({ onSchliessen }: { onSchliessen: () => void }) {
 
         <button
           type="button"
-          className="knopf knopf--sekundaer"
+          className="button button--secondary"
           onClick={() => {
-            setGewaehlt(null);
+            setSelected(null);
             setEntwurf(leereVorlage());
             setIstNeu(true);
-            setFehler([]);
-            setRecherche(null);
+            setErrors([]);
+            setResearch(null);
           }}
         >
           + Vorlage von Hand
@@ -120,69 +120,69 @@ export function Vorlagen({ onSchliessen }: { onSchliessen: () => void }) {
 
         {/* Ohne Schlüssel bleibt der Knopf weg, statt ins Leere zu laufen. */}
         {kiStatus?.available && (
-          <button type="button" className="knopf knopf--sekundaer" onClick={() => setKiOffen(true)}>
+          <button type="button" className="button button--secondary" onClick={() => setAiOpen(true)}>
             + Vorlage entwerfen lassen
           </button>
         )}
 
-        <button type="button" className="knopf knopf--klein" onClick={onSchliessen}>
+        <button type="button" className="button button--small" onClick={onClose}>
           Zurück zu den Instanzen
         </button>
       </div>
 
-      <div className="vorlagen__editor">
-        {meldung && (
-          <div className="banner banner--warnung" role="status">
-            <span style={{ flex: 1 }}>{meldung}</span>
-            <button type="button" className="knopf knopf--klein" onClick={() => setMeldung(null)}>
+      <div className="templates__editor">
+        {message && (
+          <div className="banner banner--warn" role="status">
+            <span style={{ flex: 1 }}>{message}</span>
+            <button type="button" className="button button--small" onClick={() => setMessage(null)}>
               Schließen
             </button>
           </div>
         )}
 
-        {recherche && (
-          <details className="recherche" open>
+        {research && (
+          <details className="research" open>
             <summary>Belege der Recherche — bitte Ports und Variablennamen prüfen</summary>
-            <pre className="recherche__text">{recherche}</pre>
+            <pre className="research__text">{research}</pre>
           </details>
         )}
 
         {!entwurf && (
-          <p className="leerzustand">
+          <p className="empty">
             // eine Vorlage auswählen, oder links eine neue anlegen
           </p>
         )}
 
         {entwurf && (
-          <VorlagenEditor
+          <TemplateEditor
             definition={entwurf}
             builtin={aktuell?.builtin ?? false}
             instanzen={aktuell?.instances ?? 0}
             neu={istNeu}
-            fehler={fehler}
-            beschaeftigt={beschaeftigt}
-            onAendern={setEntwurf}
-            onSpeichern={() => void speichern()}
-            onLoeschen={() => void loeschen()}
-            onAbbrechen={() => {
+            errors={errors}
+            busy={busy}
+            onChange={setEntwurf}
+            onSave={() => void speichern()}
+            onDelete={() => void loeschen()}
+            onCancel={() => {
               setEntwurf(aktuell?.definition ?? null);
               setIstNeu(false);
-              setFehler([]);
+              setErrors([]);
             }}
           />
         )}
       </div>
 
-      {kiOffen && (
+      {aiOpen && (
         <KiDialog
-          onSchliessen={() => setKiOffen(false)}
+          onClose={() => setAiOpen(false)}
           onEntwurf={(definition, belege) => {
-            setKiOffen(false);
-            setGewaehlt(null);
+            setAiOpen(false);
+            setSelected(null);
             setEntwurf(definition);
             setIstNeu(true);
-            setRecherche(belege);
-            setFehler([]);
+            setResearch(belege);
+            setErrors([]);
           }}
         />
       )}
@@ -196,17 +196,17 @@ export function Vorlagen({ onSchliessen }: { onSchliessen: () => void }) {
  * ein Container entsteht.
  */
 function KiDialog({
-  onSchliessen,
+  onClose,
   onEntwurf,
 }: {
-  onSchliessen: () => void;
-  onEntwurf: (definition: TemplateDefinition, recherche: string) => void;
+  onClose: () => void;
+  onEntwurf: (definition: TemplateDefinition, research: string) => void;
 }) {
   const [spiel, setSpiel] = useState('');
   const [image, setImage] = useState('');
   const [notizen, setNotizen] = useState('');
   const [job, setJob] = useState<Job | null>(null);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string | null>(null);
 
   // Der Entwurf läuft als Job; hier genügt kurzes Nachfragen statt eines
   // eigenen Abonnements — er dauert Minuten, nicht Sekunden.
@@ -225,60 +225,60 @@ function KiDialog({
   }, [job, onEntwurf]);
 
   const starten = async () => {
-    setFehler(null);
+    setErrors(null);
     try {
-      const antwort = await api.kiEntwurfStarten(spiel, image, notizen);
-      setJob(antwort.job);
+      const response = await api.kiEntwurfStarten(spiel, image, notizen);
+      setJob(response.job);
     } catch (err) {
-      setFehler(err instanceof Error ? err.message : 'Der Entwurf konnte nicht gestartet werden');
+      setErrors(err instanceof Error ? err.message : 'Der Entwurf konnte nicht gestartet werden');
     }
   };
 
   return (
-    <div className="dialog-hintergrund" role="dialog" aria-modal="true" aria-label="Vorlage entwerfen lassen">
+    <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-label="Vorlage entwerfen lassen">
       <div className="dialog">
-        <div className="dialog__kopf">
-          <h2 className="dialog__titel">Vorlage entwerfen</h2>
-          <button type="button" className="knopf knopf--klein" onClick={onSchliessen}>
+        <div className="dialog__head">
+          <h2 className="dialog__title">Vorlage entwerfen</h2>
+          <button type="button" className="button button--small" onClick={onClose}>
             Schließen
           </button>
         </div>
 
-        <div className="dialog__koerper">
+        <div className="dialog__body">
           {!job && (
             <>
-              <p className="hinweis">
+              <p className="hint">
                 Gemini sucht die Dokumentation des Images und schlägt daraus eine Vorlage vor. Der
                 Entwurf wird <b>nicht</b> gespeichert — er landet im Editor, samt Belegen zum
                 Nachprüfen.
               </p>
-              <TextFeld label="Spiel" wert={spiel} onAendern={setSpiel} />
-              <TextFeld
+              <TextField label="Spiel" value={spiel} onChange={setSpiel} />
+              <TextField
                 label="Docker-Image"
-                wert={image}
-                hilfe="Etwa itzg/minecraft-server — ohne Tag."
-                onAendern={setImage}
+                value={image}
+                help="Etwa itzg/minecraft-server — ohne Tag."
+                onChange={setImage}
               />
-              <TextFeld
+              <TextField
                 label="Besonderheiten"
-                wert={notizen}
-                einzeilig={false}
-                hilfe="Optional: was der Server können soll, bekannte Fallstricke."
-                onAendern={setNotizen}
+                value={notizen}
+                singleLine={false}
+                help="Optional: was der Server können soll, bekannte Fallstricke."
+                onChange={setNotizen}
               />
-              {fehler && <span className="feld__fehler">{fehler}</span>}
+              {errors && <span className="field__error">{errors}</span>}
             </>
           )}
 
           {job && (
-            <div className="fortschritt">
-              <div className="fortschritt__kopf">
-                <span className="fortschritt__phase">{job.message}</span>
-                <span className="fortschritt__zahl">
+            <div className="progress">
+              <div className="progress__head">
+                <span className="progress__phase">{job.message}</span>
+                <span className="progress__count">
                   {job.progress === null ? '—' : `${Math.round(job.progress)} %`}
                 </span>
               </div>
-              <p className="fortschritt__hinweis">
+              <p className="progress__note">
                 Die Websuche dauert in der Regel ein bis drei Minuten. Der Entwurf öffnet sich
                 anschließend von selbst im Editor.
               </p>
@@ -286,11 +286,11 @@ function KiDialog({
           )}
         </div>
 
-        <div className="dialog__fuss">
-          <span className="hinweis" style={{ flex: 1 }} />
+        <div className="dialog__foot">
+          <span className="hint" style={{ flex: 1 }} />
           <button
             type="button"
-            className="knopf knopf--primaer"
+            className="button button--primary"
             disabled={!spiel || !image || job !== null}
             onClick={() => void starten()}
           >

@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Instance, LogLine, LogLevel } from '@gsp/shared';
-import { SektionsLabel } from '../components/basis.js';
+import { SectionLabel } from '../components/basics.js';
 
 type Filter = 'Alle' | 'Info' | 'Warn';
 
 const FILTER: Filter[] = ['Alle', 'Info', 'Warn'];
 
-export function Konsole({
-  instanz,
-  vorlage,
-  zeilen,
+export function Console({
+  instance,
+  template,
+  lines,
   onBefehl,
 }: {
-  instanz: Instance;
+  instance: Instance;
   /** Beschriftung der Vorlage. Früher stand hier ein fester Spielname im Text. */
-  vorlage: string;
-  zeilen: LogLine[];
+  template: string;
+  lines: LogLine[];
   onBefehl: (befehl: string) => Promise<void>;
 }) {
   const [filter, setFilter] = useState<Filter>('Alle');
@@ -23,8 +23,8 @@ export function Konsole({
   const [sendet, setSendet] = useState(false);
   const fenster = useRef<HTMLDivElement>(null);
 
-  const schreibbar = instanz.capabilities.console === 'rcon';
-  const sichtbar = zeilen.filter((zeile) => passt(zeile.level, filter));
+  const schreibbar = instance.capabilities.console === 'rcon';
+  const sichtbar = lines.filter((line) => passt(line.level, filter));
 
   // Ans Ende scrollen, solange der Nutzer nicht selbst nach oben gescrollt hat.
   const amEnde = useRef(true);
@@ -33,7 +33,7 @@ export function Konsole({
     if (el && amEnde.current) el.scrollTop = el.scrollHeight;
   }, [sichtbar.length]);
 
-  const absenden = async (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     const text = befehl.trim();
     if (!text || sendet) return;
@@ -48,14 +48,14 @@ export function Konsole({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-5)' }}>
-      <div className="konsole__kopf">
-        <SektionsLabel text={`Live-Konsole · ${instanz.name}`} />
+      <div className="console__head">
+        <SectionLabel text={`Live-Konsole · ${instance.name}`} />
         <div className="chips" role="group" aria-label="Logfilter">
           {FILTER.map((option) => (
             <button
               key={option}
               type="button"
-              className={`chip${filter === option ? ' chip--aktiv' : ''}`}
+              className={`chip${filter === option ? ' chip--active' : ''}`}
               aria-pressed={filter === option}
               onClick={() => setFilter(option)}
             >
@@ -66,7 +66,7 @@ export function Konsole({
       </div>
 
       <div
-        className="logfenster"
+        className="logview"
         ref={fenster}
         role="log"
         aria-live="polite"
@@ -75,20 +75,20 @@ export function Konsole({
           amEnde.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
         }}
       >
-        {sichtbar.length === 0 && <p className="leerzustand">// keine Logzeilen</p>}
-        {sichtbar.map((zeile, index) => (
-          <div className="logzeile" key={`${zeile.time}-${index}`}>
-            <span className="logzeile__zeit">{zeile.time}</span>
-            <span className={`logzeile__level logzeile__level--${zeile.level}`}>{zeile.level}</span>
-            <span className={`logzeile__text${zeile.level === 'ERROR' ? ' logzeile__text--ERROR' : ''}`}>
-              {zeile.text}
+        {sichtbar.length === 0 && <p className="empty">// keine Logzeilen</p>}
+        {sichtbar.map((line, index) => (
+          <div className="logline" key={`${line.time}-${index}`}>
+            <span className="logline__time">{line.time}</span>
+            <span className={`logline__level logline__level--${line.level}`}>{line.level}</span>
+            <span className={`logline__text${line.level === 'ERROR' ? ' logline__text--ERROR' : ''}`}>
+              {line.text}
             </span>
           </div>
         ))}
       </div>
 
-      <form className="eingabezeile" onSubmit={(e) => void absenden(e)}>
-        <span className="eingabezeile__pfeil" aria-hidden="true">
+      <form className="inputline" onSubmit={(e) => void submit(e)}>
+        <span className="inputline__arrow" aria-hidden="true">
           &gt;
         </span>
         <input
@@ -100,14 +100,14 @@ export function Konsole({
           }
           aria-label="Konsolenbefehl"
         />
-        <button type="submit" className="knopf knopf--primaer" disabled={!schreibbar || sendet}>
+        <button type="submit" className="button button--primary" disabled={!schreibbar || sendet}>
           Senden
         </button>
       </form>
 
       {!schreibbar && (
-        <p className="hinweis">
-          {vorlage} nimmt keine Befehle über den Server entgegen; die Konsole zeigt nur den
+        <p className="hint">
+          {template} nimmt keine Befehle über den Server entgegen; die Konsole zeigt nur den
           Log-Strom. Warum, steht in den Hinweisen der Vorlage.
         </p>
       )}

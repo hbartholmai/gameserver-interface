@@ -14,7 +14,7 @@ import type {
 } from '@gsp/shared';
 
 /** Eine Vorlage in der Verwaltungsansicht — mit Nutzungszahl und Herkunft. */
-export interface VorlagenInfo {
+export interface TemplateInfo {
   definition: TemplateDefinition;
   builtin: boolean;
   rev: string;
@@ -96,18 +96,18 @@ export const api = {
     request<{ ports: Record<string, number> }>(`/api/templates/${game}/ports`),
 
   // --- Vorlagenverwaltung ---
-  vorlagen: () => request<{ templates: VorlagenInfo[] }>('/api/templates/manage'),
-  vorlageAnlegen: (definition: TemplateDefinition) =>
+  manageTemplates: () => request<{ templates: TemplateInfo[] }>('/api/templates/manage'),
+  createTemplate: (definition: TemplateDefinition) =>
     request<{ definition: TemplateDefinition }>('/api/templates', {
       method: 'POST',
       body: JSON.stringify(definition),
     }),
-  vorlageSpeichern: (id: string, definition: TemplateDefinition) =>
+  saveTemplate: (id: string, definition: TemplateDefinition) =>
     request<{ definition: TemplateDefinition }>(`/api/templates/${id}`, {
       method: 'PUT',
       body: JSON.stringify(definition),
     }),
-  vorlageLoeschen: (id: string) =>
+  deleteTemplate: (id: string) =>
     request<{ ok: true }>(`/api/templates/${id}`, { method: 'DELETE' }),
 
   kiStatus: () => request<KiStatus>('/api/templates/ki/status'),
@@ -160,7 +160,7 @@ export const api = {
   deleteBackup: (id: string, backupId: string) =>
     request<{ ok: true }>(`/api/instances/${id}/backups/${backupId}`, { method: 'DELETE' }),
 
-  welt: (id: string) => request<{ world: WorldInfo }>(`/api/instances/${id}/world`),
+  world: (id: string) => request<{ world: WorldInfo }>(`/api/instances/${id}/world`),
   /**
    * Nur die URL, kein `fetch`: `request()` liest jede Antwort als Text und
    * parst sie als JSON, und ein `response.blob()` legte die ganze Welt in den
@@ -168,13 +168,13 @@ export const api = {
    * GET-Route wird deshalb direkt angesprungen; das Sitzungscookie geht bei
    * gleichem Ursprung mit, und CSRF verlangt der Server bei GET nicht.
    */
-  weltDownloadUrl: (id: string) => `/api/instances/${id}/world/download`,
-  weltHochladen: (id: string, datei: File, sicherung: boolean) => {
+  worldDownloadUrl: (id: string) => `/api/instances/${id}/world/download`,
+  uploadWorld: (id: string, file: File, sicherung: boolean) => {
     const form = new FormData();
     // Das Textfeld muss vor der Datei stehen — der Server liest es aus
     // `file.fields`, und die sind erst gefüllt, wenn sie vorher kamen.
     form.append('backup', sicherung ? 'true' : 'false');
-    form.append('file', datei);
+    form.append('file', file);
     return request<{ job: Job }>(`/api/instances/${id}/world`, { method: 'POST', body: form });
   },
 
