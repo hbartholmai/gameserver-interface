@@ -1,0 +1,70 @@
+# Für Unraid. Zwei Unterschiede zur `docker-compose.yml` daneben:
+#
+# 1. Der Port wird auf allen Adressen veröffentlicht, nicht nur auf `127.0.0.1`.
+#    Auf einem NAS wäre das Panel sonst von keinem anderen Rechner erreichbar.
+#    Damit hängt die Absicherung am Netz — siehe README, Abschnitt Sicherheit.
+# 2. Zwei getrennte Mounts: die Datenbank auf den Cache-Pool, die Weltdaten aufs
+#    Array. Warum, steht im README unter „Unraid".
+#
+# Gedacht ist diese Datei zum **Bauen**:
+#
+#     docker compose -f docker-compose.unraid.yml build
+#
+# Gestartet wird der Container danach über das Template in der Docker-Ansicht
+# (`unraid-template.xml`). Wer beides benutzt, hat den Container zweimal.
+# Zum Ausprobieren ohne Template geht auch `up -d` — dann aber das Template
+# weglassen.
+
+services:
+  panel:
+    build: .
+    image: gameserver-panel:latest
+    container_name: gameserver-panel
+    restart: unless-stopped
+
+    ports:
+      - '${GSP_PORT:-8770}:8770'
+
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+
+      # Adresse, unter der Spieler die Server erreichen. Auf einem NAS der
+      # LAN-Name oder die feste IP — `localhost` wäre hier sinnlos, weil der
+      # Wert in der Oberfläche als Verbindungsadresse erscheint und für Ping
+      # und Spielerabfrage benutzt wird.
+      GSP_PUBLIC_HOST: ${GSP_PUBLIC_HOST:?bitte den LAN-Namen des NAS setzen}
+      GSP_NODE_LABEL: ${GSP_NODE_LABEL:-nas}
+
+      # Kein TLS im lokalen Netz.
+      GSP_SECURE_COOKIES: 'false'
+
+      # Der Pfad der Weltdaten **aus Sicht des Docker-Daemons**. Muss der
+      # Bind-Quelle von `/data` unten gleichen, sonst mounten die
+      # Spielcontainer ins Leere — und zwar lautlos.
+      GSP_HOST_DATA_DIR: ${GSP_ARRAY_DIR:-/mnt/user/gameserver}
+
+      # Die Datenbank liegt als einziger Pfad woanders: auf dem Pool statt auf
+      # dem Array. SQLite läuft im WAL-Modus, und WAL über Unraids
+      # FUSE-Schicht `/mnt/user` gilt als Korruptionsrisiko.
+      GSP_DB_PATH: /db/panel.db
+
+      # `GSP_VOLUME_DIR` bewusst NICHT setzen — `GSP_HOST_DATA_DIR` zöge nicht
+      # mit, und die Bind-Mounts der Instanzen zeigten daneben.
+
+      GSP_WORLD_UPLOAD_MAX_MB: ${GSP_WORLD_UPLOAD_MAX_MB:-4096}
+
+      GSP_GEMINI_API_KEY: ${GSP_GEMINI_API_KEY:-}
+      GSP_GEMINI_MODELL: ${GSP_GEMINI_MODELL:-}
+
+    volumes:
+      # Zugriff auf die Docker-Engine, um die Instanz-Container zu steuern.
+      # ACHTUNG: Das entspricht Root-Rechten auf dem NAS.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+      # Weltdaten, Backups und die Upload-Zwischenablage — groß, aufs Array.
+      - ${GSP_ARRAY_DIR:-/mnt/user/gameserver}:/data
+
+      # Nur die Datenbank — klein, schreibintensiv, auf den Pool.
+      # Der Share muss „Cache only" sein, sonst schiebt der Mover die geöffnete
+      # Datenbank irgendwann aufs Array.
+      - ${GSP_CACHE_DIR:-/mnt/cache/appdata/gameserver-panel}:/db

@@ -60,10 +60,16 @@ export interface Config {
   /** Verzeichnis mit dem gebauten Frontend; leer = nicht ausliefern. */
   webRoot: string | null;
   /**
-   * Verzeichnis für angefangene Uploads. Bewusst unter `dataDir` und nicht in
-   * `os.tmpdir()`: eine Welt kann Gigabytes haben, und das anschließende
-   * Verschieben ins Instanzverzeichnis soll ein `rename` bleiben, kein Kopieren
-   * über Dateisystemgrenzen. Der Inhalt überlebt keinen Neustart.
+   * Verzeichnis für angefangene Uploads. Der Inhalt überlebt keinen Neustart.
+   *
+   * Bewusst unter `dataDir` und nicht in `os.tmpdir()`, aber **nicht** wegen
+   * `rename`: Hier stand einmal, das Verschieben ins Instanzverzeichnis dürfe
+   * nicht über eine Dateisystemgrenze laufen. Das stimmt nicht — `importWorld()`
+   * entpackt in ein Zwischenverzeichnis *im Weltverzeichnis* und benennt nur von
+   * dort um; aus dem Temp wird immer kopiert. Der Grund ist schlichter: eine
+   * hochgeladene Welt darf Gigabytes haben und liegt so lange hier, und sie
+   * gehört auf dasselbe Laufwerk wie die Weltdaten, nicht auf ein knapp
+   * bemessenes System- oder Cache-Laufwerk.
    */
   tempDir: string;
   /**

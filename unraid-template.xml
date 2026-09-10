@@ -1,0 +1,90 @@
+<?xml version="1.0"?>
+<!--
+  Unraid-Template für das Gameserver-Panel.
+
+  Nach /boot/config/plugins/dockerMan/templates-user/ kopieren, dann erscheint
+  es in der Docker-Ansicht unter „Add Container“ als eigene Vorlage.
+
+  Das Image wird nicht aus einer Registry geladen, sondern vorher auf der Box
+  gebaut (siehe README, Abschnitt „Unraid“). Folge davon: Unraid kann nicht
+  prüfen, ob ein Update vorliegt, und „Force Update“ versucht einen Pull, der
+  scheitern muss. Ein Update heißt hier: neu bauen, Container neu anlegen.
+-->
+<Container version="2">
+  <Name>gameserver-panel</Name>
+  <Repository>gameserver-panel:latest</Repository>
+  <Registry/>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project/>
+  <Overview>
+    Verwaltungsoberfläche für Gameserver-Container: anlegen, starten, sichern,
+    Weltdaten austauschen. Steuert die Server über den Docker-Socket des Hosts.
+
+    ACHTUNG: Der eingebundene Docker-Socket entspricht Root-Rechten auf dem NAS.
+    Wer das Panel erreicht, kann darüber beliebige Container starten. Nicht ohne
+    Reverse-Proxy mit TLS aus dem Netz erreichbar machen.
+  </Overview>
+  <Category>Tools: GameServers:</Category>
+  <WebUI>http://[IP]:[PORT:8770]/</WebUI>
+  <TemplateURL/>
+  <Icon/>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+
+  <Config Name="WebUI" Target="8770" Default="8770" Mode="tcp"
+          Description="Port der Oberfläche."
+          Type="Port" Display="always" Required="true" Mask="false">8770</Config>
+
+  <Config Name="Weltdaten (Array)" Target="/data" Default="/mnt/user/gameserver" Mode="rw"
+          Description="Instanz-Volumes, Backups und die Upload-Zwischenablage. Groß — gehört aufs Array. Dieser Host-Pfad muss mit der Variablen GSP_HOST_DATA_DIR übereinstimmen."
+          Type="Path" Display="always" Required="true" Mask="false">/mnt/user/gameserver</Config>
+
+  <Config Name="Datenbank (Pool)" Target="/db" Default="/mnt/cache/appdata/gameserver-panel" Mode="rw"
+          Description="Nur die SQLite-Datei. Sie läuft im WAL-Modus; WAL über die FUSE-Schicht /mnt/user gilt als Korruptionsrisiko, deshalb direkt auf den Pool. Der Share muss auf Cache only stehen, sonst verschiebt der Mover die geöffnete Datenbank."
+          Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/gameserver-panel</Config>
+
+  <Config Name="Docker-Socket" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="rw"
+          Description="Ohne ihn kann das Panel keine Spielserver starten. Entspricht Root-Rechten auf dem NAS."
+          Type="Path" Display="always" Required="true" Mask="false">/var/run/docker.sock</Config>
+
+  <Config Name="GSP_HOST_DATA_DIR" Target="GSP_HOST_DATA_DIR" Default="/mnt/user/gameserver" Mode=""
+          Description="Pfad der Weltdaten AUS SICHT DES DOCKER-DAEMONS. Muss dem Host-Pfad von /data oben gleichen. Stimmt er nicht, mounten die Spielcontainer ins Leere — lautlos, weil der Daemon eine fehlende Bind-Quelle einfach anlegt."
+          Type="Variable" Display="always" Required="true" Mask="false">/mnt/user/gameserver</Config>
+
+  <Config Name="GSP_DB_PATH" Target="GSP_DB_PATH" Default="/db/panel.db" Mode=""
+          Description="Ort der Datenbank im Container. Zeigt in den Pool-Mount oben."
+          Type="Variable" Display="always" Required="true" Mask="false">/db/panel.db</Config>
+
+  <Config Name="GSP_PUBLIC_HOST" Target="GSP_PUBLIC_HOST" Default="tower.local" Mode=""
+          Description="Adresse, unter der Spieler die Server erreichen. Erscheint im Panel als Verbindungsadresse und wird für Ping und Spielerabfrage benutzt — also der LAN-Name oder die feste IP des NAS."
+          Type="Variable" Display="always" Required="true" Mask="false">tower.local</Config>
+
+  <Config Name="GSP_NODE_LABEL" Target="GSP_NODE_LABEL" Default="nas" Mode=""
+          Description="Beschriftung in der Kopfzeile des Panels."
+          Type="Variable" Display="always" Required="false" Mask="false">nas</Config>
+
+  <Config Name="TZ" Target="TZ" Default="Europe/Berlin" Mode=""
+          Description="Zeitzone. Wird an jeden Spielcontainer durchgereicht und bestimmt die Backup-Zeitpläne."
+          Type="Variable" Display="always" Required="true" Mask="false">Europe/Berlin</Config>
+
+  <Config Name="GSP_SECURE_COOKIES" Target="GSP_SECURE_COOKIES" Default="false" Mode=""
+          Description="Auf true setzen, sobald das Panel hinter TLS läuft. Im reinen LAN-Betrieb false, sonst kommt keine Anmeldung zustande."
+          Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+
+  <Config Name="GSP_WORLD_UPLOAD_MAX_MB" Target="GSP_WORLD_UPLOAD_MAX_MB" Default="4096" Mode=""
+          Description="Obergrenze für eine hochgeladene Welt. Das Limit für Mods (256 MB) bleibt davon unberührt."
+          Type="Variable" Display="advanced" Required="false" Mask="false">4096</Config>
+
+  <Config Name="GSP_GEMINI_API_KEY" Target="GSP_GEMINI_API_KEY" Default="" Mode=""
+          Description="Optional. Schaltet den KI-gestützten Vorlagenentwurf frei. Ohne Schlüssel bleibt der Knopf ausgeblendet. Kostenlos unter https://aistudio.google.com/apikey"
+          Type="Variable" Display="advanced" Required="false" Mask="true"/>
+</Container>

@@ -53,6 +53,113 @@ npm run typecheck  # Typprüfung über alle Pakete
 npm run build      # Produktionsbuild
 ```
 
+## Unraid
+
+Auf einem Unraid-NAS gibt es zwei Eigenheiten, an denen ein sonst richtiges
+Setup scheitert. Beide betreffen Pfade.
+
+### Die Datenbank gehört auf den Pool, die Welten aufs Array
+
+Die Panel-Datenbank läuft im WAL-Modus. WAL braucht Shared Memory und
+verlässliche Sperren — über Unraids FUSE-Schicht `/mnt/user` gilt das als
+Korruptionsrisiko. Die Weltdaten dagegen sind groß und gehören aufs Array.
+
+Deshalb zwei Mounts statt einem:
+
+| Host | im Container | Inhalt |
+| --- | --- | --- |
+| `/mnt/user/gameserver` | `/data` | `instances/`, `backups/`, `tmp/` |
+| `/mnt/cache/appdata/gameserver-panel` | `/db` | `panel.db` samt `-wal` und `-shm` |
+
+```
+GSP_HOST_DATA_DIR=/mnt/user/gameserver     # = Bind-Quelle von /data
+GSP_DB_PATH=/db/panel.db
+```
+
+Der Share hinter dem Pool-Mount muss **Cache only** sein (Unraid 7: Primary
+`cache`, Secondary `none`). Sonst schiebt der Mover die geöffnete Datenbank
+irgendwann aufs Array — mit demselben Ergebnis, das man gerade vermeiden wollte.
+
+**`GSP_VOLUME_DIR` dabei nicht setzen.** Der Host-Pfad der Bind-Mounts entsteht
+starr als `GSP_HOST_DATA_DIR/instances` und zieht ein abweichendes
+`GSP_VOLUME_DIR` nicht mit. Wer die Volumes verlegt, bekommt Mounts, die auf dem
+Host danebenzeigen — lautlos, denn der Docker-Daemon legt eine fehlende
+Bind-Quelle einfach als leeres Verzeichnis an. Der Spielserver startet dann mit
+leerer Welt, während das Panel weiter die alte anzeigt.
+
+### In Betrieb nehmen
+
+Voraussetzung ist das Plugin **Docker Compose Manager** aus den Community
+Applications.
+
+```bash
+# 1. Verzeichnisse anlegen
+mkdir -p /mnt/user/gameserver /mnt/cache/appdata/gameserver-panel
+
+# 2. Quelltext auf die Box — als Klon, nicht als Kopie vom Arbeitsrechner:
+#    npm legt die Workspace-Verweise unter Windows als Junctions an, an denen
+#    BuildKit beim Laden des Kontexts abbricht.
+git clone <repo> /mnt/user/appdata/gameserver-panel-src
+cd /mnt/user/appdata/gameserver-panel-src
+
+# 3. Bauen. `npm ci` übersetzt better-sqlite3 mit node-gyp — das dauert auf
+#    einer NAS-CPU einige Minuten.
+GSP_PUBLIC_HOST=tower.local docker compose -f docker-compose.unraid.yml build
+
+# 4. Template in die Docker-Oberfläche bringen
+cp unraid-template.xml /boot/config/plugins/dockerMan/templates-user/
+```
+
+Danach **Docker → Add Container → Template `gameserver-panel`**, die vier Pfade
+und `GSP_PUBLIC_HOST` prüfen, anlegen. Das Panel öffnet unter
+`http://<nas>:8770`; beim ersten Aufruf wird das Administratorkonto angelegt.
+
+Die Compose-Datei ist nur zum Bauen da. Wer zusätzlich `up -d` fährt, hat den
+Container zweimal.
+
+### Nachprüfen, bevor die erste Instanz entsteht
+
+Der eine Test, der die häufigste Fehlkonfiguration aufdeckt:
+
+```bash
+docker run --rm -v /mnt/user/gameserver:/probe alpine ls -la /probe
+```
+
+Sieht der Daemon dort dasselbe wie das Panel unter `/data`, stimmt
+`GSP_HOST_DATA_DIR`.
+
+### Was in der Docker-Ansicht auffallen wird
+
+- **Die Spielcontainer haben kein Template.** Das Panel erzeugt sie über den
+  Socket; in Unraids Ansicht stehen sie ohne Icon und ohne Bearbeiten-Knopf.
+  „Remove orphan images" nicht benutzen, solange Instanzen gestoppt sind —
+  deren Images gelten dann als unbenutzt.
+- **„Force Update" am Panel-Container schlägt fehl.** `gameserver-panel:latest`
+  ist lokal gebaut, es gibt keine Registry zum Ziehen. Ein Update heißt hier:
+  neu bauen, Container neu anlegen.
+- **Portkonflikte fallen spät auf.** Das Panel prüft Ports nur gegen seine
+  eigenen Instanzen. Ein Port, den schon ein anderer Unraid-Container belegt,
+  wird im Wizard vorgeschlagen und scheitert erst beim Anlegen.
+- **Neustarts regeln sich selbst.** Das Panel setzt den Instanz-Containern
+  `restart: unless-stopped`; nach einem Neustart der Box kommen sie von allein
+  wieder hoch. Für das Panel selbst dafür „Autostart: an" setzen.
+
+### Dateirechte
+
+Das Panel läuft als root und setzt weder Eigentümer noch Modus. Alles unter
+`/mnt/user/gameserver` gehört danach `root:root` — nicht `nobody:users`, wie auf
+Unraid-Shares sonst üblich. Über SMB ist das lesbar, aber nicht beschreibbar.
+
+Fünf Vorlagen bieten `PUID`/`PGID` an und haben dort `1000` stehen, die
+Debian-Konvention. Auf Unraid ist `99`/`100` richtig; die Felder sind pro
+Instanz änderbar.
+
+Zwei Stellen setzen Eigentum aktiv zurück: Sicherungen werden mit `portable`
+geschrieben, was `uid`/`gid` aus dem Archiv streicht, und das Zurückspielen als
+root setzt sie dann auf `0`. Nach einem Restore oder einem Welt-Import gehört
+die Welt also `root:root`. Images, die beim Start selbst `chown`en (die
+linuxserver.io-Familie tut das), fangen das ab — die übrigen nicht.
+
 ## Was die mitgelieferten Vorlagen können
 
 Der Design-Prototyp nimmt an, dass jede Instanz eine Befehlseingabe und eine
@@ -154,7 +261,10 @@ reichlich bemessen (10 Anfragen pro Minute, 1.500 pro Tag, 5.000 Suchen im Monat
 | `GSP_SECURE_COOKIES` | `false` | Sitzungscookie nur über HTTPS senden |
 | `GSP_SESSION_TTL_HOURS` | `336` | Gültigkeit einer Sitzung |
 | `GSP_WEB_ROOT` | — | Verzeichnis des gebauten Frontends |
-| `GSP_TEMP_DIR` | `GSP_DATA_DIR/tmp` | Zwischenablage für Welt-Uploads. Sollte auf demselben Dateisystem liegen wie die Instanz-Volumes — sonst wird das Einspielen ein Kopiervorgang statt eines Verschiebens. Der Inhalt überlebt keinen Neustart. |
+| `GSP_DB_PATH` | `GSP_DATA_DIR/panel.db` | Die SQLite-Datei. Der einzige Pfad, der sich gefahrlos aus `GSP_DATA_DIR` herauslösen lässt — sie wird nur vom Panel selbst geöffnet und nie in eine Host-Sicht übersetzt. |
+| `GSP_BACKUP_DIR` | `GSP_DATA_DIR/backups` | Ablage der Sicherungen. |
+| `GSP_VOLUME_DIR` | `GSP_DATA_DIR/instances` | **Besser nicht setzen.** `GSP_HOST_DATA_DIR` zieht nicht mit: der Host-Pfad der Bind-Mounts entsteht starr als `GSP_HOST_DATA_DIR/instances`. Wer die Volumes verlegt, bekommt Mounts, die auf dem Host ins Leere zeigen — und zwar lautlos, weil der Docker-Daemon eine fehlende Bind-Quelle wortlos anlegt. |
+| `GSP_TEMP_DIR` | `GSP_DATA_DIR/tmp` | Zwischenablage für Welt-Uploads. Gehört auf dasselbe Laufwerk wie die Instanz-Volumes, weil eine hochgeladene Welt Gigabytes groß sein darf. Der Inhalt überlebt keinen Neustart. |
 | `GSP_WORLD_UPLOAD_MAX_MB` | `4096` | Obergrenze für eine hochgeladene Welt. Das Limit für Mods (256 MB) bleibt davon unberührt. |
 | `GSP_GEMINI_API_KEY` | — | Schlüssel für den KI-Vorlagenentwurf ([kostenlos](https://aistudio.google.com/apikey)). Ohne ihn bleibt der Knopf ausgeblendet. |
 | `GSP_GEMINI_MODELL` | `gemini-3.7-flash` | Modell für den Entwurf. Bewusst nicht das neueste — das ist meist überlastet. Bei „Modell nicht verfügbar" hier eine aktuelle Kennung eintragen. |
