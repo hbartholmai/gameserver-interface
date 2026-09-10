@@ -37,7 +37,7 @@ const NAME_POOL = ['skadi', 'Torvald', 'lena_k', 'Ragnvald', 'mo', 'Hilde', 'per
  * Wirklichkeit nicht gab. Die eigentliche Erzeugung liegt in `@gsp/shared`
  * neben den Mustern, damit ein Test beide gegeneinander prüfen kann.
  */
-function formatiere(
+function render(
   game: string,
   kind: 'join' | 'leave' | 'chatter' | 'ready',
   name: string,
@@ -125,7 +125,7 @@ export class FakeRuntime implements Runtime {
     const game = c.spec.labels.game ?? 'minecraft';
     setTimeout(() => {
       if (!c.running) return;
-      this.emit(c, formatiere(game, 'ready', '', 1200));
+      this.emit(c, render(game, 'ready', '', 1200));
     }, this.startupMs);
     c.timer = setInterval(() => this.tick(c, game), 2000);
     // Der Simulations-Timer darf den Prozess nicht am Beenden hindern.
@@ -229,7 +229,7 @@ export class FakeRuntime implements Runtime {
   private tick(c: FakeContainer, game: string): void {
     if (!c.running) return;
     const format = (kind: 'join' | 'leave' | 'chatter' | 'ready', name: string, n: number) =>
-      formatiere(game, kind, name, n);
+      render(game, kind, name, n);
     const limit = c.spec.memoryMb * 1024 * 1024;
 
     c.cpuCounter = Math.min(97, Math.max(4, c.cpuCounter + (Math.random() - 0.5) * 9));

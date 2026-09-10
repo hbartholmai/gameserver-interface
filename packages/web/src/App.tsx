@@ -12,29 +12,29 @@ import {
   type Mod,
   type SessionInfo,
   type TemplateDescriptor,
-  type WeltInfo,
+  type WorldInfo,
 } from '@gsp/shared';
 import { api, ApiError, setCsrfToken } from './api/client.js';
 import { LiveConnection } from './api/ws.js';
-import { Kopfzeile } from './components/Kopfzeile.js';
+import { Header } from './components/Header.js';
 import { Sidebar } from './components/Sidebar.js';
-import { Detailkopf } from './components/Detailkopf.js';
-import { Reiterleiste, sichtbareTabs, type TabId } from './components/Reiterleiste.js';
-import { useBestaetigung, type Frage } from './components/Bestaetigung.js';
-import { Uebersicht } from './tabs/Uebersicht.js';
-import { Konsole } from './tabs/Konsole.js';
-import { Spieler } from './tabs/Spieler.js';
+import { DetailHeader } from './components/DetailHeader.js';
+import { TabBar, visibleTabs, type TabId } from './components/Tabs.js';
+import { useConfirm, type Question } from './components/Confirm.js';
+import { Overview } from './tabs/Overview.js';
+import { Console } from './tabs/Console.js';
+import { Players } from './tabs/Players.js';
 import { Backups } from './tabs/Backups.js';
-import { Welt } from './tabs/Welt.js';
+import { World } from './tabs/World.js';
 import { Mods } from './tabs/Mods.js';
 import { Config } from './tabs/Config.js';
-import { Anmeldung } from './views/Anmeldung.js';
-import { NeueInstanz } from './views/NeueInstanz.js';
-import { Vorlagen } from './views/Vorlagen.js';
+import { Login } from './views/Login.js';
+import { NewInstance } from './views/NewInstance.js';
+import { Templates } from './views/Templates.js';
 
 export function App() {
   const [session, setSession] = useState<SessionInfo | null>(null);
-  const [ersteinrichtung, setErsteinrichtung] = useState(false);
+  const [firstRun, setErsteinrichtung] = useState(false);
   const [geprueft, setGeprueft] = useState(false);
 
   // Beim Laden prüfen, ob bereits eine Sitzung besteht.
@@ -53,63 +53,63 @@ export function App() {
     })();
   }, []);
 
-  if (!geprueft) return <div className="anmeldung" />;
+  if (!geprueft) return <div className="login" />;
   if (!session) {
-    return <Anmeldung ersteinrichtung={ersteinrichtung} onAngemeldet={setSession} />;
+    return <Login firstRun={firstRun} onAngemeldet={setSession} />;
   }
-  return <Panel session={session} onAbmelden={() => setSession(null)} />;
+  return <Panel session={session} onLogout={() => setSession(null)} />;
 }
 
-function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () => void }) {
+function Panel({ session, onLogout }: { session: SessionInfo; onLogout: () => void }) {
   const [instanzen, setInstanzen] = useState<Instance[]>([]);
-  const [vorlagen, setVorlagen] = useState<TemplateDescriptor[]>([]);
+  const [templates, setTemplates] = useState<TemplateDescriptor[]>([]);
   const [host, setHost] = useState<HostStatus | null>(null);
-  const [gewaehlt, setGewaehlt] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>('overview');
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [backups, setBackups] = useState<Backup[]>([]);
   const [mods, setMods] = useState<Mod[]>([]);
-  const [welt, setWelt] = useState<WeltInfo | null>(null);
+  const [world, setWorld] = useState<WorldInfo | null>(null);
   // Vorgabe des Sicherungsschalters im Austauschdialog.
-  const [weltSicherung, setWeltSicherung] = useState(true);
-  const [dialogOffen, setDialogOffen] = useState(false);
+  const [worldBackup, setWeltSicherung] = useState(true);
+  const [dialogOpen, setDialogOffen] = useState(false);
   // Letzter Job je Instanz. Er bleibt nach dem Ende stehen, damit die
   // Aufbauansicht den Übergang „Job fertig → Server fährt hoch“ erkennt.
   const [jobs, setJobs] = useState<Record<string, Job>>({});
   // Instanz, deren Aufbau der Dialog gerade begleitet.
-  const [imAufbau, setImAufbau] = useState<string | null>(null);
-  const [vorlagenOffen, setVorlagenOffen] = useState(false);
-  const [beschaeftigt, setBeschaeftigt] = useState(false);
-  const [notiz, setNotiz] = useState('');
-  const [meldung, setMeldung] = useState<string | null>(null);
+  const [building, setImAufbau] = useState<string | null>(null);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
 
   const live = useRef<LiveConnection | null>(null);
 
-  const instanz = useMemo(
-    () => instanzen.find((i) => i.id === gewaehlt) ?? instanzen[0] ?? null,
-    [instanzen, gewaehlt],
+  const instance = useMemo(
+    () => instanzen.find((i) => i.id === selected) ?? instanzen[0] ?? null,
+    [instanzen, selected],
   );
-  const vorlage = useMemo(
-    () => (instanz ? (vorlagen.find((v) => v.id === instanz.game) ?? null) : null),
-    [vorlagen, instanz],
+  const template = useMemo(
+    () => (instance ? (templates.find((v) => v.id === instance.game) ?? null) : null),
+    [templates, instance],
   );
 
-  const ladeInstanzen = useCallback(async () => {
-    const antwort = await api.instances();
-    setInstanzen(antwort.instances);
-    setGewaehlt((alt) => alt ?? antwort.instances[0]?.id ?? null);
+  const loadInstances = useCallback(async () => {
+    const response = await api.instances();
+    setInstanzen(response.instances);
+    setSelected((alt) => alt ?? response.instances[0]?.id ?? null);
   }, []);
 
-  const ladeVorlagen = useCallback(async () => {
-    const antwort = await api.templates();
-    setVorlagen(antwort.templates);
+  const loadTemplates = useCallback(async () => {
+    const response = await api.templates();
+    setTemplates(response.templates);
   }, []);
 
   // Erstdaten und Live-Verbindung.
   useEffect(() => {
-    void ladeVorlagen();
+    void loadTemplates();
     void api.host().then(setHost).catch(() => undefined);
-    void ladeInstanzen();
+    void loadInstances();
 
     const verbindung = new LiveConnection();
     live.current = verbindung;
@@ -124,34 +124,34 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
         if (nachricht.instances.length === 0) return;
         // Der Takt liefert nur die veränderlichen Teile — der Rest bleibt stehen.
         setInstanzen((alt) =>
-          alt.map((eintrag) => {
-            const neu = nachricht.instances.find((i) => i.id === eintrag.id);
-            return neu ? { ...eintrag, ...neu } : eintrag;
+          alt.map((entry) => {
+            const neu = nachricht.instances.find((i) => i.id === entry.id);
+            return neu ? { ...entry, ...neu } : entry;
           }),
         );
       } else if (nachricht.type === 'log') {
         setLogs((alt) => [...alt, ...nachricht.lines].slice(-LOG_BUFFER_LENGTH));
       } else if (nachricht.type === 'event') {
         setInstanzen((alt) =>
-          alt.map((eintrag) =>
-            eintrag.id === nachricht.instanceId
-              ? { ...eintrag, events: [nachricht.event, ...eintrag.events].slice(0, 9) }
-              : eintrag,
+          alt.map((entry) =>
+            entry.id === nachricht.instanceId
+              ? { ...entry, events: [nachricht.event, ...entry.events].slice(0, 9) }
+              : entry,
           ),
         );
       } else if (nachricht.type === 'instances-changed') {
-        void ladeInstanzen();
+        void loadInstances();
       } else if (nachricht.type === 'job') {
         const job = nachricht.job;
         if (job.instanceId) {
           setJobs((alt) => ({ ...alt, [job.instanceId as string]: job }));
         }
         if (job.status === 'failed') {
-          setMeldung(`${job.kind}: ${job.error ?? 'fehlgeschlagen'}`);
+          setMessage(`${job.kind}: ${job.error ?? 'fehlgeschlagen'}`);
         }
         // Strukturänderungen wie ein fertig aufgesetzter Container sind der
         // Instanzliste sonst nicht anzusehen.
-        if (job.status === 'done' || job.status === 'failed') void ladeInstanzen();
+        if (job.status === 'done' || job.status === 'failed') void loadInstances();
       }
     });
 
@@ -160,78 +160,78 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
       verbindung.close();
       live.current = null;
     };
-  }, [ladeInstanzen, ladeVorlagen]);
+  }, [loadInstances, loadTemplates]);
 
   // Log-Abo folgt der gewählten Instanz.
   useEffect(() => {
-    if (!instanz || !live.current) return;
-    const topic = TOPIC.logs(instanz.id);
+    if (!instance || !live.current) return;
+    const topic = TOPIC.logs(instance.id);
     setLogs([]);
-    void api.logs(instanz.id).then((a) => setLogs(a.lines)).catch(() => setLogs([]));
+    void api.logs(instance.id).then((a) => setLogs(a.lines)).catch(() => setLogs([]));
     live.current.subscribe(topic);
     return () => live.current?.unsubscribe(topic);
-  }, [instanz?.id]);
+  }, [instance?.id]);
 
   // Reiterabhängige Daten nachladen.
   useEffect(() => {
-    if (!instanz) return;
-    if (tab === 'backups') void api.backups(instanz.id).then((a) => setBackups(a.backups)).catch(() => undefined);
-    if (tab === 'mods') void api.mods(instanz.id).then((a) => setMods(a.mods)).catch(() => undefined);
+    if (!instance) return;
+    if (tab === 'backups') void api.backups(instance.id).then((a) => setBackups(a.backups)).catch(() => undefined);
+    if (tab === 'mods') void api.mods(instance.id).then((a) => setMods(a.mods)).catch(() => undefined);
     if (tab === 'welt') {
-      void api.welt(instanz.id).then((a) => setWelt(a.welt)).catch(() => setWelt(null));
+      void api.world(instance.id).then((a) => setWorld(a.world)).catch(() => setWorld(null));
     }
-  }, [tab, instanz?.id]);
+  }, [tab, instance?.id]);
 
   /** Führt eine Aktion aus, zeigt Fehler an und lädt die Instanzen neu. */
-  const aktion = useCallback(
+  const run = useCallback(
     async (fn: () => Promise<unknown>, danach?: () => Promise<unknown>) => {
-      setBeschaeftigt(true);
-      setMeldung(null);
+      setBusy(true);
+      setMessage(null);
       try {
         await fn();
         await danach?.();
-        await ladeInstanzen();
+        await loadInstances();
       } catch (err) {
-        setMeldung(err instanceof ApiError ? err.message : String(err));
+        setMessage(err instanceof ApiError ? err.message : String(err));
       } finally {
-        setBeschaeftigt(false);
+        setBusy(false);
       }
     },
-    [ladeInstanzen],
+    [loadInstances],
   );
 
-  const { frage, dialog: bestaetigung } = useBestaetigung();
+  const { ask, dialog: confirmDialog } = useConfirm();
 
-  const tabs = instanz ? sichtbareTabs(instanz.capabilities, vorlage?.world !== undefined) : [];
+  const tabs = instance ? visibleTabs(instance.capabilities, template?.world !== undefined) : [];
   // Wechselt die Instanz auf eine Vorlage ohne Mods, muss der Reiter zurück.
   useEffect(() => {
-    if (instanz && !tabs.some((t) => t.id === tab)) setTab('overview');
-  }, [instanz?.id]);
+    if (instance && !tabs.some((t) => t.id === tab)) setTab('overview');
+  }, [instance?.id]);
 
   return (
-    <div className="seite">
-      <Kopfzeile
+    <div className="page">
+      <Header
         host={host}
-        benutzer={session.username}
-        vorlagenOffen={vorlagenOffen}
-        onVorlagen={() => setVorlagenOffen((offen) => !offen)}
-        onAbmelden={() => {
+        user={session.username}
+        templatesOpen={templatesOpen}
+        onTemplates={() => setTemplatesOpen((open) => !open)}
+        onLogout={() => {
           void api.logout().finally(() => {
             setCsrfToken(null);
-            onAbmelden();
+            onLogout();
           });
         }}
       />
 
       {host && !host.reachable && (
-        <div className="banner banner--fehler" role="alert">
+        <div className="banner banner--error" role="alert">
           Container-Backend nicht erreichbar: {host.error ?? 'unbekannter Fehler'}
         </div>
       )}
-      {meldung && (
-        <div className="banner banner--warnung" role="alert">
-          <span style={{ flex: 1 }}>{meldung}</span>
-          <button type="button" className="knopf knopf--klein" onClick={() => setMeldung(null)}>
+      {message && (
+        <div className="banner banner--warn" role="alert">
+          <span style={{ flex: 1 }}>{message}</span>
+          <button type="button" className="button button--small" onClick={() => setMessage(null)}>
             Schließen
           </button>
         </div>
@@ -239,14 +239,14 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
 
       {/* Vorlagen liegen über den Instanzen und bekommen deshalb die ganze
           Fläche, statt sich als weiterer Reiter in eine Instanz zu drängen. */}
-      {vorlagenOffen && (
-        <Vorlagen
-          onSchliessen={() => {
-            setVorlagenOffen(false);
+      {templatesOpen && (
+        <Templates
+          onClose={() => {
+            setTemplatesOpen(false);
             // Eine geänderte Vorlage kann Felder und Fähigkeiten verschoben
             // haben — beides steckt in den Instanzansichten.
-            void ladeVorlagen();
-            void ladeInstanzen();
+            void loadTemplates();
+            void loadInstances();
           }}
         />
       )}
@@ -254,70 +254,70 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
       {/* `hidden` allein genügt nicht: das Attribut wird von der eigenen
           `display`-Regel der Klasse überstimmt und die Instanzansicht schiene
           unter der Vorlagenverwaltung durch. */}
-      <div className="rumpf" hidden={vorlagenOffen} style={vorlagenOffen ? { display: 'none' } : undefined}>
+      <div className="main" hidden={templatesOpen} style={templatesOpen ? { display: 'none' } : undefined}>
         <Sidebar
           instanzen={instanzen}
-          gewaehlt={instanz?.id ?? null}
+          selected={instance?.id ?? null}
           onWaehlen={(id) => {
-            setGewaehlt(id);
-            setNotiz('');
+            setSelected(id);
+            setNote('');
           }}
           onAnlegen={() => setDialogOffen(true)}
         />
 
         <main className="detail">
-          {!instanz && (
+          {!instance && (
             <section className="panel">
-              <p className="leerzustand">
+              <p className="empty">
                 // noch keine Instanz vorhanden — lege links eine aus einer Vorlage an
               </p>
             </section>
           )}
 
-          {instanz && vorlage && (
+          {instance && template && (
             <>
-              <Detailkopf
-                instanz={instanz}
-                job={jobs[instanz.id] ?? null}
-                beschaeftigt={beschaeftigt}
-                onStart={() => void aktion(() => api.start(instanz.id))}
+              <DetailHeader
+                instance={instance}
+                job={jobs[instance.id] ?? null}
+                busy={busy}
+                onStart={() => void run(() => api.start(instance.id))}
                 onStop={() =>
-                  frage({
-                    titel: 'Server stoppen?',
-                    text: `„${instanz.name}“ wird heruntergefahren. Verbundene Spieler fliegen raus, laufende Runden brechen ab. Weltdaten bleiben erhalten.`,
-                    knopf: 'Stoppen',
-                    gefahr: true,
-                    onJa: () => void aktion(() => api.stop(instanz.id)),
+                  ask({
+                    title: 'Server stoppen?',
+                    text: `„${instance.name}“ wird heruntergefahren. Verbundene Spieler fliegen raus, laufende Runden brechen ab. Weltdaten bleiben erhalten.`,
+                    button: 'Stoppen',
+                    danger: true,
+                    onJa: () => void run(() => api.stop(instance.id)),
                   })
                 }
-                onNeustart={() =>
-                  frage({
-                    titel: 'Server neu starten?',
-                    text: `„${instanz.name}“ fährt herunter und wieder hoch. Verbundene Spieler fliegen raus, laufende Runden brechen ab.`,
-                    knopf: 'Neustart',
-                    onJa: () => void aktion(() => api.restart(instanz.id)),
+                onRestart={() =>
+                  ask({
+                    title: 'Server neu starten?',
+                    text: `„${instance.name}“ fährt herunter und wieder hoch. Verbundene Spieler fliegen raus, laufende Runden brechen ab.`,
+                    button: 'Neustart',
+                    onJa: () => void run(() => api.restart(instance.id)),
                   })
                 }
                 onBackup={() =>
-                  void aktion(
-                    () => api.createBackup(instanz.id),
-                    () => api.backups(instanz.id).then((a) => setBackups(a.backups)),
+                  void run(
+                    () => api.createBackup(instance.id),
+                    () => api.backups(instance.id).then((a) => setBackups(a.backups)),
                   )
                 }
               />
 
-              <Reiterleiste tabs={tabs} aktiv={tab} onWechseln={setTab} />
+              <TabBar tabs={tabs} aktiv={tab} onSwitch={setTab} />
 
-              {tab === 'overview' && <Uebersicht instanz={instanz} />}
+              {tab === 'overview' && <Overview instance={instance} />}
 
               {tab === 'console' && (
-                <Konsole
-                  instanz={instanz}
-                  vorlage={vorlage?.label ?? 'Diese Vorlage'}
-                  zeilen={logs}
+                <Console
+                  instance={instance}
+                  template={template?.label ?? 'Diese Vorlage'}
+                  lines={logs}
                   onBefehl={async (befehl) => {
                     try {
-                      await api.command(instanz.id, befehl);
+                      await api.command(instance.id, befehl);
                     } catch (err) {
                       setLogs((alt) => [
                         ...alt,
@@ -333,39 +333,39 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
               )}
 
               {tab === 'players' && (
-                <Spieler
-                  instanz={instanz}
-                  vorlage={vorlage?.label ?? 'dieser Vorlage'}
-                  onKick={(name) => void aktion(() => api.kick(instanz.id, name))}
-                  onBann={(name) => void aktion(() => api.ban(instanz.id, name))}
-                  onAufheben={(name) => void aktion(() => api.unban(instanz.id, name))}
+                <Players
+                  instance={instance}
+                  template={template?.label ?? 'dieser Vorlage'}
+                  onKick={(name) => void run(() => api.kick(instance.id, name))}
+                  onBann={(name) => void run(() => api.ban(instance.id, name))}
+                  onAufheben={(name) => void run(() => api.unban(instance.id, name))}
                 />
               )}
 
               {tab === 'welt' && (
-                <Welt
-                  instanz={instanz}
-                  welt={welt}
-                  beschaeftigt={beschaeftigt}
-                  downloadUrl={api.weltDownloadUrl(instanz.id)}
-                  onDatei={(datei) =>
-                    frage({
-                      titel: 'Weltdaten ersetzen?',
-                      text: `Die Welt „${welt?.name ?? ''}“ von „${instanz.name}“ wird durch ${datei.name} (${formatBytes(datei.size)}) ersetzt. Der bisherige Stand ist danach nur noch über die Sicherung erreichbar.`,
-                      knopf: 'Ersetzen',
-                      gefahr: true,
+                <World
+                  instance={instance}
+                  world={world}
+                  busy={busy}
+                  downloadUrl={api.worldDownloadUrl(instance.id)}
+                  onFile={(file) =>
+                    ask({
+                      title: 'Weltdaten ersetzen?',
+                      text: `Die Welt „${world?.name ?? ''}“ von „${instance.name}“ wird durch ${file.name} (${formatBytes(file.size)}) ersetzt. Der bisherige Stand ist danach nur noch über die Sicherung erreichbar.`,
+                      button: 'Ersetzen',
+                      danger: true,
                       // Ein Fehlklick vernichtet hier den Spielstand von Monaten.
-                      tippen: 'ersetzen',
-                      schalter: {
+                      typeWord: 'ersetzen',
+                      toggle: {
                         label: 'Vorher sichern',
-                        hilfe: 'Legt ein Backup an, aus dem sich die bisherige Welt zurückholen lässt.',
-                        wert: weltSicherung,
-                        onAendern: setWeltSicherung,
+                        help: 'Legt ein Backup an, aus dem sich die bisherige Welt zurückholen lässt.',
+                        value: worldBackup,
+                        onChange: setWeltSicherung,
                       },
                       onJa: () =>
-                        void aktion(
-                          () => api.weltHochladen(instanz.id, datei, weltSicherung),
-                          () => api.welt(instanz.id).then((a) => setWelt(a.welt)),
+                        void run(
+                          () => api.uploadWorld(instance.id, file, worldBackup),
+                          () => api.world(instance.id).then((a) => setWorld(a.world)),
                         ),
                     })
                   }
@@ -374,35 +374,35 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
 
               {tab === 'backups' && (
                 <Backups
-                  instanz={instanz}
+                  instance={instance}
                   backups={backups}
-                  beschaeftigt={beschaeftigt}
-                  onUpdate={() => void aktion(() => api.update(instanz.id))}
-                  onErstellen={() =>
-                    void aktion(
-                      () => api.createBackup(instanz.id),
-                      () => api.backups(instanz.id).then((a) => setBackups(a.backups)),
+                  busy={busy}
+                  onUpdate={() => void run(() => api.update(instance.id))}
+                  onCreate={() =>
+                    void run(
+                      () => api.createBackup(instance.id),
+                      () => api.backups(instance.id).then((a) => setBackups(a.backups)),
                     )
                   }
-                  onWiederherstellen={(backup) =>
-                    frage({
-                      titel: 'Weltdaten wiederherstellen?',
-                      text: `Die aktuelle Welt von „${instanz.name}“ wird durch den Stand aus ${backup.file} ersetzt.`,
-                      knopf: 'Wiederherstellen',
-                      gefahr: true,
-                      onJa: () => void aktion(() => api.restoreBackup(instanz.id, backup.id)),
+                  onRestore={(backup) =>
+                    ask({
+                      title: 'Weltdaten wiederherstellen?',
+                      text: `Die aktuelle Welt von „${instance.name}“ wird durch den Stand aus ${backup.file} ersetzt.`,
+                      button: 'Wiederherstellen',
+                      danger: true,
+                      onJa: () => void run(() => api.restoreBackup(instance.id, backup.id)),
                     })
                   }
-                  onLoeschen={(backup) =>
-                    frage({
-                      titel: 'Backup löschen?',
+                  onDelete={(backup) =>
+                    ask({
+                      title: 'Backup löschen?',
                       text: `${backup.file} wird endgültig entfernt.`,
-                      knopf: 'Löschen',
-                      gefahr: true,
+                      button: 'Löschen',
+                      danger: true,
                       onJa: () =>
-                        void aktion(
-                          () => api.deleteBackup(instanz.id, backup.id),
-                          () => api.backups(instanz.id).then((a) => setBackups(a.backups)),
+                        void run(
+                          () => api.deleteBackup(instance.id, backup.id),
+                          () => api.backups(instance.id).then((a) => setBackups(a.backups)),
                         ),
                     })
                   }
@@ -411,31 +411,31 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
 
               {tab === 'mods' && (
                 <Mods
-                  instanz={instanz}
+                  instance={instance}
                   mods={mods}
-                  endungen={vorlage?.modExtensions ?? []}
+                  extensions={template?.modExtensions ?? []}
                   onUmschalten={(mod) =>
-                    void aktion(
-                      () => api.setModEnabled(instanz.id, mod.file, !mod.enabled),
-                      () => api.mods(instanz.id).then((a) => setMods(a.mods)),
+                    void run(
+                      () => api.setModEnabled(instance.id, mod.file, !mod.enabled),
+                      () => api.mods(instance.id).then((a) => setMods(a.mods)),
                     )
                   }
-                  onLoeschen={(mod) =>
-                    frage({
-                      titel: 'Mod entfernen?',
-                      text: `${mod.name} wird aus „${instanz.name}“ gelöscht. Beim nächsten Neustart fehlt der Mod dem Server.`,
-                      knopf: 'Entfernen',
+                  onDelete={(mod) =>
+                    ask({
+                      title: 'Mod entfernen?',
+                      text: `${mod.name} wird aus „${instance.name}“ gelöscht. Beim nächsten Neustart fehlt der Mod dem Server.`,
+                      button: 'Entfernen',
                       onJa: () =>
-                        void aktion(
-                          () => api.deleteMod(instanz.id, mod.file),
-                          () => api.mods(instanz.id).then((a) => setMods(a.mods)),
+                        void run(
+                          () => api.deleteMod(instance.id, mod.file),
+                          () => api.mods(instance.id).then((a) => setMods(a.mods)),
                         ),
                     })
                   }
-                  onHinzufuegen={(datei) =>
-                    void aktion(
-                      () => api.uploadMod(instanz.id, datei),
-                      () => api.mods(instanz.id).then((a) => setMods(a.mods)),
+                  onHinzufuegen={(file) =>
+                    void run(
+                      () => api.uploadMod(instance.id, file),
+                      () => api.mods(instance.id).then((a) => setMods(a.mods)),
                     )
                   }
                 />
@@ -443,15 +443,15 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
 
               {tab === 'settings' && (
                 <Config
-                  instanz={instanz}
-                  vorlage={vorlage}
-                  notiz={notiz}
-                  beschaeftigt={beschaeftigt}
-                  onSpeichern={(werte, neustart) =>
-                    void aktion(async () => {
-                      await api.saveSettings(instanz.id, werte, neustart);
-                      setNotiz(
-                        neustart
+                  instance={instance}
+                  template={template}
+                  note={note}
+                  busy={busy}
+                  onSave={(values, restart) =>
+                    void run(async () => {
+                      await api.saveSettings(instance.id, values, restart);
+                      setNote(
+                        restart
                           ? `✓ gespeichert · Neustart um ${clockHms().slice(0, 5)}`
                           : '✓ gespeichert · wird beim nächsten Neustart wirksam',
                       );
@@ -461,12 +461,12 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
               )}
 
               <InstanzLoeschen
-                instanz={instanz}
-                frage={frage}
-                onLoeschen={(daten) =>
-                  void aktion(async () => {
-                    await api.deleteInstance(instanz.id, daten);
-                    setGewaehlt(null);
+                instance={instance}
+                ask={ask}
+                onDelete={(daten) =>
+                  void run(async () => {
+                    await api.deleteInstance(instance.id, daten);
+                    setSelected(null);
                   })
                 }
               />
@@ -475,15 +475,15 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
         </main>
       </div>
 
-      {bestaetigung}
+      {confirmDialog}
 
-      {dialogOffen && (
-        <NeueInstanz
-          vorlagen={vorlagen}
-          aufbauInstanz={imAufbau ? (instanzen.find((i) => i.id === imAufbau) ?? null) : null}
-          aufbauJob={imAufbau ? (jobs[imAufbau] ?? null) : null}
-          aufbauLogs={logs}
-          onSchliessen={() => {
+      {dialogOpen && (
+        <NewInstance
+          templates={templates}
+          buildInstance={building ? (instanzen.find((i) => i.id === building) ?? null) : null}
+          buildJob={building ? (jobs[building] ?? null) : null}
+          buildLogs={logs}
+          onClose={() => {
             setDialogOffen(false);
             setImAufbau(null);
           }}
@@ -492,8 +492,8 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
             // sofort gewählt, damit das Log-Abo greift und die Aufbauansicht
             // mitlaufende Zeilen bekommt.
             setImAufbau(id);
-            setGewaehlt(id);
-            void ladeInstanzen();
+            setSelected(id);
+            void loadInstances();
           }}
         />
       )}
@@ -502,28 +502,28 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
 }
 
 function InstanzLoeschen({
-  instanz,
-  frage,
-  onLoeschen,
+  instance,
+  ask,
+  onDelete,
 }: {
-  instanz: Instance;
-  frage: (f: Frage) => void;
-  onLoeschen: (daten: boolean) => void;
+  instance: Instance;
+  ask: (f: Question) => void;
+  onDelete: (daten: boolean) => void;
 }) {
   return (
     <section style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s-4)', alignItems: 'center' }}>
-      <span className="kachel__label" style={{ flex: 1 }}>
+      <span className="tile__label" style={{ flex: 1 }}>
         // Instanz entfernen
       </span>
       <button
         type="button"
-        className="knopf knopf--klein"
+        className="button button--small"
         onClick={() =>
-          frage({
-            titel: 'Container entfernen?',
-            text: `Der Container von „${instanz.name}“ wird gelöscht. Die Weltdaten bleiben auf der Platte und stehen beim nächsten Start wieder bereit.`,
-            knopf: 'Entfernen',
-            onJa: () => onLoeschen(false),
+          ask({
+            title: 'Container entfernen?',
+            text: `Der Container von „${instance.name}“ wird gelöscht. Die Weltdaten bleiben auf der Platte und stehen beim nächsten Start wieder bereit.`,
+            button: 'Entfernen',
+            onJa: () => onDelete(false),
           })
         }
       >
@@ -531,15 +531,15 @@ function InstanzLoeschen({
       </button>
       <button
         type="button"
-        className="knopf knopf--klein knopf--klein-gefahr"
+        className="button button--small button--small-danger"
         onClick={() =>
-          frage({
-            titel: 'Mit Weltdaten löschen?',
-            text: `„${instanz.name}“ wird mitsamt allen Weltdaten unwiderruflich gelöscht. Backups bleiben erhalten.`,
-            knopf: 'Endgültig löschen',
-            gefahr: true,
-            tippen: 'löschen',
-            onJa: () => onLoeschen(true),
+          ask({
+            title: 'Mit Weltdaten löschen?',
+            text: `„${instance.name}“ wird mitsamt allen Weltdaten unwiderruflich gelöscht. Backups bleiben erhalten.`,
+            button: 'Endgültig löschen',
+            danger: true,
+            typeWord: 'löschen',
+            onJa: () => onDelete(true),
           })
         }
       >

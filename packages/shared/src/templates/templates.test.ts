@@ -29,26 +29,26 @@ beforeAll(() => {
 describe('Vorlagen', () => {
   it('liefert für jedes Spiel eine Vorlage mit eindeutigen Feld- und Port-Namen', () => {
     for (const template of listTemplates()) {
-      const feldIds = template.fields.map((f) => f.id);
-      expect(new Set(feldIds).size, `${template.id}: doppelte Feld-ID`).toBe(feldIds.length);
+      const fieldIds = template.fields.map((f) => f.id);
+      expect(new Set(fieldIds).size, `${template.id}: doppelte Feld-ID`).toBe(fieldIds.length);
 
-      const portNamen = template.ports.map((p) => p.name);
-      expect(new Set(portNamen).size, `${template.id}: doppelter Port-Name`).toBe(portNamen.length);
+      const portNames = template.ports.map((p) => p.name);
+      expect(new Set(portNames).size, `${template.id}: doppelter Port-Name`).toBe(portNames.length);
     }
   });
 
   it('gibt nur Vorlagen mit Mod-Pfad als mod-fähig aus', () => {
     for (const template of listTemplates()) {
-      const hatPfad = template.modsPath !== undefined;
-      expect(hatPfad, `${template.id}`).toBe(template.capabilities.mods !== 'none');
+      const hasPath = template.modsPath !== undefined;
+      expect(hasPath, `${template.id}`).toBe(template.capabilities.mods !== 'none');
     }
   });
 
   it('sichert nur Pfade, die in einem Volume der Vorlage liegen', () => {
     for (const template of listTemplates()) {
-      for (const pfad of template.backup.paths) {
-        const passend = template.volumes.some((v) => pfad.startsWith(v.containerPath));
-        expect(passend, `${template.id}: ${pfad} liegt in keinem Volume`).toBe(true);
+      for (const path of template.backup.paths) {
+        const inVolume = template.volumes.some((v) => path.startsWith(v.containerPath));
+        expect(inVolume, `${template.id}: ${path} liegt in keinem Volume`).toBe(true);
       }
     }
   });
@@ -65,14 +65,14 @@ describe('Vorlagen', () => {
     for (const template of listTemplates()) {
       const world = template.world;
       if (!world) continue;
-      const imVolume = template.volumes.some((v) => world.parent.startsWith(v.containerPath));
-      expect(imVolume, `${template.id}: ${world.parent} liegt in keinem Volume`).toBe(true);
+      const inVolume = template.volumes.some((v) => world.parent.startsWith(v.containerPath));
+      expect(inVolume, `${template.id}: ${world.parent} liegt in keinem Volume`).toBe(true);
 
       // Sonst wäre die Sicherung vor dem Austausch wertlos.
-      const pfad =
+      const path =
         world.name.kind === 'const' ? `${world.parent}/${world.name.value}` : world.parent;
-      const gesichert = template.backup.paths.some((p) => pfad === p || pfad.startsWith(`${p}/`));
-      expect(gesichert, `${template.id}: ${pfad} wird von keinem Backup-Pfad abgedeckt`).toBe(true);
+      const covered = template.backup.paths.some((p) => path === p || path.startsWith(`${p}/`));
+      expect(covered, `${template.id}: ${path} wird von keinem Backup-Pfad abgedeckt`).toBe(true);
 
       expect(world.parts[0]?.required, `${template.id}: erster Teil nicht erforderlich`).toBe(true);
     }
@@ -82,8 +82,8 @@ describe('Vorlagen', () => {
     for (const template of listTemplates()) {
       const name = template.world?.name;
       if (name?.kind !== 'field') continue;
-      const feld = template.fields.some((f) => f.id === name.field);
-      expect(feld, `${template.id}: Feld ${name.field} fehlt`).toBe(true);
+      const field = template.fields.some((f) => f.id === name.field);
+      expect(field, `${template.id}: Feld ${name.field} fehlt`).toBe(true);
     }
   });
 
@@ -100,11 +100,11 @@ describe('Vorlagen', () => {
    * laufenden Server belegt, trägt hier einen Block nach und streicht die Zeile.
    */
   it('führt die Vorlagen ohne Weltangabe namentlich', () => {
-    const ohne = listTemplates()
+    const withoutWorld = listTemplates()
       .filter((t) => t.world === undefined)
       .map((t) => t.id)
       .sort();
-    expect(ohne).toEqual([
+    expect(withoutWorld).toEqual([
       '7daystodie',
       'ark',
       'barotrauma',
@@ -175,39 +175,39 @@ describe('Umgebungsvariablen', () => {
 describe('Validierung', () => {
   it('lehnt zu kurze Valheim-Passwörter ab', () => {
     const template = getTemplate('valheim');
-    const fehler = validateSettings(template, {
+    const errors = validateSettings(template, {
       ...defaultValues(template),
       serverName: 'Test',
       worldName: 'Welt',
       password: 'abc',
     });
-    expect(fehler.some((f) => f.field === 'password')).toBe(true);
+    expect(errors.some((f) => f.field === 'password')).toBe(true);
   });
 
   it('lehnt ein Valheim-Passwort ab, das im Servernamen vorkommt', () => {
     const template = getTemplate('valheim');
-    const fehler = validateSettings(template, {
+    const errors = validateSettings(template, {
       ...defaultValues(template),
       serverName: 'geheim-server',
       worldName: 'Welt',
       password: 'geheim',
     });
-    expect(fehler.map((f) => f.message).join()).toContain('Server- oder Weltnamen');
+    expect(errors.map((f) => f.message).join()).toContain('Server- oder Weltnamen');
   });
 
   it('verlangt für Enshrouded ein Admin-Passwort', () => {
     const template = getTemplate('enshrouded');
-    const fehler = validateSettings(template, { ...defaultValues(template), adminPassword: '' });
-    expect(fehler.some((f) => f.field === 'adminPassword')).toBe(true);
+    const errors = validateSettings(template, { ...defaultValues(template), adminPassword: '' });
+    expect(errors.some((f) => f.field === 'adminPassword')).toBe(true);
   });
 
   it('lehnt Weltnamen mit Pfadanteilen ab', () => {
     const template = getTemplate('minecraft');
-    const fehler = validateSettings(template, {
+    const errors = validateSettings(template, {
       ...defaultValues(template),
       levelName: '../../etc',
     });
-    expect(fehler.some((f) => f.field === 'levelName')).toBe(true);
+    expect(errors.some((f) => f.field === 'levelName')).toBe(true);
   });
 
   it('akzeptiert gültige Standardwerte für alle Vorlagen', () => {
@@ -222,8 +222,8 @@ describe('Validierung', () => {
       dst: { clusterToken: 'pds-g^abcdefghi-q^jklmnopqrstuvwxyz0123456789=' },
     };
     for (const template of listTemplates()) {
-      const werte = { ...defaultValues(template), ...gueltig[template.id] };
-      expect(validateSettings(template, werte), template.id).toEqual([]);
+      const values = { ...defaultValues(template), ...gueltig[template.id] };
+      expect(validateSettings(template, values), template.id).toEqual([]);
     }
   });
 });
@@ -243,22 +243,22 @@ describe('Simulierte Logzeilen passen zu den Mustern derselben Vorlage', () => {
   for (const template of BUILTIN_DEFINITIONS.map(compileTemplate)) {
     it(template.label, () => {
       const spec = template.definition.fakeLog ?? DEFAULT_FAKE_LOG;
-      const muster = template.logPatterns;
+      const patterns = template.logPatterns;
 
-      const beitritt = renderFakeLine(spec, 'join', 'Freyja_88', 4711);
-      expect(muster.join.exec(beitritt)?.[1], beitritt).toBe('Freyja_88');
+      const joinLine = renderFakeLine(spec, 'join', 'Freyja_88', 4711);
+      expect(patterns.join.exec(joinLine)?.[1], joinLine).toBe('Freyja_88');
 
-      const start = renderFakeLine(spec, 'ready', '', 1200);
-      expect(muster.ready.test(start), start).toBe(true);
+      const readyLine = renderFakeLine(spec, 'ready', '', 1200);
+      expect(patterns.ready.test(readyLine), readyLine).toBe(true);
 
-      if (muster.leave) {
-        const abgang = renderFakeLine(spec, 'leave', 'Freyja_88', 9001);
-        expect(muster.leave.exec(abgang)?.[1], abgang).toBe('Freyja_88');
+      if (patterns.leave) {
+        const leaveLine = renderFakeLine(spec, 'leave', 'Freyja_88', 9001);
+        expect(patterns.leave.exec(leaveLine)?.[1], leaveLine).toBe('Freyja_88');
       }
 
       // Beiläufige Zeilen dürfen keinen Beitritt vortäuschen.
       const geplauder = renderFakeLine(spec, 'chatter', 'Freyja_88', 42);
-      expect(muster.join.test(geplauder), geplauder).toBe(false);
+      expect(patterns.join.test(geplauder), geplauder).toBe(false);
     });
   }
 });
@@ -313,8 +313,8 @@ describe('Startargumente', () => {
     for (const definition of BUILTIN_DEFINITIONS.filter((d) => d.args === undefined)) {
       const t = compileTemplate(definition);
       const ports = Object.fromEntries(t.ports.map((p) => [p.name, p.defaultHost]));
-      const werte = Object.fromEntries(t.fields.map((f) => [f.id, f.default]));
-      expect(t.args(werte, { ...ctx, hostPorts: ports }), definition.id).toEqual([]);
+      const values = Object.fromEntries(t.fields.map((f) => [f.id, f.default]));
+      expect(t.args(values, { ...ctx, hostPorts: ports }), definition.id).toEqual([]);
     }
   });
 });

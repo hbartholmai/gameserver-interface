@@ -89,7 +89,7 @@ textarea:disabled {
 }
 
 /* Nur für Screenreader — trägt Bedeutung, die die Optik allein nicht zeigt. */
-.nur-sr {
+.sr-only {
   position: absolute;
   width: 1px;
   height: 1px;

@@ -17,7 +17,7 @@ const schuss = (page, name) => page.screenshot({ path: `${OUT}/${name}.png`, ful
  * Wechsel zwischen Vorlagen — ein blinder Klick würde ihn sonst zuklappen.
  */
 async function aufklappen(abschnitt) {
-  const kopf = abschnitt.locator('.abschnitt__kopf').first();
+  const kopf = abschnitt.locator('.section__head').first();
   if ((await kopf.getAttribute('aria-expanded')) !== 'true') await kopf.click();
 }
 const log = (...a) => console.log('·', ...a);
@@ -29,11 +29,11 @@ page.on('pageerror', (e) => console.log('SEITENFEHLER:', e.message));
 page.on('console', (m) => { if (m.type() === 'error') console.log('KONSOLE:', m.text()); });
 
 await page.goto(URL);
-await page.waitForSelector('.anmeldung__box');
+await page.waitForSelector('.login__box');
 await page.fill('#benutzer', 'admin');
 await page.fill('#passwort', 'geheim-genug-1234');
 await page.click('button[type=submit]');
-await page.waitForSelector('.seite', { timeout: 15000 });
+await page.waitForSelector('.page', { timeout: 15000 });
 log('angemeldet');
 
 // --- Vorlagenverwaltung öffnen ---
@@ -43,16 +43,16 @@ await page.waitForTimeout(800);
 // --- Bestehende Vorlage öffnen: bleibt der Weltblock beim Bearbeiten stehen? ---
 await page.locator('text=Minecraft').first().click();
 await page.waitForTimeout(800);
-const weltAbschnitt = page.locator('.abschnitt').filter({ has: page.locator('.abschnitt__titel', { hasText: 'Weltdaten' }) }).first();
+const weltAbschnitt = page.locator('.section').filter({ has: page.locator('.section__title', { hasText: 'Weltdaten' }) }).first();
 await weltAbschnitt.scrollIntoViewIfNeeded();
 pruefe('Abschnitt „Weltdaten" ist im Editor da', (await weltAbschnitt.count()) > 0);
 await aufklappen(weltAbschnitt);
 await page.waitForTimeout(400);
 await schuss(page, 'editor-1-minecraft');
 
-const schalter = weltAbschnitt.locator('.feld__schalter button').first();
+const schalter = weltAbschnitt.locator('.field__toggle button').first();
 pruefe('bei Minecraft ist er eingeschaltet', (await schalter.getAttribute('aria-pressed')) === 'true');
-const teile = await weltAbschnitt.locator('.editorkarte').count();
+const teile = await weltAbschnitt.locator('.editorcard').count();
 pruefe(`die drei Teile sind sichtbar (gefunden: ${teile})`, teile === 3);
 
 await page.getByRole('button', { name: 'Abbrechen' }).first().click().catch(() => {});
@@ -62,20 +62,20 @@ await page.waitForTimeout(600);
 await page.locator('text=Vorlage von Hand').first().click();
 await page.waitForTimeout(1200);
 await schuss(page, 'editor-2a-neu-offen');
-log('Abschnitte im neuen Editor:', (await page.locator('.abschnitt__titel').allInnerTexts()).join(' | '));
+log('Abschnitte im neuen Editor:', (await page.locator('.section__title').allInnerTexts()).join(' | '));
 
-const neuWelt = page.locator('.abschnitt').filter({ has: page.locator('.abschnitt__titel', { hasText: 'Weltdaten' }) }).first();
+const neuWelt = page.locator('.section').filter({ has: page.locator('.section__title', { hasText: 'Weltdaten' }) }).first();
 await neuWelt.scrollIntoViewIfNeeded();
 await aufklappen(neuWelt);
 await page.waitForTimeout(300);
-const neuSchalter = neuWelt.locator('.feld__schalter button').first();
+const neuSchalter = neuWelt.locator('.field__toggle button').first();
 pruefe('bei einer neuen Vorlage ist er aus', (await neuSchalter.getAttribute('aria-pressed')) === 'false');
 
 await neuSchalter.click();
 await page.waitForTimeout(400);
 await schuss(page, 'editor-2-neu-eingeschaltet');
-pruefe('nach dem Einschalten steht ein erster Teil da', (await neuWelt.locator('.editorkarte').count()) === 1);
-const vorbelegt = await neuWelt.locator('.feld__eingabe input').first().inputValue();
+pruefe('nach dem Einschalten steht ein erster Teil da', (await neuWelt.locator('.editorcard').count()) === 1);
+const vorbelegt = await neuWelt.locator('.field__input input').first().inputValue();
 log('Verzeichnis vorbelegt mit:', vorbelegt);
 pruefe('das Verzeichnis ist sinnvoll vorbelegt', vorbelegt.startsWith('/'));
 

@@ -4,37 +4,37 @@ import {
   formatPercent,
   type Instance,
 } from '@gsp/shared';
-import { SektionsLabel, StatusChip } from './basis.js';
+import { SectionLabel, StatusChip } from './basics.js';
 
 export function Sidebar({
   instanzen,
-  gewaehlt,
+  selected,
   onWaehlen,
   onAnlegen,
 }: {
   instanzen: Instance[];
-  gewaehlt: string | null;
+  selected: string | null;
   onWaehlen: (id: string) => void;
   onAnlegen: () => void;
 }) {
   return (
     <aside className="sidebar">
-      <SektionsLabel text="Instanzen" rechts={instanzen.length} />
+      <SectionLabel text="Instanzen" right={instanzen.length} />
 
-      {instanzen.map((instanz) => (
+      {instanzen.map((instance) => (
         <InstanzKarte
-          key={instanz.id}
-          instanz={instanz}
-          gewaehlt={instanz.id === gewaehlt}
-          onWaehlen={() => onWaehlen(instanz.id)}
+          key={instance.id}
+          instance={instance}
+          selected={instance.id === selected}
+          onWaehlen={() => onWaehlen(instance.id)}
         />
       ))}
 
       {instanzen.length === 0 && (
-        <p className="leerzustand">// noch keine Instanz angelegt</p>
+        <p className="empty">// noch keine Instanz angelegt</p>
       )}
 
-      <button type="button" className="knopf knopf--gestrichelt" onClick={onAnlegen}>
+      <button type="button" className="button button--dashed" onClick={onAnlegen}>
         + Instanz anlegen
       </button>
     </aside>
@@ -42,45 +42,45 @@ export function Sidebar({
 }
 
 function InstanzKarte({
-  instanz,
-  gewaehlt,
+  instance,
+  selected,
   onWaehlen,
 }: {
-  instanz: Instance;
-  gewaehlt: boolean;
+  instance: Instance;
+  selected: boolean;
   onWaehlen: () => void;
 }) {
-  const farbe = STATUS_COLOR[instanz.status];
-  const cpu = instanz.metrics.cpuPct;
+  const farbe = STATUS_COLOR[instance.status];
+  const cpu = instance.metrics.cpuPct;
 
   return (
     <button
       type="button"
-      className="instanzkarte"
+      className="instancecard"
       onClick={onWaehlen}
-      aria-current={gewaehlt ? 'true' : undefined}
+      aria-current={selected ? 'true' : undefined}
     >
-      {gewaehlt && <span className="instanzkarte__auswahl" />}
-      <span className="instanzkarte__streifen" style={{ background: farbe }} />
+      {selected && <span className="instancecard__select" />}
+      <span className="instancecard__stripe" style={{ background: farbe }} />
 
-      <span className="instanzkarte__kopf">
+      <span className="instancecard__head">
         <span style={{ minWidth: 0 }}>
-          <span className="instanzkarte__spiel">{instanz.game}</span>
-          <span className="instanzkarte__name">{instanz.name}</span>
+          <span className="instancecard__game">{instance.game}</span>
+          <span className="instancecard__name">{instance.name}</span>
         </span>
-        <StatusChip status={instanz.status} />
+        <StatusChip status={instance.status} />
       </span>
 
-      <span className="instanzkarte__zeile">
+      <span className="instancecard__row">
         <span>
-          {instanz.players.length} / {instanz.maxPlayers} Spieler
+          {instance.players.length} / {instance.maxPlayers} Spieler
         </span>
         <span>
-          CPU {formatPercent(cpu)} · RAM {formatBytes(instanz.metrics.memBytes)}
+          CPU {formatPercent(cpu)} · RAM {formatBytes(instance.metrics.memBytes)}
         </span>
       </span>
 
-      <span className="instanzkarte__balken">
+      <span className="instancecard__bar">
         <span style={{ width: `${Math.min(100, Math.max(0, cpu))}%`, background: farbe }} />
       </span>
     </button>

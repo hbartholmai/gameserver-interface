@@ -100,7 +100,7 @@ export const errorResponseSchema = z.object({
  * `z.coerce.boolean()` waere hier eine Falle: `Boolean('false')` ist `true`,
  * und die Sicherung liesse sich nie abwaehlen.
  */
-export const weltUploadOptionsSchema = z.object({
-  sicherung: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
+export const worldUploadOptionsSchema = z.object({
+  backup: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
 });
-export type WeltUploadOptions = z.infer<typeof weltUploadOptionsSchema>;
+export type WorldUploadOptions = z.infer<typeof worldUploadOptionsSchema>;

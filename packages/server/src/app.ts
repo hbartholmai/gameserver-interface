@@ -20,10 +20,10 @@ import { JobService } from './services/jobs.js';
 import { LogService } from './services/logs.js';
 import { MetricsService } from './services/metrics.js';
 import { ModService } from './services/mods.js';
-import { WeltService } from './services/welt.js';
+import { WorldService } from './services/world.js';
 import { Scheduler } from './services/scheduler.js';
 import { TemplateService } from './services/templates.js';
-import { DraftService } from './services/vorlagen-ki.js';
+import { DraftService } from './services/template-ai.js';
 import { Ticker } from './services/ticker.js';
 import { authRoutes, SESSION_COOKIE } from './routes/auth.js';
 import { instanceRoutes } from './routes/instances.js';
@@ -96,9 +96,9 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   const metrics = new MetricsService(runtime, store, logs, config.publicHost, config.volumeDir);
   const backups = new BackupService(store, config.volumeDir, config.backupDir);
   const mods = new ModService(config.volumeDir);
-  const welt = new WeltService(config);
+  const world = new WorldService(config);
   const instances = new InstanceService(
-    config, store, runtime, logs, metrics, backups, jobs, hub, templates, welt,
+    config, store, runtime, logs, metrics, backups, jobs, hub, templates, world,
   );
   const ticker = new Ticker(config, runtime, store, instances, metrics, hub);
   const scheduler = new Scheduler(instances);
@@ -154,7 +154,7 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   });
 
   await server.register(authRoutes, { auth, config });
-  await server.register(instanceRoutes, { instances, store, logs, mods, backups, jobs, ticker, templates, welt, config });
+  await server.register(instanceRoutes, { instances, store, logs, mods, backups, jobs, ticker, templates, world, config });
   await server.register(templateRoutes, { templates, instances, jobs, drafts });
   await server.register(websocketRoute, { auth, hub, logs, ticker });
 

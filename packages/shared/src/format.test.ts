@@ -65,10 +65,10 @@ describe('Formatierung', () => {
   });
 
   it('benennt Zeitpunkte relativ zum heutigen Tag', () => {
-    const jetzt = new Date(2026, 8, 9, 12, 0);
-    expect(formatTimestamp(new Date(2026, 8, 9, 4, 0).toISOString(), jetzt)).toBe('heute 04:00');
-    expect(formatTimestamp(new Date(2026, 8, 8, 3, 0).toISOString(), jetzt)).toBe('gestern 03:00');
-    expect(formatTimestamp(new Date(2026, 8, 2, 19, 12).toISOString(), jetzt)).toBe('02.09. 19:12');
+    const now = new Date(2026, 8, 9, 12, 0);
+    expect(formatTimestamp(new Date(2026, 8, 9, 4, 0).toISOString(), now)).toBe('heute 04:00');
+    expect(formatTimestamp(new Date(2026, 8, 8, 3, 0).toISOString(), now)).toBe('gestern 03:00');
+    expect(formatTimestamp(new Date(2026, 8, 2, 19, 12).toISOString(), now)).toBe('02.09. 19:12');
     expect(formatTimestamp(null)).toBe('—');
   });
 

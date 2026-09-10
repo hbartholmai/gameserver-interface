@@ -195,7 +195,7 @@ export { renderFakeLine, DEFAULT_FAKE_LOG } from './fakelog.js';
 export {
   worldTarget,
   worldBase,
-  erforderlichBeimImport,
+  requiredOnImport,
   WorldNameError,
   type WorldTarget,
   type WorldTargetPart,

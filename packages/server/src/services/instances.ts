@@ -27,8 +27,8 @@ import type { MetricsService } from './metrics.js';
 // Nur als Typ: der Vorlagendienst importiert umgekehrt `ValidationError` von hier.
 import type { TemplateService } from './templates.js';
 import { instanceRoot, slug, volumePath } from './paths.js';
-import type { WeltService } from './welt.js';
-import { entpacke as entpackeZip, liesEintraege as liesZipEintraege } from './welt-zip.js';
+import type { WorldService } from './world.js';
+import { extract as extractZip, readEntries as readZipEntries } from './world-zip.js';
 
 export class ValidationError extends Error {
   constructor(
@@ -64,7 +64,7 @@ export class InstanceService {
     private readonly jobs: JobService,
     private readonly hub: Hub,
     private readonly templates: TemplateService,
-    private readonly welt: WeltService,
+    private readonly world: WorldService,
   ) {}
 
   list(): InstanceRecord[] {
@@ -401,8 +401,8 @@ export class InstanceService {
    */
   async replaceWorld(
     id: string,
-    quelle: { pfad: string; dateiname: string; endung: string },
-    mitSicherung: boolean,
+    source: { path: string; fileName: string; ext: string },
+    withBackup: boolean,
   ): Promise<Job> {
     const instance = this.require(id);
     if ((await this.runtime.inspect(instance.containerName)).running) {
@@ -421,26 +421,26 @@ export class InstanceService {
           throw new Error('Die Instanz wurde zwischenzeitlich gestartet — Austausch abgebrochen');
         }
 
-        if (mitSicherung) {
+        if (withBackup) {
           report(15, 'Sicherung wird angelegt');
           // Ohne `runCommand`: Vorbefehle setzen einen laufenden Server voraus,
           // und der ist hier per Definition aus.
-          const gesichert = await this.backups.create(instance, { kind: 'auto' });
-          this.event(id, `Sicherung vor Weltaustausch · ${gesichert.file}`);
+          const saved = await this.backups.create(instance, { kind: 'auto' });
+          this.event(id, `Sicherung vor Weltaustausch · ${saved.file}`);
         }
 
-        const bericht = await this.welt.importieren(
+        const result = await this.world.importWorld(
           instance,
-          quelle,
-          entpackeZip,
-          (archiv) => liesZipEintraege(archiv, this.config.worldUploadMaxBytes),
+          source,
+          extractZip,
+          (archive) => readZipEntries(archive, this.config.worldUploadMaxBytes),
           report,
         );
 
-        this.event(id, `Weltdaten ersetzt · ${quelle.dateiname} (${bericht.teile.join(', ')})`);
+        this.event(id, `Weltdaten ersetzt · ${source.fileName} (${result.parts.join(', ')})`);
         this.hub.broadcast({ type: 'instances-changed' });
       } finally {
-        await rm(quelle.pfad, { force: true });
+        await rm(source.path, { force: true });
       }
     });
   }

@@ -1,32 +1,32 @@
 /* --- Übersicht ------------------------------------------------------------ */
 
-.kachelraster {
+.tilegrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--s-5);
 }
-.kachel {
+.tile {
   border: 1px solid var(--rahmen);
   background: var(--flaeche-1);
   padding: var(--s-5);
 }
-.kachel__kopf {
+.tile__head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--s-3);
 }
-.kachel__label {
+.tile__label {
   font-size: 9px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--text-label);
 }
-.kachel__zusatz {
+.tile__extra {
   font-size: 10px;
   color: var(--text-leise);
 }
-.kachel__wert {
+.tile__value {
   font-family: var(--font-technik);
   font-weight: 700;
   font-size: 32px;
@@ -34,40 +34,40 @@
   color: var(--text-primaer);
   line-height: 1.15;
 }
-.kachel__wert--mittel {
+.tile__value--medium {
   font-size: 26px;
   letter-spacing: 0.03em;
 }
-.kachel__wert--klein {
+.tile__value--small {
   font-size: 22px;
   letter-spacing: 0.03em;
 }
-.kachel__fuss {
+.tile__foot {
   font-size: 11px;
   color: var(--text-gedaempft);
   margin-top: var(--s-1);
 }
-.kachel__fuss--warnung {
+.tile__foot--warn {
   color: var(--warnung);
 }
 
-.balken {
+.bar {
   height: 6px;
   background: var(--balken-track);
   margin-top: var(--s-3);
 }
-.balken > span {
+.bar > span {
   display: block;
   height: 6px;
   background: var(--akzent);
 }
 
-.spalten {
+.columns {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-8);
 }
-.spalte {
+.column {
   flex: 1 1 320px;
   min-width: 0;
   display: flex;
@@ -75,11 +75,11 @@
   gap: var(--s-4);
 }
 
-.kv-liste {
+.kv-list {
   border: 1px solid var(--rahmen);
   background: var(--flaeche-1);
 }
-.kv-zeile {
+.kv-row {
   display: flex;
   justify-content: space-between;
   gap: var(--s-5);
@@ -87,45 +87,45 @@
   border-bottom: 1px solid var(--rahmen-leise);
   font-size: 12px;
 }
-.kv-zeile:last-child {
+.kv-row:last-child {
   border-bottom: none;
 }
-.kv-zeile__schluessel {
+.kv-row__key {
   color: var(--text-label);
   flex: none;
 }
-.kv-zeile__wert {
+.kv-row__value {
   color: var(--text-standard);
   text-align: right;
   word-break: break-word;
 }
 
-.ereignisse {
+.events {
   border: 1px solid var(--rahmen);
   background: var(--flaeche-1);
 }
-.ereignis {
+.event {
   display: flex;
   gap: var(--s-5);
   padding: 7px var(--s-5);
   border-bottom: 1px solid var(--rahmen-leise);
   font-size: 12px;
 }
-.ereignis:last-child {
+.event:last-child {
   border-bottom: none;
 }
-.ereignis__zeit {
+.event__time {
   width: 58px;
   flex: none;
   color: var(--text-leise);
 }
-.ereignis__text {
+.event__text {
   color: var(--text-sekundaer);
 }
 
 /* --- Konsole -------------------------------------------------------------- */
 
-.konsole__kopf {
+.console__head {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-3);
@@ -148,13 +148,13 @@
   cursor: pointer;
   font-family: var(--font-mono);
 }
-.chip--aktiv {
+.chip--active {
   background: var(--akzent-flaeche);
   border-color: var(--akzent);
   color: var(--akzent);
 }
 
-.logfenster {
+.logview {
   border: 1px solid var(--rahmen);
   background: var(--flaeche-tief);
   padding: var(--s-5);
@@ -163,71 +163,71 @@
   font-size: 12px;
   line-height: 1.75;
 }
-.logzeile {
+.logline {
   display: flex;
   gap: var(--s-3);
   white-space: pre-wrap;
   word-break: break-word;
 }
-.logzeile__zeit {
+.logline__time {
   color: var(--text-leise);
   flex: none;
 }
-.logzeile__level {
+.logline__level {
   width: 40px;
   flex: none;
 }
-.logzeile__level--INFO {
+.logline__level--INFO {
   color: var(--text-leise);
 }
-.logzeile__level--WARN {
+.logline__level--WARN {
   color: var(--warnung);
 }
-.logzeile__level--ERROR {
+.logline__level--ERROR {
   color: var(--gefahr);
 }
-.logzeile__level--CMD {
+.logline__level--CMD {
   color: var(--akzent);
 }
-.logzeile__text {
+.logline__text {
   color: var(--text-sekundaer);
 }
-.logzeile__text--ERROR {
+.logline__text--ERROR {
   color: var(--gefahr);
 }
 
-.eingabezeile {
+.inputline {
   display: flex;
   align-items: center;
   gap: var(--s-4);
   margin-top: var(--s-5);
 }
-.eingabezeile__pfeil {
+.inputline__arrow {
   color: var(--akzent);
   font-weight: 700;
 }
-.eingabezeile input {
+.inputline input {
   flex: 1 1 auto;
   min-width: 0;
   padding: 9px var(--s-5);
 }
-.hinweis {
+.hint {
   font-size: 11px;
   color: var(--text-leise);
   margin-top: var(--s-3);
 }
-.hinweis--warnung {
+.hint--warn {
   color: var(--warnung);
 }
 
 /* --- Listenzeilen (Spieler, Backups, Mods) -------------------------------- */
 
-.zeilen {
+.rows {
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
 }
-.zeile {
+.row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -237,7 +237,7 @@
   padding: var(--s-3) var(--s-4);
   font-size: 12px;
 }
-.zeile__name {
+.row__name {
   flex: 1 1 auto;
   min-width: 0;
   color: var(--text-primaer);
@@ -245,7 +245,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.zeile__datei {
+.row__file {
   flex: 1 1 auto;
   min-width: 0;
   color: var(--text-sekundaer);
@@ -253,63 +253,63 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.zeile__meta {
+.row__meta {
   color: var(--text-gedaempft);
   flex: none;
 }
-.zeile__ping {
+.row__ping {
   width: 60px;
   text-align: right;
   flex: none;
 }
-.zeile__zeit {
+.row__time {
   width: 118px;
   flex: none;
   color: var(--text-gedaempft);
 }
-.zeile__groesse {
+.row__size {
   width: 70px;
   text-align: right;
   flex: none;
   color: var(--text-gedaempft);
 }
-.zeile__art {
+.row__kind {
   width: 70px;
   text-align: right;
   flex: none;
 }
-.zeile__art--manuell {
+.row__kind--manual {
   color: var(--warnung);
 }
-.zeile__art--auto {
+.row__kind--auto {
   color: var(--text-leise);
 }
-.zeile__version {
+.row__version {
   width: 84px;
   flex: none;
   color: var(--text-gedaempft);
 }
-.zeile__badge {
+.row__badge {
   width: 120px;
   flex: none;
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
-.zeile__badge--aktiv {
+.row__badge--active {
   color: var(--akzent);
 }
-.zeile__badge--aus {
+.row__badge--off {
   color: var(--text-leise);
 }
-.zeile__badge--update {
+.row__badge--update {
   color: var(--warnung);
 }
-.zeile__toggle {
+.row__toggle {
   width: 72px;
   flex: none;
 }
-.leerzustand {
+.empty {
   font-size: 12px;
   color: var(--text-leise);
   padding: var(--s-3) 0;
@@ -323,51 +323,51 @@
   flex-direction: column;
   gap: var(--s-5);
 }
-.feld {
+.field {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s-5);
 }
-.feld__label {
+.field__label {
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-gedaempft);
 }
-.feld__eingabe {
+.field__input {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
 }
-/* Die Breitenverteilung gilt nur in der Zeile von `.feld`. Die Anmeldung
-   stapelt das Label in die `.feld__eingabe` hinein — dort laeuft die Hauptachse
+/* Die Breitenverteilung gilt nur in der Zeile von `.field`. Die Anmeldung
+   stapelt das Label in die `.field__input` hinein — dort laeuft die Hauptachse
    senkrecht, und eine Flex-Basis wuerde als Hoehe wirken und die Maske
    auseinanderziehen. */
-.feld > .feld__label {
+.field > .field__label {
   flex: 1 1 180px;
 }
-.feld > .feld__eingabe {
+.field > .field__input {
   flex: 1 1 260px;
 }
-.feld__eingabe input,
-.feld__eingabe select {
+.field__input input,
+.field__input select {
   width: 100%;
 }
-.feld__hilfe {
+.field__help {
   font-size: 10px;
   color: var(--text-leise);
 }
-.feld__fehler {
+.field__error {
   font-size: 10px;
   color: var(--gefahr);
 }
-.feld__schalter {
+.field__toggle {
   display: flex;
   gap: var(--s-2);
 }
-.config__fuss {
+.config__foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -375,59 +375,59 @@
   border-top: 1px solid var(--rahmen);
   padding-top: var(--s-7);
 }
-.config__notiz {
+.config__note {
   color: var(--akzent);
   font-size: 12px;
 }
 
 /* --- Aufbau einer Instanz -------------------------------------------------- */
 
-.fortschritt {
+.progress {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
 }
-.fortschritt__kopf {
+.progress__head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--s-5);
 }
-.fortschritt__phase {
+.progress__phase {
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-gedaempft);
 }
-.fortschritt__zahl {
+.progress__count {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--akzent);
 }
-.fortschritt__bytes {
+.progress__bytes {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-leise);
 }
-.fortschritt__hinweis {
+.progress__note {
   font-size: 11px;
   line-height: 1.5;
   color: var(--text-leise);
 }
-.fortschritt__hinweis--gut {
+.progress__note--good {
   color: var(--akzent);
 }
-.fortschritt__hinweis--fehler {
+.progress__note--error {
   color: var(--gefahr);
 }
 
-.aufbau {
+.build {
   display: flex;
   flex-direction: column;
   gap: var(--s-7);
 }
 /* Feste Hoehe, damit der Dialog beim Nachruecken der Zeilen nicht springt. */
-.aufbau__log {
+.build__log {
   height: 152px;
   overflow: hidden;
   display: flex;
@@ -438,55 +438,55 @@
   background: var(--flaeche-tief);
   padding: var(--s-5);
 }
-.aufbau__leer {
+.build__empty {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-label);
 }
-.aufbau__zeile {
+.build__line {
   display: flex;
   gap: var(--s-5);
   font-family: var(--font-mono);
   font-size: 10px;
   line-height: 1.5;
 }
-.aufbau__zeit {
+.build__time {
   flex: none;
   color: var(--text-label);
 }
-.aufbau__text {
+.build__text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-sekundaer);
 }
-.aufbau__text--warn {
+.build__text--warn {
   color: var(--warnung);
 }
-.aufbau__text--error {
+.build__text--error {
   color: var(--gefahr);
 }
-.aufbau__text--cmd {
+.build__text--cmd {
   color: var(--akzent);
 }
 
 /* Im Detailkopf steht die Zeile neben den Kennzahlen und darf nicht zu breit werden. */
-.detailkopf .fortschritt {
+.detailhead .progress {
   max-width: 320px;
   flex: 1 1 240px;
 }
 
 /* --- Vorlagenverwaltung ---------------------------------------------------- */
 
-.vorlagen {
+.templates {
   display: flex;
   flex: 1;
   min-height: 0;
   gap: var(--s-8);
   padding: var(--s-8);
 }
-.vorlagen__liste {
+.templates__list {
   flex: 0 0 260px;
   display: flex;
   flex-direction: column;
@@ -495,13 +495,13 @@
   position: sticky;
   top: var(--s-8);
 }
-.vorlagen__editor {
+.templates__editor {
   flex: 1 1 auto;
   min-width: 0;
   max-width: 720px;
 }
 
-.vorlagenzeile {
+.templaterow {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -512,30 +512,30 @@
   cursor: pointer;
   font-family: inherit;
 }
-.vorlagenzeile:hover {
+.templaterow:hover {
   border-color: var(--rahmen-kraeftig);
 }
-.vorlagenzeile--gewaehlt {
+.templaterow--selected {
   border-color: var(--akzent);
   background: var(--akzent-selektion);
 }
-.vorlagenzeile__name {
+.templaterow__name {
   font-size: 13px;
   color: var(--text-primaer);
 }
-.vorlagenzeile__meta {
+.templaterow__meta {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-label);
 }
 
-.vorlageneditor {
+.templateeditor {
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
 }
-.vorlageneditor__kopf {
+.templateeditor__head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -544,7 +544,7 @@
   padding-bottom: var(--s-5);
   margin-bottom: var(--s-3);
 }
-.vorlageneditor__name {
+.templateeditor__name {
   margin: 0;
   font-family: var(--font-technik);
   font-weight: 700;
@@ -553,7 +553,7 @@
   text-transform: uppercase;
   color: var(--text-primaer);
 }
-.vorlageneditor__meta {
+.templateeditor__meta {
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -561,11 +561,11 @@
 }
 
 /* Aufklappbarer Abschnitt: alles gleichzeitig offen waeren ueber 12.000 px. */
-.abschnitt {
+.section {
   border: 1px solid var(--rahmen-leise);
   background: var(--flaeche-1);
 }
-.abschnitt__kopf {
+.section__head {
   display: flex;
   align-items: center;
   gap: var(--s-4);
@@ -577,28 +577,28 @@
   font-family: inherit;
   text-align: left;
 }
-.abschnitt__kopf:hover .abschnitt__titel {
+.section__head:hover .section__title {
   color: var(--akzent);
 }
-.abschnitt__pfeil {
+.section__arrow {
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--text-label);
   width: 10px;
 }
-.abschnitt__titel {
+.section__title {
   flex: 1;
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-gedaempft);
 }
-.abschnitt__zahl {
+.section__count {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-label);
 }
-.abschnitt__inhalt {
+.section__body {
   display: flex;
   flex-direction: column;
   gap: var(--s-5);
@@ -607,12 +607,12 @@
 }
 
 /* Ein Eintrag einer bearbeitbaren Liste — Felder, Ports, Env-Abbildung. */
-.editorliste {
+.editorlist {
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
 }
-.editorkarte {
+.editorcard {
   display: flex;
   flex-direction: column;
   gap: var(--s-4);
@@ -620,7 +620,7 @@
   background: var(--flaeche-1);
   padding: var(--s-5);
 }
-.editorkarte__kopf {
+.editorcard__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -628,12 +628,12 @@
   border-bottom: 1px solid var(--rahmen-leise);
   padding-bottom: var(--s-3);
 }
-.editorkarte__nummer {
+.editorcard__number {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-label);
 }
-.editorkarte__aktionen {
+.editorcard__actions {
   display: flex;
   gap: var(--s-2);
 }
@@ -648,7 +648,7 @@
   padding: var(--s-4);
   margin-top: var(--s-2);
 }
-.probe__zeile {
+.probe__row {
   display: flex;
   gap: var(--s-5);
   font-family: var(--font-mono);
@@ -658,26 +658,26 @@
   flex: 0 0 76px;
   color: var(--text-label);
 }
-.probe__an {
+.probe__on {
   color: var(--akzent);
   word-break: break-all;
 }
-.probe__aus {
+.probe__off {
   color: var(--text-leise);
 }
 
-.recherche {
+.research {
   border: 1px solid var(--rahmen);
   background: var(--flaeche-1);
   padding: var(--s-5);
   font-size: 12px;
   color: var(--text-sekundaer);
 }
-.recherche summary {
+.research summary {
   cursor: pointer;
   color: var(--warnung);
 }
-.recherche__text {
+.research__text {
   margin: var(--s-5) 0 0;
   max-height: 320px;
   overflow: auto;
@@ -688,14 +688,14 @@
   color: var(--text-gedaempft);
 }
 
-.vorlageneditor textarea {
+.templateeditor textarea {
   width: 100%;
   resize: vertical;
 }
 
 /* --- Anmeldung ------------------------------------------------------------ */
 
-.anmeldung {
+.login {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -705,7 +705,7 @@
   background-image: var(--raster);
   background-size: 32px 32px;
 }
-.anmeldung__box {
+.login__box {
   width: 100%;
   max-width: 380px;
   border: 1px solid var(--rahmen);
@@ -715,7 +715,7 @@
   flex-direction: column;
   gap: var(--s-7);
 }
-.anmeldung__marke {
+.login__brand {
   display: flex;
   align-items: center;
   gap: var(--s-5);
@@ -723,7 +723,7 @@
 
 /* --- Dialog (Instanz anlegen) --------------------------------------------- */
 
-.dialog-hintergrund {
+.dialog-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(3, 5, 8, 0.82);
@@ -742,7 +742,7 @@
   display: flex;
   flex-direction: column;
 }
-.dialog__kopf {
+.dialog__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -750,7 +750,7 @@
   padding: var(--s-7);
   border-bottom: 1px solid var(--rahmen);
 }
-.dialog__titel {
+.dialog__title {
   margin: 0;
   font-family: var(--font-technik);
   font-weight: 700;
@@ -759,13 +759,13 @@
   text-transform: uppercase;
   color: var(--text-primaer);
 }
-.dialog__koerper {
+.dialog__body {
   padding: var(--s-7);
   display: flex;
   flex-direction: column;
   gap: var(--s-8);
 }
-.dialog__fuss {
+.dialog__foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -776,25 +776,25 @@
 }
 
 /* Eine Rückfrage braucht nicht die 720 px des Anlege-Dialogs. */
-.dialog--schmal {
+.dialog--narrow {
   max-width: 440px;
 }
-.bestaetigung {
+.confirm {
   gap: var(--s-5);
 }
-.bestaetigung__text {
+.confirm__text {
   margin: 0;
   font-size: 12px;
   line-height: 1.6;
   color: var(--text-sekundaer);
 }
 
-.vorlagenwahl {
+.templatechoice {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--s-5);
 }
-.vorlagenkarte {
+.templatecard {
   position: relative;
   border: 1px solid var(--rahmen);
   background: var(--flaeche-2);
@@ -807,14 +807,14 @@
   flex-direction: column;
   gap: var(--s-3);
 }
-.vorlagenkarte:hover {
+.templatecard:hover {
   border-color: var(--rahmen-kraeftig);
 }
-.vorlagenkarte--gewaehlt {
+.templatecard--selected {
   border-color: var(--akzent);
   background: var(--akzent-selektion);
 }
-.vorlagenkarte__name {
+.templatecard__name {
   font-family: var(--font-technik);
   font-weight: 600;
   font-size: 16px;
@@ -822,13 +822,13 @@
   text-transform: uppercase;
   color: var(--text-primaer);
 }
-.vorlagenkarte__text {
+.templatecard__text {
   font-size: 11px;
   color: var(--text-gedaempft);
   line-height: 1.5;
 }
 
-.notizen {
+.notes {
   border: 1px solid var(--rahmen);
   background: var(--flaeche-2);
   padding: var(--s-5);
@@ -836,19 +836,19 @@
   flex-direction: column;
   gap: var(--s-2);
 }
-.notiz {
+.note {
   font-size: 11px;
   color: var(--text-gedaempft);
   display: flex;
   gap: var(--s-3);
 }
-.notiz::before {
+.note::before {
   content: '//';
   color: var(--text-label);
   flex: none;
 }
 
-/* Hier stand ein ungenutzter 4-px-Balken unter demselben Namen `.fortschritt`.
+/* Hier stand ein ungenutzter 4-px-Balken unter demselben Namen `.progress`.
    Er wurde von keiner Komponente verwendet, überschrieb aber die Regeln der
-   Aufbauansicht weiter oben. Wer wieder einen schlanken Balken braucht: `.balken`
+   Aufbauansicht weiter oben. Wer wieder einen schlanken Balken braucht: `.bar`
    gibt es bereits. */

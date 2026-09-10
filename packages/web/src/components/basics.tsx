@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { STATUS_COLOR, type InstanceStatus } from '@gsp/shared';
 
-export function SektionsLabel({ text, rechts }: { text: string; rechts?: ReactNode }) {
+export function SectionLabel({ text, right }: { text: string; right?: ReactNode }) {
   return (
-    <div className="sektionslabel">
+    <div className="sectionlabel">
       <span>// {text}</span>
-      {rechts !== undefined && <span>{rechts}</span>}
+      {right !== undefined && <span>{right}</span>}
     </div>
   );
 }
@@ -22,8 +22,8 @@ export function Panel({ children, className }: { children: ReactNode; className?
   return <section className={className ? `panel ${className}` : 'panel'}>{children}</section>;
 }
 
-export function Leerzustand({ text }: { text: string }) {
-  return <p className="leerzustand">// {text}</p>;
+export function Empty({ text }: { text: string }) {
+  return <p className="empty">// {text}</p>;
 }
 
 /**
@@ -31,26 +31,26 @@ export function Leerzustand({ text }: { text: string }) {
  * `preserveAspectRatio="none"`, Strichstärke unabhängig davon konstant.
  */
 export function Sparkline({
-  werte,
-  hoehe = 40,
-  gefuellt = true,
+  values,
+  height = 40,
+  filled = true,
   farbe = 'var(--akzent)',
   maximum,
 }: {
-  werte: number[];
-  hoehe?: number;
-  gefuellt?: boolean;
+  values: number[];
+  height?: number;
+  filled?: boolean;
   farbe?: string;
   maximum?: number;
 }) {
-  const viewHeight = gefuellt ? 30 : 24;
-  if (werte.length === 0) return <div style={{ height: hoehe }} />;
+  const viewHeight = filled ? 30 : 24;
+  if (values.length === 0) return <div style={{ height: height }} />;
 
-  const max = Math.max(maximum ?? 0, ...werte, 1);
-  const schritt = werte.length > 1 ? 100 / (werte.length - 1) : 100;
-  const punkte = werte.map((wert, index) => {
+  const max = Math.max(maximum ?? 0, ...values, 1);
+  const schritt = values.length > 1 ? 100 / (values.length - 1) : 100;
+  const punkte = values.map((value, index) => {
     const x = index * schritt;
-    const y = viewHeight - (Math.max(0, wert) / max) * viewHeight;
+    const y = viewHeight - (Math.max(0, value) / max) * viewHeight;
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   });
 
@@ -58,12 +58,12 @@ export function Sparkline({
     <svg
       viewBox={`0 0 100 ${viewHeight}`}
       preserveAspectRatio="none"
-      height={hoehe}
+      height={height}
       width="100%"
       aria-hidden="true"
       style={{ display: 'block', marginTop: 'var(--s-3)' }}
     >
-      {gefuellt && (
+      {filled && (
         <polygon
           points={`0,${viewHeight} ${punkte.join(' ')} 100,${viewHeight}`}
           fill="rgba(62,224,143,0.10)"
@@ -80,22 +80,22 @@ export function Sparkline({
   );
 }
 
-export function Balken({ anteil, farbe = 'var(--akzent)' }: { anteil: number; farbe?: string }) {
-  const breite = Math.max(0, Math.min(100, anteil));
+export function Bar({ ratio, farbe = 'var(--akzent)' }: { ratio: number; farbe?: string }) {
+  const breite = Math.max(0, Math.min(100, ratio));
   return (
-    <div className="balken">
+    <div className="bar">
       <span style={{ width: `${breite}%`, background: farbe }} />
     </div>
   );
 }
 
-export function KvListe({ eintraege }: { eintraege: [string, string][] }) {
+export function KvList({ entries }: { entries: [string, string][] }) {
   return (
-    <div className="kv-liste">
-      {eintraege.map(([schluessel, wert]) => (
-        <div className="kv-zeile" key={schluessel}>
-          <span className="kv-zeile__schluessel">{schluessel}</span>
-          <span className="kv-zeile__wert">{wert}</span>
+    <div className="kv-list">
+      {entries.map(([key, value]) => (
+        <div className="kv-row" key={key}>
+          <span className="kv-row__key">{key}</span>
+          <span className="kv-row__value">{value}</span>
         </div>
       ))}
     </div>

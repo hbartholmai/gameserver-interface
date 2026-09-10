@@ -35,8 +35,8 @@ describe('Valheim-Logmuster', () => {
   const { logPatterns } = getTemplate('valheim');
 
   it('liest den Spielernamen aus der ZDOID-Zeile', () => {
-    const zeile = '09/08/2026 23:12:04: Got character ZDOID from Freyja_88 : -12345:1';
-    expect(logPatterns.join.exec(zeile)?.[1]).toBe('Freyja_88');
+    const line = '09/08/2026 23:12:04: Got character ZDOID from Freyja_88 : -12345:1';
+    expect(logPatterns.join.exec(line)?.[1]).toBe('Freyja_88');
   });
 
   it('hat bewusst kein Abgangsmuster — Valheim nennt dort keinen Namen', () => {
@@ -54,25 +54,25 @@ describe('Enshrouded-Logmuster', () => {
 
   // Zeilen aus dem Log eines laufenden `mornedhels/enshrouded-server`,
   // mitsamt dem supervisord-Präfix, das der Parser tatsächlich zu sehen bekommt.
-  const zeile = (text: string) => `2026-09-10 00:37:14.083 supervisord: enshrouded-server ${text}`;
+  const line = (text: string) => `2026-09-10 00:37:14.083 supervisord: enshrouded-server ${text}`;
 
   it('erkennt Beitritt und Abgang', () => {
-    const beitritt = zeile("[server] Player 'Henner' logged in with Permissions:");
-    const abgang = zeile("[server] Remove Player 'Henner'");
+    const beitritt = line("[server] Player 'Henner' logged in with Permissions:");
+    const abgang = line("[server] Remove Player 'Henner'");
     expect(logPatterns.join.exec(beitritt)?.[1]).toBe('Henner');
     expect(logPatterns.leave?.exec(abgang)?.[1]).toBe('Henner');
   });
 
   it('hält die Anmeldung mit der internen Nummer nicht für einen Spielernamen', () => {
     // Dieselbe Anmeldung, eine Zeile früher — hier steht der Handle statt des Namens.
-    expect(logPatterns.join.test(zeile("[server] Machine '1': Player '0(0)' logged in"))).toBe(false);
+    expect(logPatterns.join.test(line("[server] Machine '1': Player '0(0)' logged in"))).toBe(false);
   });
 
   it('erkennt die Startmeldung erst im Zustand Run', () => {
-    expect(logPatterns.ready.test(zeile('[game_server] Switching state from LoadEcsScene to Run after 169.01 ms'))).toBe(true);
+    expect(logPatterns.ready.test(line('[game_server] Switching state from LoadEcsScene to Run after 169.01 ms'))).toBe(true);
     // Die Sitzung ist da, aber der Server lädt noch die Welt — bei großen
     // Welten Minuten vor dem ersten Spieler.
-    const sitzung = zeile("[Session] finished transition from 'Lobby' to 'Host_Online' (current='Host_Online')!");
+    const sitzung = line("[Session] finished transition from 'Lobby' to 'Host_Online' (current='Host_Online')!");
     expect(logPatterns.ready.test(sitzung)).toBe(false);
   });
 });

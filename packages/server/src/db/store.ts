@@ -199,9 +199,9 @@ export class Store {
   /** Wie viele Instanzen auf dieser Vorlage beruhen — Sperre gegen das Löschen. */
   countInstancesByGame(game: string): number {
     const row = this.db
-      .prepare('SELECT COUNT(*) AS anzahl FROM instances WHERE game = ?')
-      .get(game) as { anzahl: number };
-    return row.anzahl;
+      .prepare('SELECT COUNT(*) AS count FROM instances WHERE game = ?')
+      .get(game) as { count: number };
+    return row.count;
   }
 
   deleteInstance(id: string): void {

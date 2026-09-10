@@ -4,7 +4,7 @@ import type { InstanceService } from '../services/instances.js';
 import { ValidationError } from '../services/instances.js';
 import type { JobService } from '../services/jobs.js';
 import type { TemplateService } from '../services/templates.js';
-import type { DraftService } from '../services/vorlagen-ki.js';
+import type { DraftService } from '../services/template-ai.js';
 
 interface Deps {
   templates: TemplateService;

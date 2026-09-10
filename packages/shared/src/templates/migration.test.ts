@@ -24,7 +24,7 @@ const ctx: TemplateContext = {
   timezone: 'Europe/Berlin',
 };
 
-const ctxOhneRcon: TemplateContext = { hostPorts: {}, timezone: 'UTC' };
+const ctxWithoutRcon: TemplateContext = { hostPorts: {}, timezone: 'UTC' };
 
 // --- Die alten Funktionen, unverändert übernommen ---------------------------
 
@@ -99,58 +99,58 @@ function altEnshrouded(values: FieldValues, c: TemplateContext): Record<string, 
 // --- Wertesätze -------------------------------------------------------------
 
 /** Standard, alles leer, alle Booleans invertiert, Ränder. */
-function saetze(definition: Parameters<typeof compileTemplate>[0]): FieldValues[] {
+function valueSets(definition: Parameters<typeof compileTemplate>[0]): FieldValues[] {
   const template = compileTemplate(definition);
-  const standard = defaultValues(template);
+  const defaults = defaultValues(template);
 
-  const invertiert: FieldValues = { ...standard };
-  for (const feld of template.fields) {
-    if (feld.type === 'boolean') invertiert[feld.id] = !(standard[feld.id] as boolean);
+  const inverted: FieldValues = { ...defaults };
+  for (const field of template.fields) {
+    if (field.type === 'boolean') inverted[field.id] = !(defaults[field.id] as boolean);
   }
 
-  const leer: FieldValues = {};
-  for (const feld of template.fields) {
-    if (feld.type === 'boolean') leer[feld.id] = false;
-    else if (feld.type === 'number') leer[feld.id] = 0;
-    else leer[feld.id] = '';
+  const emptyValues: FieldValues = {};
+  for (const field of template.fields) {
+    if (field.type === 'boolean') emptyValues[field.id] = false;
+    else if (field.type === 'number') emptyValues[field.id] = 0;
+    else emptyValues[field.id] = '';
   }
 
-  return [standard, invertiert, leer, {}];
+  return [defaults, inverted, emptyValues, {}];
 }
 
 describe('Migration: kompilierte Vorlage erzeugt dieselbe Umgebung', () => {
   it('Minecraft', () => {
-    const neu = compileTemplate(minecraftDefinition);
-    for (const werte of saetze(minecraftDefinition)) {
-      for (const c of [ctx, ctxOhneRcon]) {
-        expect(neu.env(werte, c)).toEqual(altMinecraft(werte, c));
+    const compiled = compileTemplate(minecraftDefinition);
+    for (const values of valueSets(minecraftDefinition)) {
+      for (const c of [ctx, ctxWithoutRcon]) {
+        expect(compiled.env(values, c)).toEqual(altMinecraft(values, c));
       }
     }
   });
 
   it('Minecraft: Seed wird getrimmt und bei Leerraum weggelassen', () => {
-    const neu = compileTemplate(minecraftDefinition);
-    expect(neu.env({ seed: '  ' }, ctx).SEED).toBeUndefined();
-    expect(neu.env({ seed: '  abc  ' }, ctx).SEED).toBe('abc');
+    const compiled = compileTemplate(minecraftDefinition);
+    expect(compiled.env({ seed: '  ' }, ctx).SEED).toBeUndefined();
+    expect(compiled.env({ seed: '  abc  ' }, ctx).SEED).toBe('abc');
     expect(altMinecraft({ seed: '  ' }, ctx).SEED).toBeUndefined();
     expect(altMinecraft({ seed: '  abc  ' }, ctx).SEED).toBe('abc');
   });
 
   it('Enshrouded', () => {
-    const neu = compileTemplate(enshroudedDefinition);
-    for (const werte of saetze(enshroudedDefinition)) {
-      for (const c of [ctx, ctxOhneRcon]) {
-        expect(neu.env(werte, c)).toEqual(altEnshrouded(werte, c));
+    const compiled = compileTemplate(enshroudedDefinition);
+    for (const values of valueSets(enshroudedDefinition)) {
+      for (const c of [ctx, ctxWithoutRcon]) {
+        expect(compiled.env(values, c)).toEqual(altEnshrouded(values, c));
       }
     }
   });
 
   it('Valheim — bis auf das jetzt optionale Passwort', () => {
-    const neu = compileTemplate(valheimDefinition);
-    for (const werte of saetze(valheimDefinition)) {
-      for (const c of [ctx, ctxOhneRcon]) {
-        const mitPasswort = { ...werte, password: 'sicheresPasswort' };
-        expect(neu.env(mitPasswort, c)).toEqual(altValheim(mitPasswort, c));
+    const compiled = compileTemplate(valheimDefinition);
+    for (const values of valueSets(valheimDefinition)) {
+      for (const c of [ctx, ctxWithoutRcon]) {
+        const withPassword = { ...values, password: 'sicheresPasswort' };
+        expect(compiled.env(withPassword, c)).toEqual(altValheim(withPassword, c));
       }
     }
   });
@@ -160,19 +160,19 @@ describe('Migration: kompilierte Vorlage erzeugt dieselbe Umgebung', () => {
    * Vorlage immer ein `SERVER_PASS`, notfalls leer, und das Feld war Pflicht.
    */
   it('Valheim ohne Passwort lässt SERVER_PASS weg, statt es leer zu setzen', () => {
-    const neu = compileTemplate(valheimDefinition);
-    const ohne = { ...defaultValues(neu), password: '' };
+    const compiled = compileTemplate(valheimDefinition);
+    const without = { ...defaultValues(compiled), password: '' };
 
-    expect(altValheim(ohne, ctx).SERVER_PASS).toBe('');
-    expect(neu.env(ohne, ctx)).not.toHaveProperty('SERVER_PASS');
+    expect(altValheim(without, ctx).SERVER_PASS).toBe('');
+    expect(compiled.env(without, ctx)).not.toHaveProperty('SERVER_PASS');
 
-    const feld = neu.fields.find((f) => f.id === 'password');
-    expect(feld?.required).toBe(false);
+    const field = compiled.fields.find((f) => f.id === 'password');
+    expect(field?.required).toBe(false);
   });
 });
 
 describe('Migration: Log-Muster bleiben identisch', () => {
-  const erwartet = [
+  const expected = [
     {
       name: 'Minecraft',
       definition: minecraftDefinition,
@@ -180,7 +180,7 @@ describe('Migration: Log-Muster bleiben identisch', () => {
       leave: /:\s*([A-Za-z0-9_]{1,16}) lost connection/,
       ready: /\]: Done \([\d.]+s\)! For help/,
       clean: (line: string) => line.replace(/^\[\d{2}:\d{2}:\d{2}\]\s*\[[^\]]+\]:\s*/, '').trimEnd(),
-      beispiele: [
+      samples: [
         '[12:34:56] [Server thread/INFO]: Kai_Baut[/1.2.3.4:5678] logged in with entity id 42',
         '[12:34:56] [Server thread/INFO]: Kai_Baut lost connection: Disconnected',
         '[12:34:56] [Server thread/INFO]: Done (12.000s)! For help, type "help"   ',
@@ -193,7 +193,7 @@ describe('Migration: Log-Muster bleiben identisch', () => {
       leave: undefined,
       ready: /(DungeonDB Start|Game server connected)/,
       clean: (line: string) => line.replace(/^\s*\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}:\s*/, '').trimEnd(),
-      beispiele: [
+      samples: [
         '09/09/2026 12:34:56: Got character ZDOID from Freyja_88 : -12345:6',
         '09/09/2026 12:34:56: DungeonDB Start 1200  ',
       ],
@@ -212,7 +212,7 @@ describe('Migration: Log-Muster bleiben identisch', () => {
       leave: /\[server\] Remove Player '([^']+)'/,
       ready: /\[game_server\] Switching state from \S+ to Run\b/,
       clean: (line: string) => line.replace(/^\s*\[?\d{4}-\d{2}-\d{2}[ T][\d:.]+\]?\s*/, '').trimEnd(),
-      beispiele: [
+      samples: [
         "2026-09-10 00:37:14.083 supervisord: enshrouded-server [server] Player 'Henner' logged in with Permissions:",
         "2026-09-10 00:37:50.164 supervisord: enshrouded-server [server] Remove Player 'Henner'",
         '2026-09-10 00:38:24.506 supervisord: enshrouded-server [game_server] Switching state from LoadEcsScene to Run after 169.01 ms   ',
@@ -220,21 +220,21 @@ describe('Migration: Log-Muster bleiben identisch', () => {
     },
   ];
 
-  for (const fall of erwartet) {
-    it(fall.name, () => {
-      const neu = compileTemplate(fall.definition).logPatterns;
+  for (const testCase of expected) {
+    it(testCase.name, () => {
+      const compiled = compileTemplate(testCase.definition).logPatterns;
 
-      expect(neu.join.source).toBe(fall.join.source);
-      expect(neu.join.flags).toBe(fall.join.flags);
-      expect(neu.ready.source).toBe(fall.ready.source);
-      expect(neu.ready.flags).toBe(fall.ready.flags);
-      expect(neu.leave?.source).toBe(fall.leave?.source);
+      expect(compiled.join.source).toBe(testCase.join.source);
+      expect(compiled.join.flags).toBe(testCase.join.flags);
+      expect(compiled.ready.source).toBe(testCase.ready.source);
+      expect(compiled.ready.flags).toBe(testCase.ready.flags);
+      expect(compiled.leave?.source).toBe(testCase.leave?.source);
 
       // Nicht nur die Quelltexte, sondern das Ergebnis an echten Zeilen.
-      for (const zeile of fall.beispiele) {
-        expect(neu.clean?.(zeile)).toBe(fall.clean(zeile));
-        expect(neu.join.test(zeile)).toBe(fall.join.test(zeile));
-        expect(neu.ready.test(zeile)).toBe(fall.ready.test(zeile));
+      for (const line of testCase.samples) {
+        expect(compiled.clean?.(line)).toBe(testCase.clean(line));
+        expect(compiled.join.test(line)).toBe(testCase.join.test(line));
+        expect(compiled.ready.test(line)).toBe(testCase.ready.test(line));
       }
     });
   }

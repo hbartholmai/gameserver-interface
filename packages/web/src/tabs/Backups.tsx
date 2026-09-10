@@ -1,47 +1,47 @@
 import { formatBytes, formatTimestamp, type Backup, type Instance } from '@gsp/shared';
-import { Leerzustand, SektionsLabel } from '../components/basis.js';
+import { Empty, SectionLabel } from '../components/basics.js';
 
 export function Backups({
-  instanz,
+  instance,
   backups,
-  beschaeftigt,
+  busy,
   onUpdate,
-  onErstellen,
-  onWiederherstellen,
-  onLoeschen,
+  onCreate,
+  onRestore,
+  onDelete,
 }: {
-  instanz: Instance;
+  instance: Instance;
   backups: Backup[];
-  beschaeftigt: boolean;
+  busy: boolean;
   onUpdate: () => void;
-  onErstellen: () => void;
-  onWiederherstellen: (backup: Backup) => void;
-  onLoeschen: (backup: Backup) => void;
+  onCreate: () => void;
+  onRestore: (backup: Backup) => void;
+  onDelete: (backup: Backup) => void;
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-8)' }}>
-      <section className="panel detailkopf">
+      <section className="panel detailhead">
         <div>
-          <div className="kachel__label">Version</div>
-          <div className="kachel__wert kachel__wert--klein">{instanz.version}</div>
-          <div className={`kachel__fuss${instanz.updateAvailable ? ' kachel__fuss--warnung' : ''}`}>
-            {instanz.updateNote}
+          <div className="tile__label">Version</div>
+          <div className="tile__value tile__value--small">{instance.version}</div>
+          <div className={`tile__foot${instance.updateAvailable ? ' tile__foot--warn' : ''}`}>
+            {instance.updateNote}
           </div>
         </div>
-        <div className="detailkopf__aktionen">
+        <div className="detailhead__actions">
           <button
             type="button"
-            className="knopf knopf--primaer"
-            disabled={instanz.updating || beschaeftigt}
+            className="button button--primary"
+            disabled={instance.updating || busy}
             onClick={onUpdate}
           >
-            {instanz.updating ? 'Update läuft…' : 'Update installieren'}
+            {instance.updating ? 'Update läuft…' : 'Update installieren'}
           </button>
           <button
             type="button"
-            className="knopf knopf--sekundaer"
-            disabled={beschaeftigt}
-            onClick={onErstellen}
+            className="button button--secondary"
+            disabled={busy}
+            onClick={onCreate}
           >
             Backup erstellen
           </button>
@@ -49,39 +49,39 @@ export function Backups({
       </section>
 
       <section style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-4)' }}>
-        <SektionsLabel text="Snapshots" rechts={instanz.backupSchedule} />
-        <div className="zeilen">
-          {backups.length === 0 && <Leerzustand text="noch keine Snapshots" />}
+        <SectionLabel text="Snapshots" right={instance.backupSchedule} />
+        <div className="rows">
+          {backups.length === 0 && <Empty text="noch keine Snapshots" />}
           {backups.map((backup) => (
-            <div className="zeile" key={backup.id}>
-              <span className="zeile__datei" title={backup.file}>
+            <div className="row" key={backup.id}>
+              <span className="row__file" title={backup.file}>
                 {backup.file}
               </span>
-              <span className="zeile__zeit">{formatTimestamp(backup.createdAt)}</span>
-              <span className="zeile__groesse">{formatBytes(backup.sizeBytes)}</span>
-              <span className={`zeile__art zeile__art--${backup.kind}`}>
+              <span className="row__time">{formatTimestamp(backup.createdAt)}</span>
+              <span className="row__size">{formatBytes(backup.sizeBytes)}</span>
+              <span className={`row__kind row__kind--${backup.kind}`}>
                 {backup.kind === 'manuell' ? 'Manuell' : 'Auto'}
               </span>
               <button
                 type="button"
-                className="knopf knopf--klein"
-                disabled={beschaeftigt}
-                onClick={() => onWiederherstellen(backup)}
+                className="button button--small"
+                disabled={busy}
+                onClick={() => onRestore(backup)}
               >
                 Restore
               </button>
               <button
                 type="button"
-                className="knopf knopf--klein knopf--klein-gefahr"
-                disabled={beschaeftigt}
-                onClick={() => onLoeschen(backup)}
+                className="button button--small button--small-danger"
+                disabled={busy}
+                onClick={() => onDelete(backup)}
               >
                 Löschen
               </button>
             </div>
           ))}
         </div>
-        <p className="hinweis">
+        <p className="hint">
           Eine Wiederherstellung stoppt die Instanz, ersetzt die Weltdaten und startet sie danach wieder.
         </p>
       </section>

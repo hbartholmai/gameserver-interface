@@ -2,7 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Projektsprache ist **Deutsch**: Bezeichner, Kommentare, UI-Texte, Commit-Nachrichten und Dokumentation sind auf Deutsch. Nur etablierte englische Fachbegriffe bleiben stehen (`Runtime`, `Backup`, `Job`, `Container`). Schemas und Typen in `@gsp/shared` nutzen englische Feldnamen, weil sie die API-Oberfläche bilden — die Anzeige übersetzt.
+**Code ist englisch, Text ist deutsch.**
+
+Englisch ist alles, was der Rechner liest: Bezeichner (Variablen, Funktionen,
+Komponenten, Typen, Parameter), Dateinamen und CSS-Klassen. Damit gilt für den
+ganzen Baum, was in `@gsp/shared` schon immer galt — die Schemafelder sind
+englisch, weil sie die API-Oberfläche bilden.
+
+Deutsch bleibt alles, was ein Mensch liest: Kommentare, Testnamen, UI-Texte,
+Commit-Nachrichten und Dokumentation. Die Oberfläche spricht Deutsch, und die
+Begründungen im Code sind für den geschrieben, der sie später sucht.
+
+Die Grenze läuft also nicht zwischen Frontend und Backend, sondern zwischen
+Bezeichner und Prosa: `function replaceWorld()` mit einem deutschen Kommentar
+darüber, `<button>Welt austauschen…</button>` mit `className="world__swap"`.
 
 ## Befehle
 

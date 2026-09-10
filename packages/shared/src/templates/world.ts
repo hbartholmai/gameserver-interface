@@ -26,7 +26,7 @@ export interface WorldTarget {
   base: string;
   parts: WorldTargetPart[];
   /** Die Welt selbst — nach Vereinbarung der erste Teil. */
-  haupt: WorldTargetPart;
+  main: WorldTargetPart;
   markers: string[];
   accept: string[];
 }
@@ -40,32 +40,32 @@ export class WorldNameError extends Error {}
  * eine Längengrenze, keine Zeichenregel. Deshalb wird hier hart abgelehnt statt
  * gehofft; `isInside()` im Server fängt es ein zweites Mal ab.
  */
-const VERBOTEN = /[\\/:\0]/;
-const MAX_LAENGE = 128;
+const FORBIDDEN = /[\\/:\0]/;
+const MAX_LENGTH = 128;
 
-function pruefeStamm(stamm: string, herkunft: string): string {
-  const wert = stamm.trim();
-  if (wert === '') throw new WorldNameError(`${herkunft} ist leer`);
-  if (wert === '.' || wert === '..') throw new WorldNameError(`${herkunft} darf nicht „${wert}“ sein`);
-  if (VERBOTEN.test(wert)) throw new WorldNameError(`${herkunft} darf keine Pfadanteile enthalten`);
-  if (/[\u0000-\u001f\u007f]/.test(wert)) throw new WorldNameError(`${herkunft} enthält Steuerzeichen`);
-  if (wert.length > MAX_LAENGE) throw new WorldNameError(`${herkunft} ist länger als ${MAX_LAENGE} Zeichen`);
-  return wert;
+function checkBase(base: string, origin: string): string {
+  const value = base.trim();
+  if (value === '') throw new WorldNameError(`${origin} ist leer`);
+  if (value === '.' || value === '..') throw new WorldNameError(`${origin} darf nicht „${value}“ sein`);
+  if (FORBIDDEN.test(value)) throw new WorldNameError(`${origin} darf keine Pfadanteile enthalten`);
+  if (/[\u0000-\u001f\u007f]/.test(value)) throw new WorldNameError(`${origin} enthält Steuerzeichen`);
+  if (value.length > MAX_LENGTH) throw new WorldNameError(`${origin} ist länger als ${MAX_LENGTH} Zeichen`);
+  return value;
 }
 
 /** Löst den Weltnamen auf. Wirft, wenn er als Pfadbestandteil untauglich ist. */
 export function worldBase(world: WorldDefinition, values: FieldValues): string {
   if (world.name.kind === 'const') {
-    return pruefeStamm(world.name.value, 'Der Weltname der Vorlage');
+    return checkBase(world.name.value, 'Der Weltname der Vorlage');
   }
-  const roh = values[world.name.field];
-  if (roh === undefined) {
+  const raw = values[world.name.field];
+  if (raw === undefined) {
     throw new WorldNameError(`Das Feld „${world.name.field}“ fehlt in den Einstellungen`);
   }
-  return pruefeStamm(String(roh), `Das Feld „${world.name.field}“`);
+  return checkBase(String(raw), `Das Feld „${world.name.field}“`);
 }
 
-function teil(parent: string, base: string, part: WorldPart): WorldTargetPart {
+function buildPart(parent: string, base: string, part: WorldPart): WorldTargetPart {
   const fileName = `${base}${part.suffix}`;
   return {
     containerPath: `${parent.replace(/\/+$/, '')}/${fileName}`,
@@ -85,23 +85,23 @@ export function worldTarget(template: GameTemplate, values: FieldValues): WorldT
   if (!world) return null;
 
   const base = worldBase(world, values);
-  const parts = world.parts.map((part) => teil(world.parent, base, part));
+  const parts = world.parts.map((part) => buildPart(world.parent, base, part));
   // `parts` hat laut Schema mindestens einen Eintrag; die Prüfung ist nur das
   // Netz darunter, weil `noUncheckedIndexedAccess` sie ohnehin verlangt.
-  const haupt = parts[0];
-  if (!haupt) throw new WorldNameError('Die Vorlage benennt keine Teile der Welt');
+  const main = parts[0];
+  if (!main) throw new WorldNameError('Die Vorlage benennt keine Teile der Welt');
 
   return {
     parent: world.parent.replace(/\/+$/, ''),
     base,
     parts,
-    haupt,
+    main,
     markers: world.markers,
     accept: world.accept,
   };
 }
 
 /** Die Teile, die beim Einspielen zwingend im Archiv stehen müssen. */
-export function erforderlichBeimImport(ziel: WorldTarget): WorldTargetPart[] {
-  return ziel.parts.filter((p) => p.required);
+export function requiredOnImport(target: WorldTarget): WorldTargetPart[] {
+  return target.parts.filter((p) => p.required);
 }

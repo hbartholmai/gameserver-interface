@@ -99,6 +99,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     sessionTtlHours: num(env.GSP_SESSION_TTL_HOURS, 24 * 14),
     webRoot: env.GSP_WEB_ROOT ? resolve(env.GSP_WEB_ROOT) : null,
     tempDir: resolve(env.GSP_TEMP_DIR ?? `${dataDir}/tmp`),
-    worldUploadMaxBytes: Math.max(64, num(env.GSP_WELT_UPLOAD_MAX_MB, 4096)) * 1024 * 1024,
+    worldUploadMaxBytes: Math.max(64, num(env.GSP_WORLD_UPLOAD_MAX_MB, 4096)) * 1024 * 1024,
   };
 }
