@@ -16,8 +16,8 @@ const valheim: InstanceRecord = {
 
 describe('Pfadauflösung', () => {
   it('bildet Container-Pfade auf das passende Volume ab', () => {
-    const pfad = toHostPath('/srv/gsp', valheim, '/config/worlds_local');
-    expect(pfad).toBe('/srv/gsp/abc123/config/worlds_local');
+    const path = toHostPath('/srv/gsp', valheim, '/config/worlds_local');
+    expect(path).toBe('/srv/gsp/abc123/config/worlds_local');
   });
 
   it('wählt bei mehreren Volumes das mit dem längsten passenden Präfix', () => {

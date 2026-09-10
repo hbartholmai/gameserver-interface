@@ -16,25 +16,25 @@ import { TemplateService } from './templates.js';
 import { ValidationError } from './instances.js';
 
 describe('Vorlagendienst', () => {
-  let verzeichnis: string;
+  let tmpRoot: string;
   let db: Db;
   let store: Store;
-  let dienst: TemplateService;
+  let service: TemplateService;
 
   beforeEach(() => {
-    verzeichnis = mkdtempSync(join(tmpdir(), 'gsp-vorlagen-'));
-    db = openDb(join(verzeichnis, 'test.db'));
+    tmpRoot = mkdtempSync(join(tmpdir(), 'gsp-vorlagen-'));
+    db = openDb(join(tmpRoot, 'test.db'));
     store = new Store(db);
-    dienst = new TemplateService(store);
+    service = new TemplateService(store);
   });
 
   afterEach(() => {
     db.close();
-    rmSync(verzeichnis, { recursive: true, force: true });
+    rmSync(tmpRoot, { recursive: true, force: true });
   });
 
   it('legt die mitgelieferten Vorlagen beim ersten Start an', () => {
-    const { seeded } = dienst.seedAndLoad();
+    const { seeded } = service.seedAndLoad();
     expect(seeded).toEqual(BUILTIN_DEFINITIONS.map((d) => d.id));
     // Die Registry bildet den Startbestand vollständig und in derselben
     // Reihenfolge ab — sie bestimmt, wie der Wizard die Karten anordnet.
@@ -52,7 +52,7 @@ describe('Vorlagendienst', () => {
   it('haelt jede mitgelieferte Vorlage an dieselbe Schluessigkeitspruefung', () => {
     for (const definition of BUILTIN_DEFINITIONS) {
       // `create` prueft; die Kennung ist beim ersten Aufruf noch frei.
-      expect(() => dienst.create({ ...definition, id: `probe-${definition.id}` }), definition.id).not.toThrow();
+      expect(() => service.create({ ...definition, id: `probe-${definition.id}` }), definition.id).not.toThrow();
     }
   });
 
@@ -62,17 +62,17 @@ describe('Vorlagendienst', () => {
    * Containerbau auf.
    */
   it('überschreibt eine bearbeitete Vorlage beim nächsten Start nicht', () => {
-    dienst.seedAndLoad();
+    service.seedAndLoad();
 
-    const geaendert: TemplateDefinition = {
+    const changed: TemplateDefinition = {
       ...valheimDefinition,
       label: 'Valheim (angepasst)',
       defaultMemoryMb: 12288,
     };
-    dienst.update('valheim', geaendert);
+    service.update('valheim', changed);
 
     // Zweiter Start des Panels.
-    const { seeded } = dienst.seedAndLoad();
+    const { seeded } = service.seedAndLoad();
 
     expect(seeded).toEqual([]);
     expect(findTemplate('valheim')?.label).toBe('Valheim (angepasst)');
@@ -85,23 +85,23 @@ describe('Vorlagendienst', () => {
    * der Welt-Reiter wäre dort einfach nicht erschienen, ohne Fehlermeldung.
    */
   it('rüstet den Weltblock bei einer Vorlage aus einer älteren Fassung nach', () => {
-    const alt = { ...minecraftDefinition } as Record<string, unknown>;
-    delete alt.world;
-    const stand = '2026-01-01T00:00:00.000Z';
-    store.upsertTemplate('minecraft', JSON.stringify(alt), true, stand);
+    const old = { ...minecraftDefinition } as Record<string, unknown>;
+    delete old.world;
+    const stamp = '2026-01-01T00:00:00.000Z';
+    store.upsertTemplate('minecraft', JSON.stringify(old), true, stamp);
 
-    const { nachgeruestet } = dienst.seedAndLoad();
+    const { backfilled } = service.seedAndLoad();
 
-    expect(nachgeruestet).toContain('minecraft');
+    expect(backfilled).toContain('minecraft');
     expect(findTemplate('minecraft')?.world?.parent).toBe('/data');
     // Der Container ändert sich dadurch nicht — sonst böte die Oberfläche
     // grundlos „Neu aufbauen“ an.
-    expect(store.getTemplateRow('minecraft')?.updated_at).toBe(stand);
+    expect(store.getTemplateRow('minecraft')?.updated_at).toBe(stamp);
   });
 
   it('lässt einen selbst gesetzten Weltblock bei der Nachrüstung stehen', () => {
-    dienst.seedAndLoad();
-    const eigen: TemplateDefinition = {
+    service.seedAndLoad();
+    const own: TemplateDefinition = {
       ...minecraftDefinition,
       world: {
         parent: '/data',
@@ -111,15 +111,15 @@ describe('Vorlagendienst', () => {
         accept: [],
       },
     };
-    dienst.update('minecraft', eigen);
+    service.update('minecraft', own);
 
-    dienst.seedAndLoad();
+    service.seedAndLoad();
 
     expect(findTemplate('minecraft')?.world?.name).toEqual({ kind: 'const', value: 'eigenewelt' });
   });
 
   it('verweigert das Löschen, solange Instanzen darauf beruhen', () => {
-    dienst.seedAndLoad();
+    service.seedAndLoad();
     store.insertInstance({
       id: 'i1', game: 'valheim', name: 'Midgard', tag: 'latest',
       containerName: 'gsp-midgard-i1', containerId: null,
@@ -129,20 +129,20 @@ describe('Vorlagendienst', () => {
       createdAt: new Date().toISOString(),
     });
 
-    expect(() => dienst.remove('valheim')).toThrow(ValidationError);
+    expect(() => service.remove('valheim')).toThrow(ValidationError);
     expect(findTemplate('valheim')).not.toBeNull();
 
     // Ohne Instanz geht es.
     store.deleteInstance('i1');
-    dienst.remove('valheim');
+    service.remove('valheim');
     expect(findTemplate('valheim')).toBeNull();
   });
 
   it('nimmt eine eigene Vorlage an und stellt sie in die Registry', () => {
-    dienst.seedAndLoad();
-    dienst.create(eigeneVorlage());
+    service.seedAndLoad();
+    service.create(customTemplate());
     expect(findTemplate('testspiel')?.label).toBe('Testspiel');
-    expect(findTemplate('testspiel')?.env({ welt: 'Alpha' }, { hostPorts: { game: 7777 }, timezone: 'UTC' })).toEqual({
+    expect(findTemplate('testspiel')?.env({ world: 'Alpha' }, { hostPorts: { game: 7777 }, timezone: 'UTC' })).toEqual({
       WORLD: 'Alpha',
       PORT: '7777',
       TZ: 'UTC',
@@ -150,61 +150,61 @@ describe('Vorlagendienst', () => {
   });
 
   it('lehnt eine zweite Vorlage mit derselben Kennung ab', () => {
-    dienst.seedAndLoad();
-    dienst.create(eigeneVorlage());
-    expect(() => dienst.create(eigeneVorlage())).toThrow(/bereits/);
+    service.seedAndLoad();
+    service.create(customTemplate());
+    expect(() => service.create(customTemplate())).toThrow(/bereits/);
   });
 
   describe('Schlüssigkeitsprüfung', () => {
-    beforeEach(() => dienst.seedAndLoad());
+    beforeEach(() => service.seedAndLoad());
 
     it('meldet Env-Verweise auf unbekannte Felder und Ports', () => {
-      const kaputt = eigeneVorlage();
-      kaputt.env = [
+      const broken = customTemplate();
+      broken.env = [
         { name: 'A', source: { kind: 'field', field: 'gibtsNicht' }, trim: false, omitWhenEmpty: false },
         { name: 'B', source: { kind: 'port', port: 'auchNicht' }, trim: false, omitWhenEmpty: false },
       ];
-      const fehler = fange(() => dienst.create(kaputt));
-      expect(fehler.fields.map((f) => f.message)).toEqual([
+      const errors = catchValidation(() => service.create(broken));
+      expect(errors.fields.map((f) => f.message)).toEqual([
         'Unbekanntes Feld „gibtsNicht“',
         'Unbekannter Port „auchNicht“',
       ]);
     });
 
     it('lässt Backup-Pfade außerhalb der Volumes nicht zu', () => {
-      const kaputt = eigeneVorlage();
-      kaputt.backup.paths = ['/woanders/welt'];
-      expect(fange(() => dienst.create(kaputt)).fields[0]?.message).toMatch(/keinem der deklarierten Volumes/);
+      const broken = customTemplate();
+      broken.backup.paths = ['/woanders/welt'];
+      expect(catchValidation(() => service.create(broken)).fields[0]?.message).toMatch(/keinem der deklarierten Volumes/);
     });
 
     it('verlangt einen Abfrageport, wenn die Spielerzahl per Steam-Query kommt', () => {
-      const kaputt = eigeneVorlage();
-      kaputt.capabilities.players = 'a2s';
-      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'adapter.queryPortName')).toBe(true);
+      const broken = customTemplate();
+      broken.capabilities.players = 'a2s';
+      expect(catchValidation(() => service.create(broken)).fields.some((f) => f.field === 'adapter.queryPortName')).toBe(true);
     });
 
     it('lehnt Vorbefehle ohne Konsole ab', () => {
-      const kaputt = eigeneVorlage();
-      kaputt.backup.preCommands = ['save-all'];
-      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'backup.preCommands')).toBe(true);
+      const broken = customTemplate();
+      broken.backup.preCommands = ['save-all'];
+      expect(catchValidation(() => service.create(broken)).fields.some((f) => f.field === 'backup.preCommands')).toBe(true);
     });
 
     it('verlangt einen RCON-Port, sobald die Konsole ihn braucht', () => {
-      const kaputt = eigeneVorlage();
-      kaputt.capabilities.console = 'rcon';
-      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'adapter.rconPortName')).toBe(true);
+      const broken = customTemplate();
+      broken.capabilities.console = 'rcon';
+      expect(catchValidation(() => service.create(broken)).fields.some((f) => f.field === 'adapter.rconPortName')).toBe(true);
     });
 
     it('lehnt Kick und Bann ohne Konsole ab', () => {
-      const kaputt = eigeneVorlage();
-      kaputt.capabilities.moderation = true;
-      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'capabilities.moderation')).toBe(true);
+      const broken = customTemplate();
+      broken.capabilities.moderation = true;
+      expect(catchValidation(() => service.create(broken)).fields.some((f) => f.field === 'capabilities.moderation')).toBe(true);
     });
 
     it('lehnt ein Listenformat ab, wenn die Spielerliste nicht über RCON kommt', () => {
-      const kaputt = eigeneVorlage();
-      kaputt.adapter.rconListFormat = 'csv';
-      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'adapter.rconListFormat')).toBe(true);
+      const broken = customTemplate();
+      broken.adapter.rconListFormat = 'csv';
+      expect(catchValidation(() => service.create(broken)).fields.some((f) => f.field === 'adapter.rconListFormat')).toBe(true);
     });
 
     /**
@@ -213,20 +213,20 @@ describe('Vorlagendienst', () => {
      * Wiederholungen kann das Panel deshalb dauerhaft beschäftigen.
      */
     it('lehnt Log-Muster mit verschachtelten Wiederholungen ab', () => {
-      const kaputt = eigeneVorlage();
-      kaputt.logPatterns.join = { source: '(a+)+$', flags: '' };
-      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'logPatterns.join')).toBe(true);
+      const broken = customTemplate();
+      broken.logPatterns.join = { source: '(a+)+$', flags: '' };
+      expect(catchValidation(() => service.create(broken)).fields.some((f) => f.field === 'logPatterns.join')).toBe(true);
     });
 
     it('lehnt syntaktisch kaputte Muster ab', () => {
-      const kaputt = eigeneVorlage();
-      kaputt.logPatterns.ready = { source: '([unvollstaendig', flags: '' };
-      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'logPatterns.ready')).toBe(true);
+      const broken = customTemplate();
+      broken.logPatterns.ready = { source: '([unvollstaendig', flags: '' };
+      expect(catchValidation(() => service.create(broken)).fields.some((f) => f.field === 'logPatterns.ready')).toBe(true);
     });
   });
 });
 
-function fange(fn: () => unknown): ValidationError {
+function catchValidation(fn: () => unknown): ValidationError {
   try {
     fn();
   } catch (err) {
@@ -237,7 +237,7 @@ function fange(fn: () => unknown): ValidationError {
 }
 
 /** Eine minimale, gültige Vorlage — jeder Test verbiegt davon genau eine Sache. */
-function eigeneVorlage(): TemplateDefinition {
+function customTemplate(): TemplateDefinition {
   return {
     id: 'testspiel',
     label: 'Testspiel',
@@ -254,12 +254,12 @@ function eigeneVorlage(): TemplateDefinition {
     volumes: [{ name: 'data', containerPath: '/data', role: 'data' }],
     fields: [
       {
-        id: 'welt', label: 'Welt', type: 'text', default: 'Alpha',
+        id: 'world', label: 'Welt', type: 'text', default: 'Alpha',
         required: true, editable: true, restartRequired: true, secret: false,
       },
     ],
     env: [
-      { name: 'WORLD', source: { kind: 'field', field: 'welt' }, trim: false, omitWhenEmpty: false },
+      { name: 'WORLD', source: { kind: 'field', field: 'world' }, trim: false, omitWhenEmpty: false },
       { name: 'PORT', source: { kind: 'port', port: 'game' }, trim: false, omitWhenEmpty: false },
       { name: 'TZ', source: { kind: 'timezone' }, trim: false, omitWhenEmpty: false },
     ],

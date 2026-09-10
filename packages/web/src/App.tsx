@@ -178,7 +178,7 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
     if (tab === 'backups') void api.backups(instanz.id).then((a) => setBackups(a.backups)).catch(() => undefined);
     if (tab === 'mods') void api.mods(instanz.id).then((a) => setMods(a.mods)).catch(() => undefined);
     if (tab === 'welt') {
-      void api.welt(instanz.id).then((a) => setWelt(a.welt)).catch(() => setWelt(null));
+      void api.welt(instanz.id).then((a) => setWelt(a.world)).catch(() => setWelt(null));
     }
   }, [tab, instanz?.id]);
 
@@ -365,7 +365,7 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
                       onJa: () =>
                         void aktion(
                           () => api.weltHochladen(instanz.id, datei, weltSicherung),
-                          () => api.welt(instanz.id).then((a) => setWelt(a.welt)),
+                          () => api.welt(instanz.id).then((a) => setWelt(a.world)),
                         ),
                     })
                   }

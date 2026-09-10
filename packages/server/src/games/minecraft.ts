@@ -87,10 +87,10 @@ export function parsePlayerList(response: string): { online: number; max: number
  * auch nicht.
  */
 export function parsePlayerCsv(response: string): string[] {
-  const zeilen = response.split(/\r?\n/).map((z) => z.trim()).filter((z) => z.length > 0);
+  const lines = response.split(/\r?\n/).map((z) => z.trim()).filter((z) => z.length > 0);
   const namen: string[] = [];
-  for (const zeile of zeilen) {
-    const name = zeile.split(',')[0]?.trim();
+  for (const line of lines) {
+    const name = line.split(',')[0]?.trim();
     if (!name) continue;
     // Kopfzeile überspringen — sie heißt bei Palworld wörtlich `name`.
     if (name.toLowerCase() === 'name') continue;

@@ -19,11 +19,11 @@ import { logAdapter } from './enshrouded.js';
  * wird hier zusammengesetzt statt ausgewählt.
  */
 export function adapterFor(template: GameTemplate): GameAdapter {
-  const basis = spielerAdapter(template.capabilities.players);
-  if (template.capabilities.console !== 'rcon') return basis;
+  const base = playerAdapter(template.capabilities.players);
+  if (template.capabilities.console !== 'rcon') return base;
 
   return {
-    ...basis,
+    ...base,
     // Die Konsole kommt von RCON, auch wenn die Spielerliste anderswo herkommt.
     sendCommand: rconAdapter.sendCommand,
     // Kick und Bann nur, wo die Vorlage sie zusagt: Palworld etwa hat RCON,
@@ -34,7 +34,7 @@ export function adapterFor(template: GameTemplate): GameAdapter {
   };
 }
 
-function spielerAdapter(players: GameTemplate['capabilities']['players']): GameAdapter {
+function playerAdapter(players: GameTemplate['capabilities']['players']): GameAdapter {
   switch (players) {
     case 'rcon':
       return rconAdapter;

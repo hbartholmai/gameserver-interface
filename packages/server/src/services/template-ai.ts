@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { templateDefinitionSchema, type TemplateDefinition } from '@gsp/shared';
-import { imageDokuHolen } from './image-doku.js';
+import { imageDokuHolen } from './image-docs.js';
 import type { Report } from './jobs.js';
 
 export interface DraftRequest {

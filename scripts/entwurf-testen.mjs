@@ -14,7 +14,7 @@
  * Voraussetzung: `npm run build` ist gelaufen.
  */
 import { writeFileSync } from 'node:fs';
-import { DraftService } from '../packages/server/dist/services/vorlagen-ki.js';
+import { DraftService } from '../packages/server/dist/services/template-ai.js';
 import { loadBuiltinTemplates, listTemplates } from '../packages/shared/dist/index.js';
 
 const [spiel, image, ...rest] = process.argv.slice(2);

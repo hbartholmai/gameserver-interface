@@ -160,7 +160,7 @@ export const api = {
   deleteBackup: (id: string, backupId: string) =>
     request<{ ok: true }>(`/api/instances/${id}/backups/${backupId}`, { method: 'DELETE' }),
 
-  welt: (id: string) => request<{ welt: WorldInfo }>(`/api/instances/${id}/welt`),
+  welt: (id: string) => request<{ world: WorldInfo }>(`/api/instances/${id}/world`),
   /**
    * Nur die URL, kein `fetch`: `request()` liest jede Antwort als Text und
    * parst sie als JSON, und ein `response.blob()` legte die ganze Welt in den
@@ -168,14 +168,14 @@ export const api = {
    * GET-Route wird deshalb direkt angesprungen; das Sitzungscookie geht bei
    * gleichem Ursprung mit, und CSRF verlangt der Server bei GET nicht.
    */
-  weltDownloadUrl: (id: string) => `/api/instances/${id}/welt/download`,
+  weltDownloadUrl: (id: string) => `/api/instances/${id}/world/download`,
   weltHochladen: (id: string, datei: File, sicherung: boolean) => {
     const form = new FormData();
     // Das Textfeld muss vor der Datei stehen — der Server liest es aus
     // `file.fields`, und die sind erst gefüllt, wenn sie vorher kamen.
     form.append('backup', sicherung ? 'true' : 'false');
     form.append('file', datei);
-    return request<{ job: Job }>(`/api/instances/${id}/welt`, { method: 'POST', body: form });
+    return request<{ job: Job }>(`/api/instances/${id}/world`, { method: 'POST', body: form });
   },
 
   mods: (id: string) => request<{ mods: Mod[] }>(`/api/instances/${id}/mods`),

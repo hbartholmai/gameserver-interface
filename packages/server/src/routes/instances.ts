@@ -26,8 +26,8 @@ import type { LogService } from '../services/logs.js';
 import type { ModService } from '../services/mods.js';
 import type { TemplateService } from '../services/templates.js';
 import type { Ticker } from '../services/ticker.js';
-import { WeltError, type WeltService } from '../services/welt.js';
-import { brauchtZip64, packeZip, sammleEintraege } from '../services/welt-zip.js';
+import { WorldError, type WorldService } from '../services/world.js';
+import { needsZip64, packZip, collectEntries } from '../services/world-zip.js';
 import type { Config } from '../config.js';
 import { slug } from '../services/paths.js';
 
@@ -40,7 +40,7 @@ interface Deps {
   jobs: JobService;
   ticker: Ticker;
   templates: TemplateService;
-  welt: WeltService;
+  world: WorldService;
   config: Config;
 }
 
@@ -49,27 +49,27 @@ interface Deps {
  * (RFC 5987) trägt den echten Namen. Beide zu setzen ist der einzige Weg, der
  * überall funktioniert — ein Weltname mit Umlaut käme sonst verstümmelt an.
  */
-function anhang(name: string): string {
-  const punkt = name.lastIndexOf('.');
-  const stamm = punkt > 0 ? name.slice(0, punkt) : name;
-  const endung = punkt > 0 ? name.slice(punkt) : '';
-  const ascii = `${slug(stamm)}${endung.replace(/[^ -~]/g, '')}`;
+function attachment(name: string): string {
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : '';
+  const ascii = `${slug(stem)}${ext.replace(/[^ -~]/g, '')}`;
   // `encodeURIComponent` lässt `!'()*` stehen; RFC 5987 will sie kodiert.
-  const kodiert = encodeURIComponent(name).replace(
+  const encoded = encodeURIComponent(name).replace(
     /['()!*]/g,
     (z) => `%${z.charCodeAt(0).toString(16).toUpperCase()}`,
   );
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${kodiert}`;
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
 /** Wert eines Multipart-Textfelds. */
-function feldWert(fields: unknown, name: string): string | undefined {
-  const eintrag = (fields as Record<string, { value?: unknown } | undefined>)[name];
-  return typeof eintrag?.value === 'string' ? eintrag.value : undefined;
+function fieldValue(fields: unknown, name: string): string | undefined {
+  const entry = (fields as Record<string, { value?: unknown } | undefined>)[name];
+  return typeof entry?.value === 'string' ? entry.value : undefined;
 }
 
 export async function instanceRoutes(app: FastifyInstance, deps: Deps): Promise<void> {
-  const { instances, store, logs, mods, backups, jobs, ticker, templates, welt, config } = deps;
+  const { instances, store, logs, mods, backups, jobs, ticker, templates, world, config } = deps;
 
   /** Bricht mit 404 ab, wenn die Instanz nicht existiert. */
   const need = (id: string) => {
@@ -276,11 +276,11 @@ export async function instanceRoutes(app: FastifyInstance, deps: Deps): Promise<
 
   // --- Welt -----------------------------------------------------------------
 
-  app.get<{ Params: { id: string } }>('/api/instances/:id/welt', async (request, reply) => {
+  app.get<{ Params: { id: string } }>('/api/instances/:id/world', async (request, reply) => {
     const instance = need(request.params.id);
-    const info = await welt.info(instance);
+    const info = await world.info(instance);
     if (!info) return reply.code(404).send({ error: 'Diese Vorlage benennt keine Weltdaten' });
-    return { welt: info };
+    return { world: info };
   });
 
   /**
@@ -291,76 +291,76 @@ export async function instanceRoutes(app: FastifyInstance, deps: Deps): Promise<
    * zeigt seinen eigenen Fortschritt und übersteht einen Reload.
    */
   app.get<{ Params: { id: string } }>(
-    '/api/instances/:id/welt/download',
+    '/api/instances/:id/world/download',
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const instance = need(request.params.id);
-      const ziel = welt.ziel(instance);
-      if (!ziel) return reply.code(404).send({ error: 'Diese Vorlage benennt keine Weltdaten' });
+      const target = world.target(instance);
+      if (!target) return reply.code(404).send({ error: 'Diese Vorlage benennt keine Weltdaten' });
 
-      const vorhanden = await welt.vorhandeneTeile(instance, ziel);
-      if (vorhanden.length === 0) {
+      const present = await world.existingParts(instance, target);
+      if (present.length === 0) {
         return reply
           .code(404)
           .send({ error: 'Es gibt noch keine Weltdaten — die Instanz war nie gestartet' });
       }
 
-      const roh = welt.istRoh(ziel, vorhanden.map((t) => t.fileName));
-      const name = welt.downloadName(instance, ziel, roh);
+      const raw = world.isRaw(target, present.map((t) => t.fileName));
+      const name = world.downloadName(instance, target, raw);
 
-      if (roh) {
-        const teil = vorhanden[0]!;
-        const info = await stat(teil.hostPath);
+      if (raw) {
+        const part = present[0]!;
+        const info = await stat(part.hostPath);
         reply.header('content-type', 'application/octet-stream');
         reply.header('content-length', String(info.size));
-        reply.header('content-disposition', anhang(name));
-        return reply.send(createReadStream(teil.hostPath));
+        reply.header('content-disposition', attachment(name));
+        return reply.send(createReadStream(part.hostPath));
       }
 
-      const eintraege = (
-        await Promise.all(vorhanden.map((t) => sammleEintraege(t.hostPath, t.fileName)))
+      const entries = (
+        await Promise.all(present.map((t) => collectEntries(t.hostPath, t.fileName)))
       ).flat();
-      const groessen = await Promise.all(
-        eintraege.map((e) => stat(e.hostPath).then((i) => i.size).catch(() => 0)),
+      const sizes = await Promise.all(
+        entries.map((e) => stat(e.hostPath).then((i) => i.size).catch(() => 0)),
       );
-      const gesamt = groessen.reduce((summe, g) => summe + g, 0);
+      const total = sizes.reduce((summe, g) => summe + g, 0);
 
       reply.header('content-type', 'application/zip');
-      reply.header('content-disposition', anhang(name));
-      const strom = packeZip(eintraege, brauchtZip64(gesamt, eintraege.length));
+      reply.header('content-disposition', attachment(name));
+      const stream = packZip(entries, needsZip64(total, entries.length));
       // Bricht der Benutzer ab, soll der Server nicht weiter von der Platte
       // lesen — ein abgebrochener 20-GB-Download liefe sonst zu Ende.
       reply.raw.on('close', () => {
-        strom.destroy(new Error('Download abgebrochen'));
+        stream.destroy(new Error('Download abgebrochen'));
       });
-      return reply.send(strom);
+      return reply.send(stream);
     },
   );
 
   app.post<{ Params: { id: string } }>(
-    '/api/instances/:id/welt',
+    '/api/instances/:id/world',
     { config: { rateLimit: { max: 5, timeWindow: '5 minutes' } } },
     async (request, reply) => {
       const instance = need(request.params.id);
-      const ziel = welt.ziel(instance);
-      if (!ziel) return reply.code(404).send({ error: 'Diese Vorlage benennt keine Weltdaten' });
+      const target = world.target(instance);
+      if (!target) return reply.code(404).send({ error: 'Diese Vorlage benennt keine Weltdaten' });
 
-      const feld = await request.file({
+      const upload = await request.file({
         // Das globale Limit von 256 MB gilt für Mods; eine Welt sprengt es.
         limits: { fileSize: config.worldUploadMaxBytes, files: 1 },
       });
-      if (!feld) return reply.code(400).send({ error: 'Keine Datei übertragen' });
+      if (!upload) return reply.code(400).send({ error: 'Keine Datei übertragen' });
 
-      let quelle;
+      let source;
       try {
-        quelle = await welt.entgegennehmen(ziel, feld.filename, feld.file);
+        source = await world.receive(target, upload.filename, upload.file);
       } catch (err) {
         // Eine falsche Endung ist Benutzereingabe, kein Serverfehler.
-        if (err instanceof WeltError) return reply.code(400).send({ error: err.message });
+        if (err instanceof WorldError) return reply.code(400).send({ error: err.message });
         throw err;
       }
-      if (feld.file.truncated) {
-        await rm(quelle.pfad, { force: true });
+      if (upload.file.truncated) {
+        await rm(source.path, { force: true });
         return reply
           .code(400)
           .send({ error: `Die Datei ist größer als ${formatBytes(config.worldUploadMaxBytes)}` });
@@ -371,17 +371,17 @@ export async function instanceRoutes(app: FastifyInstance, deps: Deps): Promise<
        * `z.coerce.boolean()` wäre hier eine Falle: `Boolean('false')` ist
        * `true`, und die Sicherung ließe sich nie abwählen.
        */
-      const gewaehlt = feldWert(feld.fields, 'backup');
-      const optionen = worldUploadOptionsSchema.safeParse({ backup: gewaehlt });
-      if (!optionen.success) {
-        await rm(quelle.pfad, { force: true });
+      const chosen = fieldValue(upload.fields, 'backup');
+      const options = worldUploadOptionsSchema.safeParse({ backup: chosen });
+      if (!options.success) {
+        await rm(source.path, { force: true });
         return reply.code(400).send({ error: 'Ungültige Eingabe' });
       }
 
       try {
-        return { job: await instances.replaceWorld(instance.id, quelle, optionen.data.backup) };
+        return { job: await instances.replaceWorld(instance.id, source, options.data.backup) };
       } catch (err) {
-        await rm(quelle.pfad, { force: true });
+        await rm(source.path, { force: true });
         // Eine laufende Instanz ist kein Eingabefehler, sondern ein Konflikt.
         if (err instanceof ValidationError && err.message.includes('gestoppt')) {
           return reply.code(409).send({ error: err.message });

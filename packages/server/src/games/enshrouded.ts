@@ -49,9 +49,9 @@ export const logAdapter: GameAdapter = {
  * schlechter als eine sichtbar fehlende.
  */
 function maxPlayers(ctx: AdapterContext): number {
-  const feld = getTemplate(ctx.instance.game).definition.adapter.maxPlayersField;
-  if (!feld) return 0;
-  return Number(ctx.instance.settings[feld] ?? 0);
+  const field = getTemplate(ctx.instance.game).definition.adapter.maxPlayersField;
+  if (!field) return 0;
+  return Number(ctx.instance.settings[field] ?? 0);
 }
 
 function label(ctx: AdapterContext): string {

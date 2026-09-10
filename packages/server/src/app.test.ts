@@ -9,15 +9,15 @@ import { loadConfig } from './config.js';
 import { FakeRuntime } from './runtime/fake.js';
 
 /** Ein ZIP im Speicher, aus einer Namen-zu-Inhalt-Tabelle. */
-async function zipPuffer(dateien: Record<string, string>): Promise<Buffer> {
+async function zipBuffer(files: Record<string, string>): Promise<Buffer> {
   const zip = new yazl.ZipFile();
-  for (const [name, inhalt] of Object.entries(dateien)) {
-    zip.addBuffer(Buffer.from(inhalt, 'utf8'), name);
+  for (const [name, content] of Object.entries(files)) {
+    zip.addBuffer(Buffer.from(content, 'utf8'), name);
   }
   zip.end();
-  const teile: Buffer[] = [];
-  for await (const stueck of zip.outputStream as unknown as AsyncIterable<Buffer>) teile.push(stueck);
-  return Buffer.concat(teile);
+  const chunks: Buffer[] = [];
+  for await (const chunk of zip.outputStream as unknown as AsyncIterable<Buffer>) chunks.push(chunk);
+  return Buffer.concat(chunks);
 }
 
 /**
@@ -28,36 +28,36 @@ async function zipPuffer(dateien: Record<string, string>): Promise<Buffer> {
  * und die sind erst gefüllt, wenn sie vorher kamen.
  */
 function multipart(
-  felder: Record<string, string>,
-  datei: { name: string; dateiname: string; inhalt: Buffer },
-): { koerper: Buffer; kopfzeilen: Record<string, string> } {
+  fields: Record<string, string>,
+  upload: { name: string; fileName: string; content: Buffer },
+): { body: Buffer; headers: Record<string, string> } {
   const CRLF = '\r\n';
-  const grenze = `----gsptest${Math.random().toString(16).slice(2)}`;
-  const teile: Buffer[] = [];
+  const boundary = `----gsptest${Math.random().toString(16).slice(2)}`;
+  const chunks: Buffer[] = [];
 
-  for (const [name, wert] of Object.entries(felder)) {
-    teile.push(
+  for (const [name, value] of Object.entries(fields)) {
+    chunks.push(
       Buffer.from(
-        `--${grenze}${CRLF}Content-Disposition: form-data; name="${name}"${CRLF}${CRLF}${wert}${CRLF}`,
+        `--${boundary}${CRLF}Content-Disposition: form-data; name="${name}"${CRLF}${CRLF}${value}${CRLF}`,
       ),
     );
   }
-  teile.push(
+  chunks.push(
     Buffer.from(
-      `--${grenze}${CRLF}` +
-        `Content-Disposition: form-data; name="${datei.name}"; filename="${datei.dateiname}"${CRLF}` +
+      `--${boundary}${CRLF}` +
+        `Content-Disposition: form-data; name="${upload.name}"; filename="${upload.fileName}"${CRLF}` +
         `Content-Type: application/octet-stream${CRLF}${CRLF}`,
     ),
-    datei.inhalt,
-    Buffer.from(`${CRLF}--${grenze}--${CRLF}`),
+    upload.content,
+    Buffer.from(`${CRLF}--${boundary}--${CRLF}`),
   );
 
-  const koerper = Buffer.concat(teile);
+  const body = Buffer.concat(chunks);
   return {
-    koerper,
-    kopfzeilen: {
-      'content-type': `multipart/form-data; boundary=${grenze}`,
-      'content-length': String(koerper.length),
+    body,
+    headers: {
+      'content-type': `multipart/form-data; boundary=${boundary}`,
+      'content-length': String(body.length),
     },
   };
 }
@@ -73,9 +73,9 @@ describe('API-Durchlauf', () => {
   let csrf = '';
   let instanceId = '';
 
-  const kopf = (mitCsrf = true) => ({
+  const headersFor = (withCsrf = true) => ({
     cookie,
-    ...(mitCsrf ? { 'x-csrf-token': csrf } : {}),
+    ...(withCsrf ? { 'x-csrf-token': csrf } : {}),
   });
 
   beforeAll(async () => {
@@ -99,59 +99,59 @@ describe('API-Durchlauf', () => {
   });
 
   it('meldet, dass noch kein Konto existiert', async () => {
-    const antwort = await app.server.inject({ method: 'GET', url: '/api/auth/state' });
-    expect(antwort.json()).toEqual({ needsSetup: true });
+    const response = await app.server.inject({ method: 'GET', url: '/api/auth/state' });
+    expect(response.json()).toEqual({ needsSetup: true });
   });
 
   it('sperrt die API ohne Anmeldung', async () => {
-    const antwort = await app.server.inject({ method: 'GET', url: '/api/instances' });
-    expect(antwort.statusCode).toBe(401);
+    const response = await app.server.inject({ method: 'GET', url: '/api/instances' });
+    expect(response.statusCode).toBe(401);
   });
 
   it('lehnt zu kurze Passwörter bei der Ersteinrichtung ab', async () => {
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'POST',
       url: '/api/auth/setup',
       payload: { username: 'admin', password: 'kurz' },
     });
-    expect(antwort.statusCode).toBe(400);
+    expect(response.statusCode).toBe(400);
   });
 
   it('legt das erste Konto an und setzt ein Sitzungscookie', async () => {
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'POST',
       url: '/api/auth/setup',
       payload: { username: 'admin', password: 'ein-langes-passwort' },
     });
-    expect(antwort.statusCode).toBe(200);
-    csrf = antwort.json<{ csrfToken: string }>().csrfToken;
-    const gesetzt = antwort.headers['set-cookie'];
+    expect(response.statusCode).toBe(200);
+    csrf = response.json<{ csrfToken: string }>().csrfToken;
+    const gesetzt = response.headers['set-cookie'];
     cookie = String(Array.isArray(gesetzt) ? gesetzt[0] : gesetzt).split(';')[0] ?? '';
     expect(cookie).toContain('gsp_session=');
   });
 
   it('lässt kein zweites Konto über die Einrichtung zu', async () => {
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'POST',
       url: '/api/auth/setup',
       payload: { username: 'zweiter', password: 'ein-langes-passwort' },
     });
-    expect(antwort.statusCode).toBe(409);
+    expect(response.statusCode).toBe(409);
   });
 
   it('weist schreibende Anfragen ohne CSRF-Token ab', async () => {
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'POST',
       url: '/api/instances',
       headers: { cookie },
       payload: { game: 'minecraft', name: 'X' },
     });
-    expect(antwort.statusCode).toBe(403);
+    expect(response.statusCode).toBe(403);
   });
 
   it('liefert die mitgelieferten Vorlagen in der vorgesehenen Reihenfolge', async () => {
-    const antwort = await app.server.inject({ method: 'GET', url: '/api/templates', headers: kopf(false) });
-    const ids = antwort.json<{ templates: { id: string }[] }>().templates.map((t) => t.id);
+    const response = await app.server.inject({ method: 'GET', url: '/api/templates', headers: headersFor(false) });
+    const ids = response.json<{ templates: { id: string }[] }>().templates.map((t) => t.id);
     // Reihenfolge des Startbestands, nicht alphabetisch — so erscheinen sie im Wizard.
     expect(ids.slice(0, 3)).toEqual(['minecraft', 'minecraft-bedrock', 'valheim']);
     expect(ids).toContain('factorio');
@@ -159,10 +159,10 @@ describe('API-Durchlauf', () => {
   });
 
   it('legt eine Minecraft-Instanz an und startet sie', async () => {
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'POST',
       url: '/api/instances',
-      headers: kopf(),
+      headers: headersFor(),
       payload: {
         game: 'minecraft',
         name: 'Nordheim',
@@ -174,25 +174,25 @@ describe('API-Durchlauf', () => {
         backupKeepDays: 7,
       },
     });
-    expect(antwort.statusCode).toBe(201);
-    instanceId = antwort.json<{ id: string }>().id;
+    expect(response.statusCode).toBe(201);
+    instanceId = response.json<{ id: string }>().id;
 
     // Der Anlege-Job läuft im Hintergrund; kurz auf „Online“ warten.
     await warteAuf(async () => {
       const detail = await app.server.inject({
         method: 'GET',
         url: `/api/instances/${instanceId}`,
-        headers: kopf(false),
+        headers: headersFor(false),
       });
       return detail.json<{ status: string }>().status === 'Online';
     });
   });
 
   it('weist einen bereits belegten Port ab', async () => {
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'POST',
       url: '/api/instances',
-      headers: kopf(),
+      headers: headersFor(),
       payload: {
         game: 'minecraft',
         name: 'Zweiter',
@@ -204,24 +204,24 @@ describe('API-Durchlauf', () => {
         backupKeepDays: 7,
       },
     });
-    expect(antwort.statusCode).toBe(400);
-    expect(antwort.json<{ error: string }>().error).toContain('25565');
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ error: string }>().error).toContain('25565');
   });
 
   it('schlägt freie Ports vor, die noch nicht belegt sind', async () => {
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'GET',
       url: '/api/templates/minecraft/ports',
-      headers: kopf(false),
+      headers: headersFor(false),
     });
-    expect(antwort.json<{ ports: { game: number } }>().ports.game).toBe(25566);
+    expect(response.json<{ ports: { game: number } }>().ports.game).toBe(25566);
   });
 
   it('maskiert Geheimnisse in der Instanzansicht', async () => {
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'POST',
       url: '/api/instances',
-      headers: kopf(),
+      headers: headersFor(),
       payload: {
         game: 'valheim',
         name: 'Midgard',
@@ -233,11 +233,11 @@ describe('API-Durchlauf', () => {
         backupKeepDays: 7,
       },
     });
-    const id = antwort.json<{ id: string }>().id;
+    const id = response.json<{ id: string }>().id;
     const detail = await app.server.inject({
       method: 'GET',
       url: `/api/instances/${id}`,
-      headers: kopf(false),
+      headers: headersFor(false),
     });
     expect(detail.json<{ settings: Record<string, string> }>().settings.password).toBe('********');
     // Das RCON-Passwort taucht nirgends in der Antwort auf.
@@ -245,89 +245,89 @@ describe('API-Durchlauf', () => {
   });
 
   it('lehnt Konsolenbefehle bei Vorlagen ohne RCON ab', async () => {
-    const liste = await app.server.inject({ method: 'GET', url: '/api/instances', headers: kopf(false) });
-    const valheim = liste
+    const list = await app.server.inject({ method: 'GET', url: '/api/instances', headers: headersFor(false) });
+    const valheim = list
       .json<{ instances: { id: string; game: string }[] }>()
       .instances.find((i) => i.game === 'valheim');
 
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'POST',
       url: `/api/instances/${valheim?.id}/command`,
-      headers: kopf(),
+      headers: headersFor(),
       payload: { command: 'save' },
     });
-    expect(antwort.statusCode).toBe(400);
-    expect(antwort.json<{ error: string }>().error).toContain('RCON');
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ error: string }>().error).toContain('RCON');
   });
 
   it('erstellt ein Backup und stellt es wieder her', async () => {
     // Weltdaten anlegen, damit das Archiv Inhalt hat.
-    const weltVerzeichnis = join(dataDir, 'instances', instanceId, 'data', 'welt');
-    mkdirSync(weltVerzeichnis, { recursive: true });
-    writeFileSync(join(weltVerzeichnis, 'level.dat'), 'weltdaten');
+    const worldDir = join(dataDir, 'instances', instanceId, 'data', 'welt');
+    mkdirSync(worldDir, { recursive: true });
+    writeFileSync(join(worldDir, 'level.dat'), 'weltdaten');
 
-    const erstellt = await app.server.inject({
+    const created = await app.server.inject({
       method: 'POST',
       url: `/api/instances/${instanceId}/backups`,
-      headers: kopf(),
+      headers: headersFor(),
     });
-    expect(erstellt.statusCode).toBe(200);
+    expect(created.statusCode).toBe(200);
 
     await warteAuf(async () => {
-      const liste = await app.server.inject({
+      const list = await app.server.inject({
         method: 'GET',
         url: `/api/instances/${instanceId}/backups`,
-        headers: kopf(false),
+        headers: headersFor(false),
       });
-      return liste.json<{ backups: unknown[] }>().backups.length > 0;
+      return list.json<{ backups: unknown[] }>().backups.length > 0;
     });
 
-    const liste = await app.server.inject({
+    const list = await app.server.inject({
       method: 'GET',
       url: `/api/instances/${instanceId}/backups`,
-      headers: kopf(false),
+      headers: headersFor(false),
     });
-    const backup = liste.json<{ backups: { id: string; file: string; kind: string }[] }>().backups[0]!;
+    const backup = list.json<{ backups: { id: string; file: string; kind: string }[] }>().backups[0]!;
     expect(backup.kind).toBe('manuell');
     // Dateiname nach dem Muster aus dem Design.
     expect(backup.file).toMatch(/^nordheim-\d{4}-\d{2}-\d{2}-\d{4}-manuell\.tar\.zst$/);
 
     // Welt löschen und aus dem Backup zurückholen.
-    rmSync(weltVerzeichnis, { recursive: true, force: true });
-    const wieder = await app.server.inject({
+    rmSync(worldDir, { recursive: true, force: true });
+    const restored = await app.server.inject({
       method: 'POST',
       url: `/api/instances/${instanceId}/backups/${backup.id}/restore`,
-      headers: kopf(),
+      headers: headersFor(),
     });
-    expect(wieder.statusCode).toBe(200);
+    expect(restored.statusCode).toBe(200);
 
     await warteAuf(async () => {
       const { existsSync } = await import('node:fs');
-      return existsSync(join(weltVerzeichnis, 'level.dat'));
+      return existsSync(join(worldDir, 'level.dat'));
     });
   });
 
   describe('Welt', () => {
-    const weltVerzeichnis = () => join(dataDir, 'instances', instanceId, 'data', 'welt');
+    const worldDir = () => join(dataDir, 'instances', instanceId, 'data', 'welt');
 
     it('meldet Weltname, Größe und fehlende Teile', async () => {
-      mkdirSync(weltVerzeichnis(), { recursive: true });
-      writeFileSync(join(weltVerzeichnis(), 'level.dat'), 'weltdaten');
+      mkdirSync(worldDir(), { recursive: true });
+      writeFileSync(join(worldDir(), 'level.dat'), 'weltdaten');
 
-      const antwort = await app.server.inject({
+      const response = await app.server.inject({
         method: 'GET',
-        url: `/api/instances/${instanceId}/welt`,
-        headers: kopf(false),
+        url: `/api/instances/${instanceId}/world`,
+        headers: headersFor(false),
       });
-      expect(antwort.statusCode).toBe(200);
+      expect(response.statusCode).toBe(200);
 
-      const welt = antwort.json<{ welt: WorldInfo }>().welt;
-      expect(welt.name).toBe('welt');
-      expect(welt.nameField).toBe('levelName');
-      expect(welt.sizeBytes).toBeGreaterThan(0);
-      expect(welt.raw).toBe(false);
+      const world = response.json<{ world: WorldInfo }>().world;
+      expect(world.name).toBe('welt');
+      expect(world.nameField).toBe('levelName');
+      expect(world.sizeBytes).toBeGreaterThan(0);
+      expect(world.raw).toBe(false);
       // Fehlende Dimensionen werden gezeigt, nicht verschwiegen.
-      expect(welt.parts.map((t) => [t.name, t.present])).toEqual([
+      expect(world.parts.map((t) => [t.name, t.present])).toEqual([
         ['welt', true],
         ['welt_nether', false],
         ['welt_the_end', false],
@@ -335,114 +335,114 @@ describe('API-Durchlauf', () => {
     });
 
     it('liefert die Welt als ZIP mit lesbarem Dateinamen', async () => {
-      const antwort = await app.server.inject({
+      const response = await app.server.inject({
         method: 'GET',
-        url: `/api/instances/${instanceId}/welt/download`,
-        headers: kopf(false),
+        url: `/api/instances/${instanceId}/world/download`,
+        headers: headersFor(false),
       });
-      expect(antwort.statusCode).toBe(200);
-      expect(antwort.headers['content-type']).toBe('application/zip');
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toBe('application/zip');
       // Beide Formen nach RFC 6266 — der ASCII-Notnagel und der echte Name.
-      expect(String(antwort.headers['content-disposition'])).toMatch(
+      expect(String(response.headers['content-disposition'])).toMatch(
         /attachment; filename="nordheim-welt-.*\.zip"; filename\*=UTF-8''/,
       );
       // Ein ZIP beginnt mit der lokalen Dateikopf-Signatur.
-      expect(antwort.rawPayload.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+      expect(response.rawPayload.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
     });
 
     it('verweigert den Austausch, solange die Instanz läuft', async () => {
-      const form = await weltFormular();
-      const antwort = await app.server.inject({
+      const form = await worldForm();
+      const response = await app.server.inject({
         method: 'POST',
-        url: `/api/instances/${instanceId}/welt`,
-        headers: { ...kopf(), ...form.kopfzeilen },
-        payload: form.koerper,
+        url: `/api/instances/${instanceId}/world`,
+        headers: { ...headersFor(), ...form.headers },
+        payload: form.body,
       });
-      expect(antwort.statusCode).toBe(409);
-      expect(antwort.json<{ error: string }>().error).toMatch(/gestoppt/);
+      expect(response.statusCode).toBe(409);
+      expect(response.json<{ error: string }>().error).toMatch(/gestoppt/);
     });
 
     it('tauscht die Welt bei gestoppter Instanz aus und sichert vorher', async () => {
       await app.server.inject({
         method: 'POST',
         url: `/api/instances/${instanceId}/stop`,
-        headers: kopf(),
+        headers: headersFor(),
       });
 
-      const vorher = await backupAnzahl();
-      const form = await weltFormular();
-      const antwort = await app.server.inject({
+      const before = await backupCount();
+      const form = await worldForm();
+      const response = await app.server.inject({
         method: 'POST',
-        url: `/api/instances/${instanceId}/welt`,
-        headers: { ...kopf(), ...form.kopfzeilen },
-        payload: form.koerper,
+        url: `/api/instances/${instanceId}/world`,
+        headers: { ...headersFor(), ...form.headers },
+        payload: form.body,
       });
-      expect(antwort.statusCode).toBe(200);
+      expect(response.statusCode).toBe(200);
 
       await warteAuf(async () => {
         const job = await app.server.inject({
           method: 'GET',
-          url: `/api/jobs/${antwort.json<{ job: { id: string } }>().job.id}`,
-          headers: kopf(false),
+          url: `/api/jobs/${response.json<{ job: { id: string } }>().job.id}`,
+          headers: headersFor(false),
         });
         return job.json<{ status: string }>().status !== 'running';
       });
 
-      expect(readFileSync(join(weltVerzeichnis(), 'level.dat'), 'utf8')).toBe('ersetzt');
+      expect(readFileSync(join(worldDir(), 'level.dat'), 'utf8')).toBe('ersetzt');
       // Die Sicherung vor dem Überschreiben ist die einzige Umkehr.
-      expect(await backupAnzahl()).toBeGreaterThan(vorher);
+      expect(await backupCount()).toBeGreaterThan(before);
 
       await app.server.inject({
         method: 'POST',
         url: `/api/instances/${instanceId}/start`,
-        headers: kopf(),
+        headers: headersFor(),
       });
     });
 
     it('lehnt eine Datei mit unpassender Endung ab', async () => {
-      const form = await weltFormular('welt.exe');
-      const antwort = await app.server.inject({
+      const form = await worldForm('welt.exe');
+      const response = await app.server.inject({
         method: 'POST',
-        url: `/api/instances/${instanceId}/welt`,
-        headers: { ...kopf(), ...form.kopfzeilen },
-        payload: form.koerper,
+        url: `/api/instances/${instanceId}/world`,
+        headers: { ...headersFor(), ...form.headers },
+        payload: form.body,
       });
-      expect(antwort.statusCode).toBe(400);
-      expect(antwort.json<{ error: string }>().error).toMatch(/zulässig/);
+      expect(response.statusCode).toBe(400);
+      expect(response.json<{ error: string }>().error).toMatch(/zulässig/);
     });
 
     /*
      * Ein ZIP, dessen Weltordner absichtlich anders heißt als der der Instanz —
      * so belegt der Test zugleich, dass umbenannt wird.
      */
-    async function weltFormular(dateiname = 'fremde-welt.zip') {
-      const inhalt = await zipPuffer({ 'neue-welt/level.dat': 'ersetzt' });
-      return multipart({ sicherung: 'true' }, { name: 'file', dateiname, inhalt });
+    async function worldForm(fileName = 'fremde-welt.zip') {
+      const content = await zipBuffer({ 'neue-welt/level.dat': 'ersetzt' });
+      return multipart({ backup: 'true' }, { name: 'file', fileName, content });
     }
 
-    async function backupAnzahl(): Promise<number> {
-      const liste = await app.server.inject({
+    async function backupCount(): Promise<number> {
+      const list = await app.server.inject({
         method: 'GET',
         url: `/api/instances/${instanceId}/backups`,
-        headers: kopf(false),
+        headers: headersFor(false),
       });
-      return liste.json<{ backups: unknown[] }>().backups.length;
+      return list.json<{ backups: unknown[] }>().backups.length;
     }
   });
 
   it('speichert geänderte Einstellungen und erzeugt den Container neu', async () => {
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'PATCH',
       url: `/api/instances/${instanceId}/settings`,
-      headers: kopf(),
+      headers: headersFor(),
       payload: { settings: { maxPlayers: 32, difficulty: 'hard' }, restart: true },
     });
-    expect(antwort.statusCode).toBe(200);
+    expect(response.statusCode).toBe(200);
 
     const detail = await app.server.inject({
       method: 'GET',
       url: `/api/instances/${instanceId}`,
-      headers: kopf(false),
+      headers: headersFor(false),
     });
     expect(detail.json<{ settings: { maxPlayers: number } }>().settings.maxPlayers).toBe(32);
   });
@@ -451,13 +451,13 @@ describe('API-Durchlauf', () => {
     await app.server.inject({
       method: 'PATCH',
       url: `/api/instances/${instanceId}/settings`,
-      headers: kopf(),
+      headers: headersFor(),
       payload: { settings: { levelName: 'andere-welt' }, restart: false },
     });
     const detail = await app.server.inject({
       method: 'GET',
       url: `/api/instances/${instanceId}`,
-      headers: kopf(false),
+      headers: headersFor(false),
     });
     // `levelName` ist als nicht editierbar gekennzeichnet — der Weltname bleibt.
     expect(detail.json<{ settings: { levelName: string } }>().settings.levelName).toBe('welt');
@@ -467,21 +467,21 @@ describe('API-Durchlauf', () => {
     const gestoppt = await app.server.inject({
       method: 'POST',
       url: `/api/instances/${instanceId}/stop`,
-      headers: kopf(),
+      headers: headersFor(),
     });
     expect(gestoppt.statusCode).toBe(200);
 
-    const geloescht = await app.server.inject({
+    const deleted = await app.server.inject({
       method: 'DELETE',
       url: `/api/instances/${instanceId}?data=true`,
-      headers: kopf(),
+      headers: headersFor(),
     });
-    expect(geloescht.statusCode).toBe(200);
+    expect(deleted.statusCode).toBe(200);
 
     const detail = await app.server.inject({
       method: 'GET',
       url: `/api/instances/${instanceId}`,
-      headers: kopf(false),
+      headers: headersFor(false),
     });
     expect(detail.statusCode).toBe(404);
   });
@@ -491,53 +491,53 @@ describe('API-Durchlauf', () => {
   it('antwortet auf eine unbekannte Vorlage mit 404 statt abzustürzen', async () => {
     // Vor dem Umbau war `GameId` ein Enum und dieser Fall unmöglich; seit
     // Vorlagen anlegbar sind, ist er ein normaler Zustand.
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'GET',
       url: '/api/templates/gibtsnicht/ports',
-      headers: kopf(false),
+      headers: headersFor(false),
     });
-    expect(antwort.statusCode).toBe(404);
+    expect(response.statusCode).toBe(404);
   });
 
   it('legt eine eigene Vorlage an, nutzt sie und lehnt das Löschen dann ab', async () => {
     const angelegt = await app.server.inject({
       method: 'POST',
       url: '/api/templates',
-      headers: kopf(),
-      payload: eigeneVorlage(),
+      headers: headersFor(),
+      payload: customTemplate(),
     });
     expect(angelegt.statusCode, angelegt.body).toBe(201);
 
     // Sie steht sofort im Wizard.
-    const liste = await app.server.inject({ method: 'GET', url: '/api/templates', headers: kopf(false) });
-    expect(liste.json<{ templates: { id: string }[] }>().templates.map((t) => t.id)).toContain('kartoffelkrieg');
+    const list = await app.server.inject({ method: 'GET', url: '/api/templates', headers: headersFor(false) });
+    expect(list.json<{ templates: { id: string }[] }>().templates.map((t) => t.id)).toContain('kartoffelkrieg');
 
     // Und eine Instanz daraus lässt sich anlegen.
-    const instanz = await app.server.inject({
+    const created = await app.server.inject({
       method: 'POST',
       url: '/api/instances',
-      headers: kopf(),
+      headers: headersFor(),
       payload: {
         game: 'kartoffelkrieg',
         name: 'Acker',
         ports: [{ name: 'game', host: 7777 }],
         memoryMb: 2048,
         cpus: 2,
-        settings: { welt: 'Acker' },
+        settings: { world: 'Acker' },
         backupCron: '0 4 * * *',
         backupKeepDays: 7,
       },
     });
-    expect(instanz.statusCode, instanz.body).toBe(201);
-    const neueId = instanz.json<{ id: string }>().id;
+    expect(created.statusCode, created.body).toBe(201);
+    const newId = created.json<{ id: string }>().id;
 
     // Erst abwarten, bis der Anlege-Job durch ist. Wird die Instanz vorher
     // gelöscht, schreibt der Job noch, wenn `afterAll` die Datenbank schließt.
     await warteAuf(async () => {
       const detail = await app.server.inject({
         method: 'GET',
-        url: `/api/instances/${neueId}`,
-        headers: kopf(false),
+        url: `/api/instances/${newId}`,
+        headers: headersFor(false),
       });
       return detail.json<{ status: string }>().status === 'Online';
     });
@@ -545,49 +545,49 @@ describe('API-Durchlauf', () => {
     const gesperrt = await app.server.inject({
       method: 'DELETE',
       url: '/api/templates/kartoffelkrieg',
-      headers: kopf(),
+      headers: headersFor(),
     });
     expect(gesperrt.statusCode).toBe(400);
     expect(gesperrt.json<{ error: string }>().error).toMatch(/genutzt/);
 
     await app.server.inject({
       method: 'DELETE',
-      url: `/api/instances/${neueId}?data=true`,
-      headers: kopf(),
+      url: `/api/instances/${newId}?data=true`,
+      headers: headersFor(),
     });
-    const geloescht = await app.server.inject({
+    const deleted = await app.server.inject({
       method: 'DELETE',
       url: '/api/templates/kartoffelkrieg',
-      headers: kopf(),
+      headers: headersFor(),
     });
-    expect(geloescht.statusCode).toBe(200);
+    expect(deleted.statusCode).toBe(200);
   });
 
   it('lehnt eine unschlüssige Vorlage mit Feldfehlern ab', async () => {
-    const kaputt = eigeneVorlage();
-    kaputt.env = [{ name: 'X', source: { kind: 'field', field: 'gibtsNicht' }, trim: false, omitWhenEmpty: false }];
-    const antwort = await app.server.inject({
+    const broken = customTemplate();
+    broken.env = [{ name: 'X', source: { kind: 'field', field: 'gibtsNicht' }, trim: false, omitWhenEmpty: false }];
+    const response = await app.server.inject({
       method: 'POST',
       url: '/api/templates',
-      headers: kopf(),
-      payload: kaputt,
+      headers: headersFor(),
+      payload: broken,
     });
-    expect(antwort.statusCode).toBe(400);
-    expect(antwort.json<{ fields: { message: string }[] }>().fields[0]?.message).toMatch(/Unbekanntes Feld/);
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ fields: { message: string }[] }>().fields[0]?.message).toMatch(/Unbekanntes Feld/);
   });
 
   it('meldet den KI-Entwurf ohne Schlüssel als nicht verfügbar', async () => {
-    const antwort = await app.server.inject({
+    const response = await app.server.inject({
       method: 'GET',
       url: '/api/templates/ki/status',
-      headers: kopf(false),
+      headers: headersFor(false),
     });
-    expect(antwort.json<{ available: boolean }>().available).toBe(false);
+    expect(response.json<{ available: boolean }>().available).toBe(false);
 
     const versuch = await app.server.inject({
       method: 'POST',
       url: '/api/templates/ki/entwurf',
-      headers: kopf(),
+      headers: headersFor(),
       payload: { game: 'Irgendwas', image: 'beispiel/image' },
     });
     expect(versuch.statusCode).toBe(503);
@@ -600,7 +600,7 @@ describe('API-Durchlauf', () => {
    */
   it('schaltet den KI-Entwurf frei, sobald ein Schlüssel hinterlegt ist', async () => {
     const verzeichnis = mkdtempSync(join(tmpdir(), 'gsp-ki-'));
-    const mitSchluessel = await buildApp(
+    const withKey = await buildApp(
       loadConfig({
         GSP_DATA_DIR: verzeichnis,
         GSP_RUNTIME: 'fake',
@@ -613,11 +613,11 @@ describe('API-Durchlauf', () => {
     );
 
     try {
-      const status = mitSchluessel.services.drafts.status();
+      const status = withKey.services.drafts.status();
       expect(status.available).toBe(true);
       expect(status.model).toBe('gemini-test');
     } finally {
-      await mitSchluessel.close();
+      await withKey.close();
       rmSync(verzeichnis, { recursive: true, force: true });
     }
   });
@@ -625,8 +625,8 @@ describe('API-Durchlauf', () => {
   it('markiert Instanzen, deren Vorlage sich geändert hat', async () => {
     // Die Minecraft-Instanz ist zu diesem Zeitpunkt gelöscht; die Valheim-Instanz
     // aus dem Maskierungstest besteht noch.
-    const liste = await app.server.inject({ method: 'GET', url: '/api/instances', headers: kopf(false) });
-    const valheim = liste
+    const list = await app.server.inject({ method: 'GET', url: '/api/instances', headers: headersFor(false) });
+    const valheim = list
       .json<{ instances: { id: string; game: string; templateStale: boolean }[] }>()
       .instances.find((i) => i.game === 'valheim');
     expect(valheim?.templateStale).toBe(false);
@@ -635,31 +635,31 @@ describe('API-Durchlauf', () => {
       await app.server.inject({
         method: 'GET',
         url: '/api/templates/valheim/definition',
-        headers: kopf(false),
+        headers: headersFor(false),
       })
     ).json<{ definition: Record<string, unknown> }>().definition;
 
     const gespeichert = await app.server.inject({
       method: 'PUT',
       url: '/api/templates/valheim',
-      headers: kopf(),
+      headers: headersFor(),
       payload: { ...definition, defaultMemoryMb: 12288 },
     });
     expect(gespeichert.statusCode, gespeichert.body).toBe(200);
 
-    const nachher = await app.server.inject({
+    const after = await app.server.inject({
       method: 'GET',
       url: `/api/instances/${valheim?.id}`,
-      headers: kopf(false),
+      headers: headersFor(false),
     });
     // Die Instanz läuft unverändert weiter — erst ein Neuaufbau übernimmt den Stand.
-    expect(nachher.json<{ templateStale: boolean }>().templateStale).toBe(true);
-    expect(nachher.json<{ status: string }>().status).not.toBe('Fehler');
+    expect(after.json<{ templateStale: boolean }>().templateStale).toBe(true);
+    expect(after.json<{ status: string }>().status).not.toBe('Fehler');
   });
 });
 
 /** Minimale, gültige Vorlage für die Routentests. */
-function eigeneVorlage(): Record<string, unknown> {
+function customTemplate(): Record<string, unknown> {
   return {
     id: 'kartoffelkrieg',
     label: 'Kartoffelkrieg',
@@ -676,11 +676,11 @@ function eigeneVorlage(): Record<string, unknown> {
     volumes: [{ name: 'data', containerPath: '/data', role: 'data' }],
     fields: [
       {
-        id: 'welt', label: 'Welt', type: 'text', default: 'Acker',
+        id: 'world', label: 'Welt', type: 'text', default: 'Acker',
         required: true, editable: true, restartRequired: true, secret: false,
       },
     ],
-    env: [{ name: 'WORLD', source: { kind: 'field', field: 'welt' }, trim: false, omitWhenEmpty: false }],
+    env: [{ name: 'WORLD', source: { kind: 'field', field: 'world' }, trim: false, omitWhenEmpty: false }],
     logPatterns: {
       join: { source: 'Spieler (\\S+) betritt', flags: '' },
       ready: { source: 'Server bereit', flags: '' },
