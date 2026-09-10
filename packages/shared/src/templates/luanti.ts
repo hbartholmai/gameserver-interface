@@ -1,7 +1,15 @@
 import type { TemplateDefinition } from '../schema/template-definition.js';
 
 /**
- * Luanti (früher Minetest) auf Basis von `linuxserver/minetest`.
+ * Luanti (früher Minetest) auf Basis von `linuxserver/luanti`.
+ *
+ * **Nicht `linuxserver/minetest`.** LinuxServer hat das Image mit der
+ * Umbenennung des Spiels stillgelegt: sein `latest` zeigt auf eine Manifestliste
+ * ohne amd64-Eintrag, `docker run` scheitert dort mit „no matching manifest for
+ * linux/amd64“. Der letzte lauffähige Stand wäre `5.10.0` — der startet zwar,
+ * bringt aber kein Spiel mit und geht in eine Neustartschleife
+ * („you need to select a game using the '--gameid' argument“).
+ * `linuxserver/luanti` läuft ohne Zutun und bringt `devtest` mit.
  *
  * **Diese Vorlage hat bewusst wenige Felder.** Das Image kennt nur vier
  * Umgebungsvariablen — `PUID`, `PGID`, `TZ` und `CLI_ARGS`; die eigentliche
@@ -20,13 +28,13 @@ export const luantiDefinition: TemplateDefinition = {
   id: 'luanti',
   label: 'Luanti (Minetest)',
   summary: 'Freier Voxel-Spielbaukasten. Konfiguration über minetest.conf im Volume, Konsole nur lesend.',
-  image: 'linuxserver/minetest',
+  image: 'linuxserver/luanti',
   defaultTag: 'latest',
   defaultMemoryMb: 2048,
   defaultCpus: 2,
   notes: [
     'Luanti wird über die Datei minetest.conf im Datenverzeichnis eingerichtet — der Server legt sie beim ersten Start an.',
-    'Über „Startargumente“ lassen sich Spiel und Welt wählen, etwa: --gameid minetest_game --world /config/.minetest/worlds/welt',
+    'Mitgeliefert ist nur „devtest“, das Testspiel der Entwickler. Ein richtiges Spiel (etwa VoxeLibre) gehört ins Datenverzeichnis unter games/ und wird über „Startargumente“ gewählt: --gameid <name> --world /config/.minetest/worlds/welt',
     'Mods werden im Spiel verwaltet und liegen im Datenverzeichnis; der Mod-Reiter des Panels bleibt deshalb leer.',
   ],
   capabilities: {

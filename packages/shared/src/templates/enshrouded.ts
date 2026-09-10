@@ -123,9 +123,18 @@ export const enshroudedDefinition: TemplateDefinition = {
   ],
 
   logPatterns: {
-    join: { source: '(?:Player|Character)\\s+[\'"]?([^\'"]+?)[\'"]?\\s+(?:connected|joined)', flags: 'i' },
-    leave: { source: '(?:Player|Character)\\s+[\'"]?([^\'"]+?)[\'"]?\\s+(?:disconnected|left)', flags: 'i' },
-    ready: { source: '(Server is now (?:online|listening)|HandleAssignmentReq|Session .* created)', flags: 'i' },
+    // Abgelesen am Log eines laufenden `mornedhels/enshrouded-server`:
+    //   [server] Player 'Henner' logged in with Permissions:
+    //   [server] Remove Player 'Henner'
+    //   [game_server] Switching state from LoadEcsScene to Run after 169.01 ms
+    // Das Präfix `[server]` gehört zum Muster: ohne es fängt das
+    // Beitrittsmuster auch „[server] Machine '1': Player '0(0)' logged in“ —
+    // dieselbe Anmeldung, aber mit der internen Nummer statt des Namens.
+    join: { source: '\\[server\\] Player \'([^\']+)\' logged in', flags: '' },
+    leave: { source: '\\[server\\] Remove Player \'([^\']+)\'', flags: '' },
+    // Erst der Zustand `Run` heißt spielbar. `Host_Online` meldet sich früher,
+    // da lädt der Server die Welt noch — bei großen Welten Minuten davor.
+    ready: { source: '\\[game_server\\] Switching state from \\S+ to Run\\b', flags: '' },
     clean: {
       pattern: { source: '^\\s*\\[?\\d{4}-\\d{2}-\\d{2}[ T][\\d:.]+\\]?\\s*', flags: '' },
       replacement: '',
@@ -144,10 +153,10 @@ export const enshroudedDefinition: TemplateDefinition = {
 
   fakeLog: {
     timeFormat: 'iso',
-    join: "[{time}] Player '{name}' connected",
-    leave: "[{time}] Player '{name}' disconnected",
-    ready: '[{time}] Server is now online',
-    chatter: '[{time}] Savegame written ({n} ms)',
+    join: "[{time}] [server] Player '{name}' logged in with Permissions:",
+    leave: "[{time}] [server] Remove Player '{name}'",
+    ready: '[{time}] [game_server] Switching state from LoadEcsScene to Run after 169.01 ms',
+    chatter: '[{time}] [server_save] Read Version: {n}',
   },
 
   modExtensions: [],

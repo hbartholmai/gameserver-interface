@@ -8,6 +8,7 @@ import type {
   VolumeSpec,
 } from '@gsp/shared';
 import { Abschnitt, Liste, Schalter, TextFeld, WahlFeld, ZahlFeld } from './vorlagen-teile.js';
+import { useBestaetigung } from '../components/Bestaetigung.js';
 
 /**
  * Der Editor einer Vorlage. Er bildet die Definition Abschnitt für Abschnitt
@@ -40,8 +41,11 @@ export function VorlagenEditor({
   const setze = <K extends keyof TemplateDefinition>(schluessel: K, wert: TemplateDefinition[K]) =>
     onAendern({ ...definition, [schluessel]: wert });
 
+  const { frage, dialog: bestaetigung } = useBestaetigung();
+
   return (
     <div className="vorlageneditor">
+      {bestaetigung}
       {fehler.length > 0 && (
         <div className="banner banner--fehler" role="alert">
           <div>
@@ -408,11 +412,18 @@ export function VorlagenEditor({
             className="knopf knopf--klein knopf--klein-gefahr"
             disabled={beschaeftigt || instanzen > 0}
             title={instanzen > 0 ? 'Es beruhen noch Instanzen auf dieser Vorlage' : undefined}
-            onClick={() => {
+            onClick={() =>
               // Wie beim Löschen einer Instanz: nachfragen, bevor etwas
-              // Unwiderrufliches passiert.
-              if (confirm(`Vorlage „${definition.label}“ löschen?`)) onLoeschen();
-            }}
+              // Unwiderrufliches passiert. Ohne Tippwort — betroffen ist eine
+              // Definition, keine Weltdaten.
+              frage({
+                titel: 'Vorlage löschen?',
+                text: `Die Vorlage „${definition.label}“ wird entfernt. Bereits angelegte Instanzen laufen weiter, lassen sich danach aber nicht mehr aus ihr neu aufbauen.`,
+                knopf: 'Löschen',
+                gefahr: true,
+                onJa: onLoeschen,
+              })
+            }
           >
             Löschen
           </button>

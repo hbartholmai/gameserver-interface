@@ -18,6 +18,7 @@ import { Kopfzeile } from './components/Kopfzeile.js';
 import { Sidebar } from './components/Sidebar.js';
 import { Detailkopf } from './components/Detailkopf.js';
 import { Reiterleiste, sichtbareTabs, type TabId } from './components/Reiterleiste.js';
+import { useBestaetigung, type Frage } from './components/Bestaetigung.js';
 import { Uebersicht } from './tabs/Uebersicht.js';
 import { Konsole } from './tabs/Konsole.js';
 import { Spieler } from './tabs/Spieler.js';
@@ -190,6 +191,8 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
     [ladeInstanzen],
   );
 
+  const { frage, dialog: bestaetigung } = useBestaetigung();
+
   const tabs = instanz ? sichtbareTabs(instanz.capabilities) : [];
   // Wechselt die Instanz auf eine Vorlage ohne Mods, muss der Reiter zurück.
   useEffect(() => {
@@ -269,8 +272,23 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
                 job={jobs[instanz.id] ?? null}
                 beschaeftigt={beschaeftigt}
                 onStart={() => void aktion(() => api.start(instanz.id))}
-                onStop={() => void aktion(() => api.stop(instanz.id))}
-                onNeustart={() => void aktion(() => api.restart(instanz.id))}
+                onStop={() =>
+                  frage({
+                    titel: 'Server stoppen?',
+                    text: `„${instanz.name}“ wird heruntergefahren. Verbundene Spieler fliegen raus, laufende Runden brechen ab. Weltdaten bleiben erhalten.`,
+                    knopf: 'Stoppen',
+                    gefahr: true,
+                    onJa: () => void aktion(() => api.stop(instanz.id)),
+                  })
+                }
+                onNeustart={() =>
+                  frage({
+                    titel: 'Server neu starten?',
+                    text: `„${instanz.name}“ fährt herunter und wieder hoch. Verbundene Spieler fliegen raus, laufende Runden brechen ab.`,
+                    knopf: 'Neustart',
+                    onJa: () => void aktion(() => api.restart(instanz.id)),
+                  })
+                }
                 onBackup={() =>
                   void aktion(
                     () => api.createBackup(instanz.id),
@@ -327,17 +345,28 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
                       () => api.backups(instanz.id).then((a) => setBackups(a.backups)),
                     )
                   }
-                  onWiederherstellen={(backup) => {
-                    if (!confirm(`Weltdaten aus ${backup.file} wiederherstellen? Die aktuelle Welt wird ersetzt.`)) return;
-                    void aktion(() => api.restoreBackup(instanz.id, backup.id));
-                  }}
-                  onLoeschen={(backup) => {
-                    if (!confirm(`${backup.file} endgültig löschen?`)) return;
-                    void aktion(
-                      () => api.deleteBackup(instanz.id, backup.id),
-                      () => api.backups(instanz.id).then((a) => setBackups(a.backups)),
-                    );
-                  }}
+                  onWiederherstellen={(backup) =>
+                    frage({
+                      titel: 'Weltdaten wiederherstellen?',
+                      text: `Die aktuelle Welt von „${instanz.name}“ wird durch den Stand aus ${backup.file} ersetzt.`,
+                      knopf: 'Wiederherstellen',
+                      gefahr: true,
+                      onJa: () => void aktion(() => api.restoreBackup(instanz.id, backup.id)),
+                    })
+                  }
+                  onLoeschen={(backup) =>
+                    frage({
+                      titel: 'Backup löschen?',
+                      text: `${backup.file} wird endgültig entfernt.`,
+                      knopf: 'Löschen',
+                      gefahr: true,
+                      onJa: () =>
+                        void aktion(
+                          () => api.deleteBackup(instanz.id, backup.id),
+                          () => api.backups(instanz.id).then((a) => setBackups(a.backups)),
+                        ),
+                    })
+                  }
                 />
               )}
 
@@ -352,13 +381,18 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
                       () => api.mods(instanz.id).then((a) => setMods(a.mods)),
                     )
                   }
-                  onLoeschen={(mod) => {
-                    if (!confirm(`${mod.name} entfernen?`)) return;
-                    void aktion(
-                      () => api.deleteMod(instanz.id, mod.file),
-                      () => api.mods(instanz.id).then((a) => setMods(a.mods)),
-                    );
-                  }}
+                  onLoeschen={(mod) =>
+                    frage({
+                      titel: 'Mod entfernen?',
+                      text: `${mod.name} wird aus „${instanz.name}“ gelöscht. Beim nächsten Neustart fehlt der Mod dem Server.`,
+                      knopf: 'Entfernen',
+                      onJa: () =>
+                        void aktion(
+                          () => api.deleteMod(instanz.id, mod.file),
+                          () => api.mods(instanz.id).then((a) => setMods(a.mods)),
+                        ),
+                    })
+                  }
                   onHinzufuegen={(datei) =>
                     void aktion(
                       () => api.uploadMod(instanz.id, datei),
@@ -389,6 +423,7 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
 
               <InstanzLoeschen
                 instanz={instanz}
+                frage={frage}
                 onLoeschen={(daten) =>
                   void aktion(async () => {
                     await api.deleteInstance(instanz.id, daten);
@@ -400,6 +435,8 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
           )}
         </main>
       </div>
+
+      {bestaetigung}
 
       {dialogOffen && (
         <NeueInstanz
@@ -427,9 +464,11 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
 
 function InstanzLoeschen({
   instanz,
+  frage,
   onLoeschen,
 }: {
   instanz: Instance;
+  frage: (f: Frage) => void;
   onLoeschen: (daten: boolean) => void;
 }) {
   return (
@@ -440,26 +479,30 @@ function InstanzLoeschen({
       <button
         type="button"
         className="knopf knopf--klein"
-        onClick={() => {
-          if (confirm(`Container von „${instanz.name}“ entfernen? Weltdaten bleiben erhalten.`)) {
-            onLoeschen(false);
-          }
-        }}
+        onClick={() =>
+          frage({
+            titel: 'Container entfernen?',
+            text: `Der Container von „${instanz.name}“ wird gelöscht. Die Weltdaten bleiben auf der Platte und stehen beim nächsten Start wieder bereit.`,
+            knopf: 'Entfernen',
+            onJa: () => onLoeschen(false),
+          })
+        }
       >
         Container entfernen
       </button>
       <button
         type="button"
         className="knopf knopf--klein knopf--klein-gefahr"
-        onClick={() => {
-          if (
-            confirm(
-              `„${instanz.name}“ mitsamt allen Weltdaten unwiderruflich löschen? Backups bleiben erhalten.`,
-            )
-          ) {
-            onLoeschen(true);
-          }
-        }}
+        onClick={() =>
+          frage({
+            titel: 'Mit Weltdaten löschen?',
+            text: `„${instanz.name}“ wird mitsamt allen Weltdaten unwiderruflich gelöscht. Backups bleiben erhalten.`,
+            knopf: 'Endgültig löschen',
+            gefahr: true,
+            tippen: 'löschen',
+            onJa: () => onLoeschen(true),
+          })
+        }
       >
         Mit Weltdaten löschen
       </button>

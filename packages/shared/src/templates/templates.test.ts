@@ -220,7 +220,17 @@ describe('Startargumente', () => {
 
   it('setzt Flag und Wert als getrennte Elemente', () => {
     const args = terraria.args(vorgaben, ctx);
-    expect(args.slice(0, 2)).toEqual(['-world', '/root/.local/share/Terraria/Worlds/welt.wld']);
+    expect(args.slice(0, 2)).toEqual(['-autocreate', '2']);
+  });
+
+  /*
+   * `bootstrap.sh` im Image hängt selbst ein `-world` an, gebildet aus
+   * `WORLD_FILENAME`. Ein zweites aus der Vorlage bricht TShock beim Start ab:
+   * „An item with the same key has already been added. Key: -world“.
+   */
+  it('überlässt -world dem Bootstrap-Skript des Images', () => {
+    expect(terraria.args(vorgaben, ctx)).not.toContain('-world');
+    expect(terraria.env(vorgaben, ctx).WORLD_FILENAME).toBe('welt');
   });
 
   it('nimmt den tatsaechlich belegten Host-Port, nicht die Vorgabe', () => {

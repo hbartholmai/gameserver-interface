@@ -775,6 +775,20 @@
   border-top: 1px solid var(--rahmen);
 }
 
+/* Eine Rückfrage braucht nicht die 720 px des Anlege-Dialogs. */
+.dialog--schmal {
+  max-width: 440px;
+}
+.bestaetigung {
+  gap: var(--s-5);
+}
+.bestaetigung__text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-sekundaer);
+}
+
 .vorlagenwahl {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

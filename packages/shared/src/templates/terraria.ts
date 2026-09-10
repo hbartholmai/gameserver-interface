@@ -46,16 +46,7 @@ export const terrariaDefinition: TemplateDefinition = {
     {
       id: 'worldName', label: 'Welt', type: 'text', default: 'welt',
       required: true, maxLength: 40, editable: false, restartRequired: true, secret: false,
-      help: 'Dateiname ohne .wld — nach dem Anlegen nicht mehr änderbar.',
-    },
-    {
-      // `-world` erwartet den vollständigen Pfad, `WORLD_FILENAME` nur den Namen.
-      // Beides muss zusammenpassen, deshalb steht der Pfad als eigenes,
-      // unsichtbar vorbelegtes Feld hier.
-      id: 'worldPfad', label: 'Pfad der Weltdatei', type: 'text',
-      default: '/root/.local/share/Terraria/Worlds/welt.wld',
-      required: true, maxLength: 200, editable: false, restartRequired: true, secret: false,
-      help: 'Wird aus dem Weltnamen gebildet; nur ändern, wenn eine vorhandene Datei anders heißt.',
+      help: 'Dateiname der Welt im Datenverzeichnis, genau wie sie dort heißt — das Image hängt keine Endung an. Nach dem Anlegen nicht mehr änderbar.',
     },
     {
       id: 'worldSize', label: 'Weltgröße', type: 'select', default: '2',
@@ -99,9 +90,22 @@ export const terrariaDefinition: TemplateDefinition = {
   ],
 
   args: [
-    // Ohne `-world` und `-autocreate` bleibt der Server beim ersten Start im
-    // interaktiven Einrichtungsdialog stehen und erreicht nie „Online“.
-    { flag: '-world', source: { kind: 'field', field: 'worldPfad' }, trim: true, omitWhenEmpty: false },
+    /*
+     * **Kein `-world` hier.** Das Image hat einen ENTRYPOINT, kein CMD — die
+     * Argumente ersetzen also nichts, sie werden an `bootstrap.sh` angehängt.
+     * Und das Skript baut aus `WORLD_FILENAME` bereits selbst ein `-world`:
+     *
+     *   WORLD_PATH="/root/.local/share/Terraria/Worlds/$WORLD_FILENAME"
+     *   ./TShock.Server -configpath … -logpath … -world "$WORLD_PATH" "$@"
+     *
+     * Ein zweites `-world` bricht TShock beim Start ab, noch vor der ersten
+     * eigenen Logzeile: „An item with the same key has already been added.
+     * Key: -world“.
+     *
+     * `-autocreate` bleibt: ohne die Welt stünde der Server im interaktiven
+     * Einrichtungsdialog, und das Skript prüft das Flag ausdrücklich, bevor es
+     * eine fehlende Weltdatei überhaupt hinnimmt.
+     */
     { flag: '-autocreate', source: { kind: 'field', field: 'worldSize' }, fallback: '2', trim: false, omitWhenEmpty: false },
     { flag: '-difficulty', source: { kind: 'field', field: 'difficulty' }, fallback: '0', trim: false, omitWhenEmpty: false },
     { flag: '-maxplayers', source: { kind: 'field', field: 'maxPlayers' }, fallback: '8', trim: false, omitWhenEmpty: false },
