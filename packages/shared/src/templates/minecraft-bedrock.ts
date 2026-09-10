@@ -155,6 +155,15 @@ export const minecraftBedrockDefinition: TemplateDefinition = {
 
   modExtensions: [],
 
+  /* Bedrock legt jede Welt als eigenes Verzeichnis unter `worlds/` ab. */
+  world: {
+    parent: '/data/worlds',
+    name: { kind: 'field', field: 'levelName' },
+    parts: [{ suffix: '', type: 'dir', required: true }],
+    markers: ['level.dat'],
+    accept: [],
+  },
+
   backup: {
     paths: ['/data/worlds'],
     preCommands: [],

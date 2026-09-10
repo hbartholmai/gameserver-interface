@@ -152,6 +152,25 @@ export const valheimDefinition: TemplateDefinition = {
   modsPath: '/config/bepinex/plugins',
   modExtensions: ['.dll'],
 
+  /*
+   * Eine Valheim-Welt sind zwei Dateien: `.fwl` trägt Name und Seed, `.db` die
+   * Karte. Eine ohne die andere ergibt eine leere Welt. Die `.old`-Kopien
+   * schreibt der Server bei jedem Speichern — sie reisen mit, sind aber nicht
+   * nötig.
+   */
+  world: {
+    parent: '/config/worlds_local',
+    name: { kind: 'field', field: 'worldName' },
+    parts: [
+      { suffix: '.fwl', type: 'file', required: true },
+      { suffix: '.db', type: 'file', required: true },
+      { suffix: '.fwl.old', type: 'file', required: false },
+      { suffix: '.db.old', type: 'file', required: false },
+    ],
+    markers: [],
+    accept: [],
+  },
+
   backup: {
     paths: ['/config/worlds_local'],
     preCommands: [],

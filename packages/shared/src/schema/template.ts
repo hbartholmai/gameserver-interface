@@ -49,6 +49,82 @@ export const volumeSpecSchema = z.object({
 export type VolumeSpec = z.infer<typeof volumeSpecSchema>;
 
 /**
+ * Woher der Name der Welt stammt. Dieselbe Diskriminanten-Union wie bei `env`,
+ * aber ohne `port`, `rconPassword` und `timezone` — ein Weltname aus der
+ * Zeitzone ergäbe keinen Sinn und wäre nur eine Fehlerquelle mehr.
+ */
+export const worldNameSourceSchema = z.discriminatedUnion('kind', [
+  /** Fester Name, etwa `savegame` bei Enshrouded. */
+  z.object({ kind: z.literal('const'), value: z.string().min(1) }),
+  /** Wert eines Formularfelds — `levelName`, `worldName`, `saveName`. */
+  z.object({ kind: z.literal('field'), field: z.string().min(1) }),
+]);
+export type WorldNameSource = z.infer<typeof worldNameSourceSchema>;
+
+/**
+ * Ein Teil der Welt. Der Pfad ist immer `parent/<stamm><suffix>`.
+ *
+ * **Der erste Teil ist die Welt selbst** — nach ihm wird der Download benannt,
+ * und an ihm hängt die Entscheidung zwischen roher Datei und ZIP. Das ist eine
+ * Reihenfolge-Regel und kein eigenes Flag, weil ein zweites Flag neben
+ * `required` nur verwechselt würde.
+ */
+export const worldPartSchema = z.object({
+  suffix: z.string().default(''),
+  type: z.enum(['dir', 'file']),
+  /**
+   * Muss beim Einspielen im Archiv stehen. Nicht „ist die Welt selbst“:
+   * Valheims `.db` trägt die Karte und ist ohne die `.fwl` wertlos — beide sind
+   * erforderlich. Terrarias `.twld` mit den TShock-Regionen dagegen nicht, und
+   * Minecrafts `_nether` ebenso wenig.
+   */
+  required: z.boolean().default(false),
+});
+export type WorldPart = z.infer<typeof worldPartSchema>;
+
+/**
+ * Die Weltdaten einer Instanz — der Ausschnitt, den der Betreiber herunterladen
+ * und austauschen kann.
+ *
+ * Bewusst **nicht** `backup.paths`: die sichern das ganze Datenvolumen samt
+ * Konfiguration, Logs und Mods. Und bewusst nicht `volumes[].role`: die Rolle
+ * ist in den mitgelieferten Vorlagen widersprüchlich vergeben (Satisfactory
+ * nennt `/config` `data`, DST nennt `/data` `config`) und wird nirgends
+ * ausgewertet — sie taugt nicht als Quelle dafür, wo die Welt liegt.
+ *
+ * **Eine Form statt dreier Gestalten.** Naheliegend wären getrennte Zweige für
+ * Verzeichnis, Einzeldatei und Dateigruppe. Minecraft widerlegt das: Paper legt
+ * die Dimensionen als *Geschwister* an — `welt`, `welt_nether`, `welt_the_end`.
+ * Wer nur `welt/` mitnimmt, verliert Nether und End, ohne dass es auffällt.
+ * Damit ist Minecraft dieselbe Gestalt wie Valheim, nur mit Verzeichnissen
+ * statt Dateien, und `parts` deckt beides ab.
+ */
+export const worldDefinitionSchema = z.object({
+  /** Container-Pfad des Verzeichnisses, in dem die Welt liegt. Muss in einem Volume liegen. */
+  parent: z.string().min(1),
+  /** Gemeinsamer Stamm aller Teile. */
+  name: worldNameSourceSchema,
+  parts: z.array(worldPartSchema).min(1),
+  /**
+   * Dateien, an denen eine Welt in einem hochgeladenen Archiv erkannt wird —
+   * `level.dat` bei Minecraft. Ohne Marker entscheidet allein die Struktur.
+   */
+  markers: z.array(z.string()).default([]),
+  /**
+   * Endungen, unter denen eine **rohe** Einzeldatei hochgeladen werden darf.
+   * Leer heißt: nur ZIP. Ein Factorio-Spielstand *ist* ein ZIP und darf deshalb
+   * nie entpackt werden — `.zip` steht dort in `accept` und gewinnt gegen den
+   * Archivzweig.
+   *
+   * Der erste Eintrag ist zugleich die Endung, die beim Herunterladen angehängt
+   * wird, wenn die Datei auf der Platte keine hat: Terrarias `WORLD_FILENAME`
+   * heißt schlicht `welt`, und eine Datei ohne Endung nützt dem Benutzer nichts.
+   */
+  accept: z.array(z.string()).default([]),
+});
+export type WorldDefinition = z.infer<typeof worldDefinitionSchema>;
+
+/**
  * Was eine Vorlage tatsächlich kann. Der Design-Prototyp nimmt an, dass jede
  * Instanz eine Befehlseingabe und Mods hat — real gilt das nur für Minecraft.
  * Die UI blendet Bedienelemente anhand dieser Flags aus oder deaktiviert sie.
@@ -87,6 +163,16 @@ export const templateDescriptorSchema = z.object({
    * bei jeder Vorlage ohne Java oder BepInEx etwas Falsches.
    */
   modExtensions: z.array(z.string()),
+  /**
+   * Weltdaten der Vorlage. Gehört in den Descriptor, weil der Welt-Reiter daran
+   * hängt: ob es ihn überhaupt gibt (`world` vorhanden), was der Dateidialog
+   * annimmt (`accept`) und welche Teile er auflisten soll.
+   *
+   * Eine eigene Fähigkeit in `capabilities` wäre eine zweite Wahrheit über
+   * dieselbe Sache und könnte davon abweichen; das Vorhandensein des Blocks
+   * genügt.
+   */
+  world: worldDefinitionSchema.optional(),
 });
 export type TemplateDescriptor = z.infer<typeof templateDescriptorSchema>;
 

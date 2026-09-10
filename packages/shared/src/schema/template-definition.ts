@@ -4,6 +4,7 @@ import {
   fieldSpecSchema,
   portSpecSchema,
   volumeSpecSchema,
+  worldDefinitionSchema,
 } from './template.js';
 
 /**
@@ -219,6 +220,15 @@ export const templateDefinitionSchema = z.object({
   modsPath: z.string().optional(),
   /** Dateiendungen, die als Mod gelten. */
   modExtensions: z.array(z.string()).default([]),
+  /**
+   * Weltdaten für Herunterladen und Austausch. Fehlt bei Vorlagen ohne Welt —
+   * CS2, TF2 und Garry's Mod sichern nur `cfg`-Verzeichnisse, ein Welt-Reiter
+   * darüber wäre eine Lüge.
+   *
+   * Optional statt `.default({})`: sonst bekämen diese drei einen leeren Block,
+   * und „hat diese Vorlage eine Welt?" bräuchte eine zweite Bedingung.
+   */
+  world: worldDefinitionSchema.optional(),
 });
 export type TemplateDefinition = z.infer<typeof templateDefinitionSchema>;
 
