@@ -10,6 +10,7 @@ import type {
   SessionInfo,
   TemplateDefinition,
   TemplateDescriptor,
+  WeltInfo,
 } from '@gsp/shared';
 
 /** Eine Vorlage in der Verwaltungsansicht — mit Nutzungszahl und Herkunft. */
@@ -158,6 +159,24 @@ export const api = {
     request<{ job: Job }>(`/api/instances/${id}/backups/${backupId}/restore`, { method: 'POST' }),
   deleteBackup: (id: string, backupId: string) =>
     request<{ ok: true }>(`/api/instances/${id}/backups/${backupId}`, { method: 'DELETE' }),
+
+  welt: (id: string) => request<{ welt: WeltInfo }>(`/api/instances/${id}/welt`),
+  /**
+   * Nur die URL, kein `fetch`: `request()` liest jede Antwort als Text und
+   * parst sie als JSON, und ein `response.blob()` legte die ganze Welt in den
+   * Speicher des Browsers — bei mehreren Gigabyte stürzt der Tab ab. Die
+   * GET-Route wird deshalb direkt angesprungen; das Sitzungscookie geht bei
+   * gleichem Ursprung mit, und CSRF verlangt der Server bei GET nicht.
+   */
+  weltDownloadUrl: (id: string) => `/api/instances/${id}/welt/download`,
+  weltHochladen: (id: string, datei: File, sicherung: boolean) => {
+    const form = new FormData();
+    // Das Textfeld muss vor der Datei stehen — der Server liest es aus
+    // `file.fields`, und die sind erst gefüllt, wenn sie vorher kamen.
+    form.append('sicherung', sicherung ? 'true' : 'false');
+    form.append('file', datei);
+    return request<{ job: Job }>(`/api/instances/${id}/welt`, { method: 'POST', body: form });
+  },
 
   mods: (id: string) => request<{ mods: Mod[] }>(`/api/instances/${id}/mods`),
   setModEnabled: (id: string, file: string, enabled: boolean) =>

@@ -55,6 +55,16 @@
   text-transform: uppercase;
   color: var(--text-label);
 }
+/* Eine Stufe heller als der Rest der Kontextzeile: die Fassung wird gesucht,
+   Knotenname und Laufzeit liest man nur nebenbei. Ein Rahmen oder eine Fläche
+   wären hier zu viel — der Entwurf kennt keine Plaketten. */
+.kopfzeile__version {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text-sekundaer);
+}
 .kopfzeile__kennzahlen {
   display: flex;
   gap: var(--s-4);
@@ -322,6 +332,14 @@
   padding: var(--s-3) var(--s-7);
   cursor: pointer;
   border-radius: 0;
+}
+/* Der Welt-Download ist ein Link, kein Knopf: der Browser soll die Datei
+   selbst streamen. Damit er trotzdem wie einer aussieht, fehlen ihm nur
+   Blockdarstellung und die Unterstreichung. */
+a.knopf {
+  display: inline-block;
+  text-decoration: none;
+  line-height: 1.4;
 }
 .knopf:disabled {
   cursor: not-allowed;

@@ -96,6 +96,20 @@ export const luantiDefinition: TemplateDefinition = {
 
   modExtensions: [],
 
+  /*
+   * Das Image startet ohne `--world` und nimmt dann `worlds/world` — belegt am
+   * Log: `World at [/config/.minetest/worlds/world]`. Wer über die
+   * Startargumente eine andere Welt wählt, greift daneben; das steht in den
+   * Hinweisen der Vorlage.
+   */
+  world: {
+    parent: '/config/.minetest/worlds',
+    name: { kind: 'const', value: 'world' },
+    parts: [{ suffix: '', type: 'dir', required: true }],
+    markers: ['world.mt'],
+    accept: [],
+  },
+
   backup: {
     paths: ['/config/.minetest/worlds'],
     preCommands: [],

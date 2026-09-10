@@ -154,6 +154,8 @@ reichlich bemessen (10 Anfragen pro Minute, 1.500 pro Tag, 5.000 Suchen im Monat
 | `GSP_SECURE_COOKIES` | `false` | Sitzungscookie nur über HTTPS senden |
 | `GSP_SESSION_TTL_HOURS` | `336` | Gültigkeit einer Sitzung |
 | `GSP_WEB_ROOT` | — | Verzeichnis des gebauten Frontends |
+| `GSP_TEMP_DIR` | `GSP_DATA_DIR/tmp` | Zwischenablage für Welt-Uploads. Sollte auf demselben Dateisystem liegen wie die Instanz-Volumes — sonst wird das Einspielen ein Kopiervorgang statt eines Verschiebens. Der Inhalt überlebt keinen Neustart. |
+| `GSP_WELT_UPLOAD_MAX_MB` | `4096` | Obergrenze für eine hochgeladene Welt. Das Limit für Mods (256 MB) bleibt davon unberührt. |
 | `GSP_GEMINI_API_KEY` | — | Schlüssel für den KI-Vorlagenentwurf ([kostenlos](https://aistudio.google.com/apikey)). Ohne ihn bleibt der Knopf ausgeblendet. |
 | `GSP_GEMINI_MODELL` | `gemini-3.7-flash` | Modell für den Entwurf. Bewusst nicht das neueste — das ist meist überlastet. Bei „Modell nicht verfügbar" hier eine aktuelle Kennung eintragen. |
 | `TZ` | `Europe/Berlin` | Zeitzone für Instanzen und Zeitpläne |

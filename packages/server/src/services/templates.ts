@@ -35,7 +35,7 @@ export class TemplateService {
    * des Betreibers nicht zurücksetzen — das wäre der teuerste Fehler in diesem
    * Entwurf, weil er lautlos passiert und erst beim nächsten Containerbau auffällt.
    */
-  seedAndLoad(): { seeded: string[] } {
+  seedAndLoad(): { seeded: string[]; nachgeruestet: string[] } {
     const jetzt = new Date().toISOString();
     const seeded: string[] = [];
 
@@ -49,8 +49,54 @@ export class TemplateService {
       if (neu) seeded.push(definition.id);
     }
 
+    const nachgeruestet = this.ruesteWeltNach();
     this.reload();
-    return { seeded };
+    return { seeded, nachgeruestet };
+  }
+
+  /**
+   * Ergänzt bestehenden Zeilen den Weltblock.
+   *
+   * Nötig, weil Seeding vorhandene Vorlagen nie überschreibt — ohne diesen
+   * Schritt hätte auf jeder bestehenden Installation keine Vorlage ein `world`,
+   * und der Welt-Reiter erschiene einfach nicht. Ohne Fehlermeldung, ohne
+   * Hinweis, für immer.
+   *
+   * Die Zusage des Seedings bleibt trotzdem gewahrt: ergänzt wird **nur** der
+   * eine fehlende Schlüssel, und nur bei mitgelieferten Vorlagen. Ein Betreiber
+   * kann `world` bis hierher nicht selbst gesetzt haben — das Feld gab es nicht.
+   *
+   * `updated_at` bleibt stehen. Sonst meldeten alle bestehenden Instanzen
+   * „Vorlage geändert“ und die Oberfläche böte grundlos „Neu aufbauen“ an — der
+   * Container ändert sich durch `world` aber nicht.
+   */
+  private ruesteWeltNach(): string[] {
+    const ergaenzt: string[] = [];
+    for (const definition of BUILTIN_DEFINITIONS) {
+      if (!definition.world) continue;
+      const row = this.store.getTemplateRow(definition.id);
+      if (!row) continue;
+
+      let gespeichert: Record<string, unknown>;
+      try {
+        gespeichert = JSON.parse(row.definition) as Record<string, unknown>;
+      } catch {
+        // Eine kaputte Zeile darf den Start nicht verhindern; `reload()` lässt
+        // sie ohnehin aus.
+        continue;
+      }
+      if ('world' in gespeichert) continue;
+
+      gespeichert.world = definition.world;
+      this.store.upsertTemplate(
+        definition.id,
+        JSON.stringify(gespeichert),
+        row.builtin === 1,
+        row.updated_at,
+      );
+      ergaenzt.push(definition.id);
+    }
+    return ergaenzt;
   }
 
   /** Liest alle Vorlagen aus der Datenbank und ersetzt die Registry. */
@@ -209,6 +255,75 @@ export class TemplateService {
         field: 'backup.preCommands',
         message: 'Vorbefehle brauchen eine Konsole (console: rcon)',
       });
+    }
+
+    /*
+     * Weltdaten. Was hier durchrutscht, fällt erst beim ersten Austausch auf —
+     * im ungünstigsten Fall, nachdem die bisherige Welt schon weg war.
+     */
+    const world = definition.world;
+    if (world) {
+      const inVolume = definition.volumes.some(
+        (v) => world.parent === v.containerPath || world.parent.startsWith(`${v.containerPath}/`),
+      );
+      if (!inVolume) {
+        fehler.push({
+          field: 'world.parent',
+          message: `„${world.parent}“ liegt in keinem der deklarierten Volumes`,
+        });
+      }
+
+      /*
+       * Vor dem Überschreiben legt das Panel eine Sicherung an, und die sichert
+       * `backup.paths`. Läge die Welt außerhalb, wäre die Sicherung wertlos und
+       * der Austausch unumkehrbar — die einzige Prüfung hier, die eine Vorlage
+       * aus Sicherheitsgründen ablehnt und nicht der Form wegen.
+       *
+       * Bei einem festen Namen wird der ganze Weltpfad geprüft: Enshrouded
+       * sichert `/opt/enshrouded/savegame`, während `parent` das Volume darüber
+       * ist. Bei einem Namen aus einem Feld steht der Pfad erst zur Laufzeit
+       * fest, dort muss `parent` selbst abgedeckt sein.
+       */
+      const zuPruefen =
+        world.name.kind === 'const'
+          ? `${world.parent.replace(/\/+$/, '')}/${world.name.value}`
+          : world.parent;
+      const gesichert = definition.backup.paths.some(
+        (p) => zuPruefen === p || zuPruefen.startsWith(`${p}/`),
+      );
+      if (!gesichert) {
+        fehler.push({
+          field: 'world.parent',
+          message:
+            'Die Weltdaten müssen von den Backup-Pfaden abgedeckt sein — sonst gäbe es vor dem Austausch keine Sicherung',
+        });
+      }
+
+      if (world.name.kind === 'field' && !feldIds.has(world.name.field)) {
+        fehler.push({ field: 'world.name', message: `Unbekanntes Feld „${world.name.field}“` });
+      }
+      if (world.name.kind === 'const' && /[\\/:]/.test(world.name.value)) {
+        fehler.push({ field: 'world.name', message: 'Der Weltname darf keine Pfadanteile enthalten' });
+      }
+
+      // Der erste Teil ist die Welt selbst; ohne ihn gäbe es nichts zu tauschen.
+      if (world.parts[0]?.required !== true) {
+        fehler.push({ field: 'world.parts.0', message: 'Der erste Teil ist die Welt selbst und muss erforderlich sein' });
+      }
+      const suffixe = new Set(world.parts.map((t) => t.suffix));
+      if (suffixe.size !== world.parts.length) {
+        fehler.push({ field: 'world.parts', message: 'Die Endungen der Teile müssen eindeutig sein' });
+      }
+      for (const [index, teil] of world.parts.entries()) {
+        if (/[\\/:]/.test(teil.suffix)) {
+          fehler.push({ field: `world.parts.${index}`, message: 'Eine Endung darf keine Pfadanteile enthalten' });
+        }
+      }
+      for (const [index, endung] of world.accept.entries()) {
+        if (!endung.startsWith('.')) {
+          fehler.push({ field: `world.accept.${index}`, message: 'Endungen beginnen mit einem Punkt, etwa .wld' });
+        }
+      }
     }
 
     if (definition.capabilities.mods === 'none' && definition.modsPath) {

@@ -44,6 +44,7 @@ export function compileTemplate(def: TemplateDefinition): GameTemplate {
     },
     ...(def.modsPath !== undefined ? { modsPath: def.modsPath } : {}),
     modExtensions: def.modExtensions,
+    ...(def.world !== undefined ? { world: def.world } : {}),
 
     definition: def,
   };

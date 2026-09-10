@@ -224,6 +224,9 @@ const FORM_ANWEISUNG = [
   '- Prüfe deine Muster gegen deine eigenen `fakeLog`-Zeilen, bevor du antwortest: das Beitrittsmuster muss aus der Beitrittszeile den Namen in Gruppe 1 liefern, das Startmuster auf der Startzeile greifen. Passt es nicht zusammen, wird die Vorlage abgelehnt.',
   '- Halte die Muster einfach; verschachtelte Wiederholungen wie `(a+)+` werden abgelehnt.',
   '- `backup.paths` müssen innerhalb der angegebenen `volumes` liegen. `preCommands` nur, wenn es RCON gibt.',
+  '- `world` benennt **allein die Spielwelt**, nicht das ganze Datenverzeichnis: `parent` ist der Ordner, in dem sie liegt, `name` ihr Stamm (aus einem Formularfeld oder fest), `parts` die Teile mit gemeinsamem Stamm. Der erste Teil ist die Welt selbst und muss `required` sein. Beispiele: Minecraft `/data` + Feld `levelName` + Teile ``, `_nether`, `_the_end` (Verzeichnisse); Valheim `/config/worlds_local` + Feld `worldName` + Teile `.fwl`, `.db` (Dateien).',
+  '- `world.parent` muss in einem Volume liegen **und** von `backup.paths` abgedeckt sein — sonst wäre die Sicherung vor dem Austausch wertlos und die Vorlage wird abgelehnt.',
+  '- `world.accept` nur setzen, wenn die Welt eine einzelne Datei ist, die man so weitergeben kann (Terraria `.wld`, Factorio `.zip`). Lässt sich der Weltpfad nicht belegen oder liegt die Welt untrennbar mit Serverkonfiguration und Spielerprofilen in einem Ordner, dann `world: null` — ein Welt-Reiter über einer Serverkonfiguration verspräche etwas Falsches.',
   '- `fakeLog` sind Beispielzeilen im echten Format des Spiels, mit den Platzhaltern {time}, {name} und {n}. Sie müssen zu deinen eigenen Mustern passen.',
   '- Beschriftungen, Hilfetexte und Hinweise auf Deutsch. Feldkennungen und Variablennamen technisch, wie das Image sie erwartet.',
   '- Was du nicht belegen konntest, lässt du weg (`null`) statt zu raten.',
@@ -374,6 +377,42 @@ const ENTWURF_SCHEMA: Record<string, unknown> = objekt({
   ),
   modsPath: { type: ['string', 'null'] },
   modExtensions: { type: 'array', items: { type: 'string' } },
+  world: {
+    anyOf: [
+      objekt({
+        parent: { type: 'string', description: 'Ordner im Container, in dem die Welt liegt.' },
+        name: objekt(
+          {
+            kind: { type: 'string', enum: ['field', 'const'] },
+            field: { type: ['string', 'null'], description: 'Bei kind=field: Kennung des Formularfelds.' },
+            value: { type: ['string', 'null'], description: 'Bei kind=const: der feste Name.' },
+          },
+          'Woher der Stamm der Welt kommt.',
+        ),
+        parts: {
+          type: 'array',
+          description: 'Der erste Teil ist die Welt selbst und muss required sein.',
+          items: objekt({
+            suffix: { type: 'string', description: 'An den Stamm gehängt: „_nether“, „.fwl“; leer für den Hauptteil.' },
+            type: { type: 'string', enum: ['dir', 'file'] },
+            required: { type: 'boolean', description: 'Muss beim Einspielen im Archiv stehen.' },
+          }),
+        },
+        markers: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Dateien, an denen eine Welt in einem fremden Archiv erkennbar ist, etwa level.dat.',
+        },
+        accept: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Endungen für eine rohe Einzeldatei statt eines ZIP, etwa .wld.',
+        },
+      }),
+      { type: 'null' },
+    ],
+    description: 'Weltdaten für Herunterladen und Austausch. null, wenn nicht belegbar oder untrennbar von der Konfiguration.',
+  },
 });
 
 /**

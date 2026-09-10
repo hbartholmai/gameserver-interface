@@ -38,6 +38,16 @@ export function pingColor(ms: number | null): string {
   return '#ff6b6b';
 }
 
+/**
+ * Fassung des Panels, wie sie in der Kopfzeile steht.
+ *
+ * Hier und nicht in den `package.json`: die drei Pakete sind `private` und
+ * werden nie veröffentlicht, ihre Versionsfelder liest niemand. Eine Konstante
+ * in `shared` erreicht Backend und Frontend ohne Build-Kniff — die Versionen in
+ * den `package.json` werden mitgezogen, damit sie nicht widersprechen.
+ */
+export const PANEL_VERSION = 'v0.3';
+
 /** Länge der Verlaufs-Ringpuffer — entspricht den 40 Messpunkten der Sparklines. */
 export const HISTORY_LENGTH = 40;
 

@@ -172,6 +172,24 @@ export const minecraftDefinition: TemplateDefinition = {
   modsPath: '/data/plugins',
   modExtensions: ['.jar'],
 
+  /*
+   * Paper und Spigot legen die Dimensionen als **Geschwister** an: `welt`,
+   * `welt_nether`, `welt_the_end`. Wer nur `welt/` mitnimmt, verliert Nether
+   * und End, ohne dass es auffällt. Vanilla legt sie stattdessen als `DIM-1`
+   * und `DIM1` **in** die Welt — dort reisen sie ohnehin mit.
+   */
+  world: {
+    parent: '/data',
+    name: { kind: 'field', field: 'levelName' },
+    parts: [
+      { suffix: '', type: 'dir', required: true },
+      { suffix: '_nether', type: 'dir', required: false },
+      { suffix: '_the_end', type: 'dir', required: false },
+    ],
+    markers: ['level.dat'],
+    accept: [],
+  },
+
   backup: {
     paths: ['/data'],
     // Erst Schreibvorgänge anhalten und die Welt auf Platte zwingen, dann sichern.

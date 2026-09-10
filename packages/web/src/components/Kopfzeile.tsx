@@ -1,4 +1,4 @@
-import { formatPercent, type HostStatus } from '@gsp/shared';
+import { PANEL_VERSION, formatPercent, type HostStatus } from '@gsp/shared';
 
 export function Kopfzeile({
   host,
@@ -21,6 +21,9 @@ export function Kopfzeile({
         </span>
         <h1 className="kopfzeile__titel">Server Control</h1>
         <span className="kopfzeile__kontext">
+          {/* Die Fassung zuerst: Sie beantwortet die Frage, die man beim
+              Melden eines Fehlers zuerst gestellt bekommt. */}
+          <span className="kopfzeile__version">{PANEL_VERSION}</span> ·{' '}
           {host?.nodeLabel ?? 'node 01'} · {host?.runtime === 'fake' ? 'simuliert' : 'docker'}
         </span>
       </div>

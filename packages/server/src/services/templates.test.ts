@@ -6,6 +6,7 @@ import {
   BUILTIN_DEFINITIONS,
   findTemplate,
   listTemplates,
+  minecraftDefinition,
   valheimDefinition,
   type TemplateDefinition,
 } from '@gsp/shared';
@@ -76,6 +77,45 @@ describe('Vorlagendienst', () => {
     expect(seeded).toEqual([]);
     expect(findTemplate('valheim')?.label).toBe('Valheim (angepasst)');
     expect(findTemplate('valheim')?.defaultMemoryMb).toBe(12288);
+  });
+
+  /**
+   * Der Weltblock kam später dazu. Weil Seeding vorhandene Zeilen nie anfasst,
+   * hätte ihn ohne Nachrüstung keine bestehende Installation je bekommen — und
+   * der Welt-Reiter wäre dort einfach nicht erschienen, ohne Fehlermeldung.
+   */
+  it('rüstet den Weltblock bei einer Vorlage aus einer älteren Fassung nach', () => {
+    const alt = { ...minecraftDefinition } as Record<string, unknown>;
+    delete alt.world;
+    const stand = '2026-01-01T00:00:00.000Z';
+    store.upsertTemplate('minecraft', JSON.stringify(alt), true, stand);
+
+    const { nachgeruestet } = dienst.seedAndLoad();
+
+    expect(nachgeruestet).toContain('minecraft');
+    expect(findTemplate('minecraft')?.world?.parent).toBe('/data');
+    // Der Container ändert sich dadurch nicht — sonst böte die Oberfläche
+    // grundlos „Neu aufbauen“ an.
+    expect(store.getTemplateRow('minecraft')?.updated_at).toBe(stand);
+  });
+
+  it('lässt einen selbst gesetzten Weltblock bei der Nachrüstung stehen', () => {
+    dienst.seedAndLoad();
+    const eigen: TemplateDefinition = {
+      ...minecraftDefinition,
+      world: {
+        parent: '/data',
+        name: { kind: 'const', value: 'eigenewelt' },
+        parts: [{ suffix: '', type: 'dir', required: true }],
+        markers: [],
+        accept: [],
+      },
+    };
+    dienst.update('minecraft', eigen);
+
+    dienst.seedAndLoad();
+
+    expect(findTemplate('minecraft')?.world?.name).toEqual({ kind: 'const', value: 'eigenewelt' });
   });
 
   it('verweigert das Löschen, solange Instanzen darauf beruhen', () => {

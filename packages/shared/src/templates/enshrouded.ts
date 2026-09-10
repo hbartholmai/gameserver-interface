@@ -161,6 +161,15 @@ export const enshroudedDefinition: TemplateDefinition = {
 
   modExtensions: [],
 
+  /* Fester Ort: `SERVER_SAVE_DIR` steht auf `./savegame`, es gibt kein Feld dafür. */
+  world: {
+    parent: '/opt/enshrouded',
+    name: { kind: 'const', value: 'savegame' },
+    parts: [{ suffix: '', type: 'dir', required: true }],
+    markers: [],
+    accept: [],
+  },
+
   backup: {
     paths: ['/opt/enshrouded/savegame'],
     preCommands: [],

@@ -121,6 +121,7 @@ export function toDescriptor(template: GameTemplate): TemplateDescriptor {
     defaultCpus: template.defaultCpus,
     notes: template.notes,
     modExtensions: template.modExtensions,
+    ...(template.world !== undefined ? { world: template.world } : {}),
   };
 }
 
@@ -191,6 +192,14 @@ export function validateSettings(
 
 export { compileTemplate, applyValidations } from './compile.js';
 export { renderFakeLine, DEFAULT_FAKE_LOG } from './fakelog.js';
+export {
+  worldTarget,
+  worldBase,
+  erforderlichBeimImport,
+  WorldNameError,
+  type WorldTarget,
+  type WorldTargetPart,
+} from './world.js';
 export { minecraftDefinition } from './minecraft.js';
 export { valheimDefinition } from './valheim.js';
 export { enshroudedDefinition } from './enshrouded.js';

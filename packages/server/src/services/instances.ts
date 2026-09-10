@@ -27,6 +27,8 @@ import type { MetricsService } from './metrics.js';
 // Nur als Typ: der Vorlagendienst importiert umgekehrt `ValidationError` von hier.
 import type { TemplateService } from './templates.js';
 import { instanceRoot, slug, volumePath } from './paths.js';
+import type { WeltService } from './welt.js';
+import { entpacke as entpackeZip, liesEintraege as liesZipEintraege } from './welt-zip.js';
 
 export class ValidationError extends Error {
   constructor(
@@ -62,6 +64,7 @@ export class InstanceService {
     private readonly jobs: JobService,
     private readonly hub: Hub,
     private readonly templates: TemplateService,
+    private readonly welt: WeltService,
   ) {}
 
   list(): InstanceRecord[] {
@@ -385,6 +388,60 @@ export class InstanceService {
         await this.start(id);
       }
       this.hub.broadcast({ type: 'instances-changed' });
+    });
+  }
+
+  /**
+   * Ersetzt die Weltdaten durch eine hochgeladene Datei.
+   *
+   * Anders als `restore()` wird die Instanz **nicht** gestoppt und danach
+   * gestartet: Der Austausch ist nur im gestoppten Zustand erlaubt, weil eine
+   * laufende Engine ihre Welt im Speicher hält und beim nächsten Speichern über
+   * die neue schreiben würde.
+   */
+  async replaceWorld(
+    id: string,
+    quelle: { pfad: string; dateiname: string; endung: string },
+    mitSicherung: boolean,
+  ): Promise<Job> {
+    const instance = this.require(id);
+    if ((await this.runtime.inspect(instance.containerName)).running) {
+      throw new ValidationError('Die Instanz läuft — für den Austausch muss sie gestoppt sein');
+    }
+
+    return this.jobs.start('welt', id, async (report) => {
+      try {
+        /*
+         * Zwischen der Prüfung oben und dem Jobstart können Sekunden liegen —
+         * der Zeitplan oder ein zweiter Browser-Tab könnte die Instanz
+         * gestartet haben.
+         */
+        report(5, 'Instanz wird geprüft');
+        if ((await this.runtime.inspect(instance.containerName)).running) {
+          throw new Error('Die Instanz wurde zwischenzeitlich gestartet — Austausch abgebrochen');
+        }
+
+        if (mitSicherung) {
+          report(15, 'Sicherung wird angelegt');
+          // Ohne `runCommand`: Vorbefehle setzen einen laufenden Server voraus,
+          // und der ist hier per Definition aus.
+          const gesichert = await this.backups.create(instance, { kind: 'auto' });
+          this.event(id, `Sicherung vor Weltaustausch · ${gesichert.file}`);
+        }
+
+        const bericht = await this.welt.importieren(
+          instance,
+          quelle,
+          entpackeZip,
+          (archiv) => liesZipEintraege(archiv, this.config.worldUploadMaxBytes),
+          report,
+        );
+
+        this.event(id, `Weltdaten ersetzt · ${quelle.dateiname} (${bericht.teile.join(', ')})`);
+        this.hub.broadcast({ type: 'instances-changed' });
+      } finally {
+        await rm(quelle.pfad, { force: true });
+      }
     });
   }
 

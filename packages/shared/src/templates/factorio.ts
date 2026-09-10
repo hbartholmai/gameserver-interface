@@ -149,6 +149,19 @@ export const factorioDefinition: TemplateDefinition = {
   modsPath: '/factorio/mods',
   modExtensions: ['.zip'],
 
+  /*
+   * Ein Factorio-Spielstand **ist** ein ZIP. Es steht deshalb in `accept` und
+   * wird beim Hochladen nie entpackt, sondern unverändert unter dem Namen der
+   * Instanz abgelegt — sonst käme statt der Welt ihr Inhalt an.
+   */
+  world: {
+    parent: '/factorio/saves',
+    name: { kind: 'field', field: 'saveName' },
+    parts: [{ suffix: '.zip', type: 'file', required: true }],
+    markers: [],
+    accept: ['.zip'],
+  },
+
   backup: {
     paths: ['/factorio/saves'],
     preCommands: [],

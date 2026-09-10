@@ -1,10 +1,66 @@
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import yazl from 'yazl';
+import type { WeltInfo } from '@gsp/shared';
 import { buildApp, type App } from './app.js';
 import { loadConfig } from './config.js';
 import { FakeRuntime } from './runtime/fake.js';
+
+/** Ein ZIP im Speicher, aus einer Namen-zu-Inhalt-Tabelle. */
+async function zipPuffer(dateien: Record<string, string>): Promise<Buffer> {
+  const zip = new yazl.ZipFile();
+  for (const [name, inhalt] of Object.entries(dateien)) {
+    zip.addBuffer(Buffer.from(inhalt, 'utf8'), name);
+  }
+  zip.end();
+  const teile: Buffer[] = [];
+  for await (const stueck of zip.outputStream as unknown as AsyncIterable<Buffer>) teile.push(stueck);
+  return Buffer.concat(teile);
+}
+
+/**
+ * Multipart-Körper von Hand. `form-data` wäre eine Abhängigkeit für genau
+ * diesen einen Test; der Aufbau ist überschaubar genug.
+ *
+ * Das Textfeld steht **vor** der Datei — der Server liest es aus `file.fields`,
+ * und die sind erst gefüllt, wenn sie vorher kamen.
+ */
+function multipart(
+  felder: Record<string, string>,
+  datei: { name: string; dateiname: string; inhalt: Buffer },
+): { koerper: Buffer; kopfzeilen: Record<string, string> } {
+  const CRLF = '\r\n';
+  const grenze = `----gsptest${Math.random().toString(16).slice(2)}`;
+  const teile: Buffer[] = [];
+
+  for (const [name, wert] of Object.entries(felder)) {
+    teile.push(
+      Buffer.from(
+        `--${grenze}${CRLF}Content-Disposition: form-data; name="${name}"${CRLF}${CRLF}${wert}${CRLF}`,
+      ),
+    );
+  }
+  teile.push(
+    Buffer.from(
+      `--${grenze}${CRLF}` +
+        `Content-Disposition: form-data; name="${datei.name}"; filename="${datei.dateiname}"${CRLF}` +
+        `Content-Type: application/octet-stream${CRLF}${CRLF}`,
+    ),
+    datei.inhalt,
+    Buffer.from(`${CRLF}--${grenze}--${CRLF}`),
+  );
+
+  const koerper = Buffer.concat(teile);
+  return {
+    koerper,
+    kopfzeilen: {
+      'content-type': `multipart/form-data; boundary=${grenze}`,
+      'content-length': String(koerper.length),
+    },
+  };
+}
 
 /**
  * Durchlauf durch die gesamte API gegen die Fake-Laufzeit: anlegen, steuern,
@@ -249,6 +305,129 @@ describe('API-Durchlauf', () => {
       const { existsSync } = await import('node:fs');
       return existsSync(join(weltVerzeichnis, 'level.dat'));
     });
+  });
+
+  describe('Welt', () => {
+    const weltVerzeichnis = () => join(dataDir, 'instances', instanceId, 'data', 'welt');
+
+    it('meldet Weltname, Größe und fehlende Teile', async () => {
+      mkdirSync(weltVerzeichnis(), { recursive: true });
+      writeFileSync(join(weltVerzeichnis(), 'level.dat'), 'weltdaten');
+
+      const antwort = await app.server.inject({
+        method: 'GET',
+        url: `/api/instances/${instanceId}/welt`,
+        headers: kopf(false),
+      });
+      expect(antwort.statusCode).toBe(200);
+
+      const welt = antwort.json<{ welt: WeltInfo }>().welt;
+      expect(welt.name).toBe('welt');
+      expect(welt.nameField).toBe('levelName');
+      expect(welt.sizeBytes).toBeGreaterThan(0);
+      expect(welt.roh).toBe(false);
+      // Fehlende Dimensionen werden gezeigt, nicht verschwiegen.
+      expect(welt.teile.map((t) => [t.name, t.present])).toEqual([
+        ['welt', true],
+        ['welt_nether', false],
+        ['welt_the_end', false],
+      ]);
+    });
+
+    it('liefert die Welt als ZIP mit lesbarem Dateinamen', async () => {
+      const antwort = await app.server.inject({
+        method: 'GET',
+        url: `/api/instances/${instanceId}/welt/download`,
+        headers: kopf(false),
+      });
+      expect(antwort.statusCode).toBe(200);
+      expect(antwort.headers['content-type']).toBe('application/zip');
+      // Beide Formen nach RFC 6266 — der ASCII-Notnagel und der echte Name.
+      expect(String(antwort.headers['content-disposition'])).toMatch(
+        /attachment; filename="nordheim-welt-.*\.zip"; filename\*=UTF-8''/,
+      );
+      // Ein ZIP beginnt mit der lokalen Dateikopf-Signatur.
+      expect(antwort.rawPayload.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+    });
+
+    it('verweigert den Austausch, solange die Instanz läuft', async () => {
+      const form = await weltFormular();
+      const antwort = await app.server.inject({
+        method: 'POST',
+        url: `/api/instances/${instanceId}/welt`,
+        headers: { ...kopf(), ...form.kopfzeilen },
+        payload: form.koerper,
+      });
+      expect(antwort.statusCode).toBe(409);
+      expect(antwort.json<{ error: string }>().error).toMatch(/gestoppt/);
+    });
+
+    it('tauscht die Welt bei gestoppter Instanz aus und sichert vorher', async () => {
+      await app.server.inject({
+        method: 'POST',
+        url: `/api/instances/${instanceId}/stop`,
+        headers: kopf(),
+      });
+
+      const vorher = await backupAnzahl();
+      const form = await weltFormular();
+      const antwort = await app.server.inject({
+        method: 'POST',
+        url: `/api/instances/${instanceId}/welt`,
+        headers: { ...kopf(), ...form.kopfzeilen },
+        payload: form.koerper,
+      });
+      expect(antwort.statusCode).toBe(200);
+
+      await warteAuf(async () => {
+        const job = await app.server.inject({
+          method: 'GET',
+          url: `/api/jobs/${antwort.json<{ job: { id: string } }>().job.id}`,
+          headers: kopf(false),
+        });
+        return job.json<{ status: string }>().status !== 'running';
+      });
+
+      expect(readFileSync(join(weltVerzeichnis(), 'level.dat'), 'utf8')).toBe('ersetzt');
+      // Die Sicherung vor dem Überschreiben ist die einzige Umkehr.
+      expect(await backupAnzahl()).toBeGreaterThan(vorher);
+
+      await app.server.inject({
+        method: 'POST',
+        url: `/api/instances/${instanceId}/start`,
+        headers: kopf(),
+      });
+    });
+
+    it('lehnt eine Datei mit unpassender Endung ab', async () => {
+      const form = await weltFormular('welt.exe');
+      const antwort = await app.server.inject({
+        method: 'POST',
+        url: `/api/instances/${instanceId}/welt`,
+        headers: { ...kopf(), ...form.kopfzeilen },
+        payload: form.koerper,
+      });
+      expect(antwort.statusCode).toBe(400);
+      expect(antwort.json<{ error: string }>().error).toMatch(/zulässig/);
+    });
+
+    /*
+     * Ein ZIP, dessen Weltordner absichtlich anders heißt als der der Instanz —
+     * so belegt der Test zugleich, dass umbenannt wird.
+     */
+    async function weltFormular(dateiname = 'fremde-welt.zip') {
+      const inhalt = await zipPuffer({ 'neue-welt/level.dat': 'ersetzt' });
+      return multipart({ sicherung: 'true' }, { name: 'file', dateiname, inhalt });
+    }
+
+    async function backupAnzahl(): Promise<number> {
+      const liste = await app.server.inject({
+        method: 'GET',
+        url: `/api/instances/${instanceId}/backups`,
+        headers: kopf(false),
+      });
+      return liste.json<{ backups: unknown[] }>().backups.length;
+    }
   });
 
   it('speichert geänderte Einstellungen und erzeugt den Container neu', async () => {

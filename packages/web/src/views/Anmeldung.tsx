@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api, setCsrfToken } from '../api/client.js';
-import type { SessionInfo } from '@gsp/shared';
+import { PANEL_VERSION, type SessionInfo } from '@gsp/shared';
 
 /**
  * Anmeldung und Ersteinrichtung teilen sich eine Maske. Existiert noch kein
@@ -43,6 +43,9 @@ export function Anmeldung({
             GS
           </span>
           <h1 className="kopfzeile__titel">Server Control</h1>
+          {/* Auch hier: Wer sich nicht anmelden kann, soll trotzdem sagen
+              können, welche Fassung vor ihm steht. */}
+          <span className="kopfzeile__version">{PANEL_VERSION}</span>
         </div>
 
         <p className="kachel__label">

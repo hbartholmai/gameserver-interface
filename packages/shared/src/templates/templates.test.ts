@@ -61,6 +61,71 @@ describe('Vorlagen', () => {
     }
   });
 
+  it('benennt die Weltdaten innerhalb eines Volumes und innerhalb der Backup-Pfade', () => {
+    for (const template of listTemplates()) {
+      const world = template.world;
+      if (!world) continue;
+      const imVolume = template.volumes.some((v) => world.parent.startsWith(v.containerPath));
+      expect(imVolume, `${template.id}: ${world.parent} liegt in keinem Volume`).toBe(true);
+
+      // Sonst wäre die Sicherung vor dem Austausch wertlos.
+      const pfad =
+        world.name.kind === 'const' ? `${world.parent}/${world.name.value}` : world.parent;
+      const gesichert = template.backup.paths.some((p) => pfad === p || pfad.startsWith(`${p}/`));
+      expect(gesichert, `${template.id}: ${pfad} wird von keinem Backup-Pfad abgedeckt`).toBe(true);
+
+      expect(world.parts[0]?.required, `${template.id}: erster Teil nicht erforderlich`).toBe(true);
+    }
+  });
+
+  it('nennt zu jedem Weltnamensfeld ein Feld, das es gibt', () => {
+    for (const template of listTemplates()) {
+      const name = template.world?.name;
+      if (name?.kind !== 'field') continue;
+      const feld = template.fields.some((f) => f.id === name.field);
+      expect(feld, `${template.id}: Feld ${name.field} fehlt`).toBe(true);
+    }
+  });
+
+  /*
+   * Ausdrücklich aufgezählt, damit eine neue Vorlage hier auffällt statt
+   * stillschweigend ohne Welt-Reiter zu erscheinen.
+   *
+   * Die Liste ist keine Endgültigkeit: bei diesen Spielen liegt die Welt in
+   * einem Verzeichnis, das auch Serverkonfiguration und Spielerprofile enthält
+   * (ARK, Zomboid, Palworld, Satisfactory, Rust, V Rising, 7 Days to Die, DST,
+   * Core Keeper, Barotrauma), oder es gibt gar keine Welt (CS2, TF2, Garry's
+   * Mod, die nur cfg-Verzeichnisse sichern). Ein Welt-Reiter über einer
+   * Serverkonfiguration verspräche etwas Falsches. Wer den Pfad an einem
+   * laufenden Server belegt, trägt hier einen Block nach und streicht die Zeile.
+   */
+  it('führt die Vorlagen ohne Weltangabe namentlich', () => {
+    const ohne = listTemplates()
+      .filter((t) => t.world === undefined)
+      .map((t) => t.id)
+      .sort();
+    expect(ohne).toEqual([
+      '7daystodie',
+      'ark',
+      'barotrauma',
+      'corekeeper',
+      'cs2',
+      'dst',
+      'garrysmod',
+      'palworld',
+      'rust',
+      'satisfactory',
+      'tf2',
+      'vrising',
+      'zomboid',
+    ]);
+  });
+
+  it('trägt die Weltangabe in den Descriptor', () => {
+    expect(toDescriptor(getTemplate('minecraft')).world?.parent).toBe('/data');
+    expect(toDescriptor(getTemplate('cs2')).world).toBeUndefined();
+  });
+
   it('entfernt beim Descriptor die nicht serialisierbaren Teile', () => {
     const descriptor = toDescriptor(getTemplate('minecraft'));
     expect(JSON.stringify(descriptor)).toContain('minecraft');

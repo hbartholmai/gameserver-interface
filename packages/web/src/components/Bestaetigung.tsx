@@ -14,6 +14,16 @@ export type Frage = {
   gefahr?: boolean;
   /** Muss wörtlich eingegeben werden, bevor der Knopf freigibt. */
   tippen?: string;
+  /**
+   * Eine abwählbare Vorgabe, die zur Frage gehört — „Vorher sichern“ etwa.
+   * Den Zustand hält der Aufrufer, damit der Dialog zustandslos bleibt.
+   */
+  schalter?: {
+    label: string;
+    hilfe?: string;
+    wert: boolean;
+    onAendern: (wert: boolean) => void;
+  };
   onJa: () => void;
 };
 
@@ -88,6 +98,28 @@ function Dialog({
 
         <div className="dialog__koerper bestaetigung">
           <p className="bestaetigung__text">{frage.text}</p>
+
+          {/* Dieselbe Machart wie im Vorlageneditor: ein ja/nein-Knopf statt
+              einer Checkbox. Die native Checkbox wäre das einzige Element der
+              Oberfläche, das die Farben des Browsers statt der eigenen trägt. */}
+          {frage.schalter && (
+            <div className="feld">
+              <label className="feld__label">{frage.schalter.label}</label>
+              <div className="feld__eingabe">
+                <div className="feld__schalter">
+                  <button
+                    type="button"
+                    className={`knopf knopf--klein${frage.schalter.wert ? ' chip--aktiv' : ''}`}
+                    aria-pressed={frage.schalter.wert}
+                    onClick={() => frage.schalter?.onAendern(!frage.schalter.wert)}
+                  >
+                    {frage.schalter.wert ? 'ja' : 'nein'}
+                  </button>
+                </div>
+                {frage.schalter.hilfe && <span className="feld__hilfe">{frage.schalter.hilfe}</span>}
+              </div>
+            </div>
+          )}
 
           {frage.tippen !== undefined && (
             <div className="feld">

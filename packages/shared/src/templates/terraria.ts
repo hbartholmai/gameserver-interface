@@ -149,6 +149,26 @@ export const terrariaDefinition: TemplateDefinition = {
   modsPath: '/plugins',
   modExtensions: ['.dll'],
 
+  /*
+   * `bootstrap.sh` bildet den Pfad als `Worlds/$WORLD_FILENAME` — ohne Endung.
+   * Auf der Platte heißt die Datei also `welt`, während der Benutzer eine
+   * `.wld` in der Hand hält; `accept` schließt die Lücke in beide Richtungen.
+   *
+   * Die `.twld` daneben gehört TShock: Regionen und Rechte. Sie reist mit,
+   * kostet aber die rohe Einzeldatei — sobald sie existiert, wird der Download
+   * ein ZIP.
+   */
+  world: {
+    parent: '/root/.local/share/Terraria/Worlds',
+    name: { kind: 'field', field: 'worldName' },
+    parts: [
+      { suffix: '', type: 'file', required: true },
+      { suffix: '.twld', type: 'file', required: false },
+    ],
+    markers: [],
+    accept: ['.wld'],
+  },
+
   backup: {
     paths: ['/root/.local/share/Terraria/Worlds'],
     preCommands: [],
