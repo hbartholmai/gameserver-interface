@@ -84,6 +84,29 @@ Worauf zu achten ist:
   Liste stehen.
 - **Backup-Pfade** — nur Pfade innerhalb der deklarierten Volumes; der Server
   lehnt anderes ab. Vorbefehle nur mit RCON.
+- **Weltdaten** — benennen, wo *allein die Welt* liegt, getrennt von der
+  Konfiguration. Daran hängt der Reiter „Welt“ mit Herunterladen und Austausch;
+  ohne die Angabe entfällt er. Der Pfad muss in einem Volume liegen **und** von
+  den Backup-Pfaden abgedeckt sein — sonst wäre die Sicherung, die der Austausch
+  vorher anlegt, wertlos.
+
+  Die Angabe besteht aus dem Elternverzeichnis, dem Weltnamen (fest oder aus
+  einem Formularfeld) und den **Teilen**. Der erste Teil ist die Welt selbst.
+  Drei Gestalten kommen vor:
+
+  | | Teile | Beispiel |
+  | --- | --- | --- |
+  | Verzeichnis | ein Teil ohne Endung | Enshrouded `savegame` |
+  | Geschwister | mehrere Verzeichnisse mit gemeinsamem Stamm | Minecraft `welt`, `welt_nether`, `welt_the_end` |
+  | Dateigruppe | mehrere Dateien mit gemeinsamem Stamm | Valheim `.fwl` + `.db` |
+
+  `erforderlich` heißt „muss beim Einspielen im Archiv stehen“ — Valheims `.db`
+  ja, Minecrafts `_nether` nein. **Marker** (`level.dat`) helfen, eine Welt in
+  einem fremden Archiv wiederzufinden, das sie tiefer verschachtelt hat.
+  **Angenommene Endungen** erlauben zusätzlich eine rohe Einzeldatei statt eines
+  ZIP; steht dort `.zip`, wird eine hochgeladene `.zip` *nie* entpackt, sondern
+  als die Welt selbst genommen — genau der Fall Factorio, dessen Spielstand
+  selbst ein ZIP ist.
 
 ## 3. Die Musterprobe benutzen
 

@@ -14,6 +14,16 @@ export type Frage = {
   gefahr?: boolean;
   /** Muss wörtlich eingegeben werden, bevor der Knopf freigibt. */
   tippen?: string;
+  /**
+   * Eine abwählbare Vorgabe, die zur Frage gehört — „Vorher sichern“ etwa.
+   * Den Zustand hält der Aufrufer, damit der Dialog zustandslos bleibt.
+   */
+  schalter?: {
+    label: string;
+    hilfe?: string;
+    wert: boolean;
+    onAendern: (wert: boolean) => void;
+  };
   onJa: () => void;
 };
 
@@ -88,6 +98,18 @@ function Dialog({
 
         <div className="dialog__koerper bestaetigung">
           <p className="bestaetigung__text">{frage.text}</p>
+
+          {frage.schalter && (
+            <label className="feld__schalter">
+              <input
+                type="checkbox"
+                checked={frage.schalter.wert}
+                onChange={(event) => frage.schalter?.onAendern(event.target.checked)}
+              />
+              <span>{frage.schalter.label}</span>
+            </label>
+          )}
+          {frage.schalter?.hilfe && <p className="feld__hilfe">{frage.schalter.hilfe}</p>}
 
           {frage.tippen !== undefined && (
             <div className="feld">

@@ -323,6 +323,14 @@
   cursor: pointer;
   border-radius: 0;
 }
+/* Der Welt-Download ist ein Link, kein Knopf: der Browser soll die Datei
+   selbst streamen. Damit er trotzdem wie einer aussieht, fehlen ihm nur
+   Blockdarstellung und die Unterstreichung. */
+a.knopf {
+  display: inline-block;
+  text-decoration: none;
+  line-height: 1.4;
+}
 .knopf:disabled {
   cursor: not-allowed;
   opacity: 0.5;

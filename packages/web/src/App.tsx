@@ -3,6 +3,7 @@ import {
   LOG_BUFFER_LENGTH,
   TOPIC,
   clockHms,
+  formatBytes,
   type Backup,
   type HostStatus,
   type Instance,
@@ -11,6 +12,7 @@ import {
   type Mod,
   type SessionInfo,
   type TemplateDescriptor,
+  type WeltInfo,
 } from '@gsp/shared';
 import { api, ApiError, setCsrfToken } from './api/client.js';
 import { LiveConnection } from './api/ws.js';
@@ -23,6 +25,7 @@ import { Uebersicht } from './tabs/Uebersicht.js';
 import { Konsole } from './tabs/Konsole.js';
 import { Spieler } from './tabs/Spieler.js';
 import { Backups } from './tabs/Backups.js';
+import { Welt } from './tabs/Welt.js';
 import { Mods } from './tabs/Mods.js';
 import { Config } from './tabs/Config.js';
 import { Anmeldung } from './views/Anmeldung.js';
@@ -66,6 +69,9 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [backups, setBackups] = useState<Backup[]>([]);
   const [mods, setMods] = useState<Mod[]>([]);
+  const [welt, setWelt] = useState<WeltInfo | null>(null);
+  // Vorgabe des Sicherungsschalters im Austauschdialog.
+  const [weltSicherung, setWeltSicherung] = useState(true);
   const [dialogOffen, setDialogOffen] = useState(false);
   // Letzter Job je Instanz. Er bleibt nach dem Ende stehen, damit die
   // Aufbauansicht den Übergang „Job fertig → Server fährt hoch“ erkennt.
@@ -171,6 +177,9 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
     if (!instanz) return;
     if (tab === 'backups') void api.backups(instanz.id).then((a) => setBackups(a.backups)).catch(() => undefined);
     if (tab === 'mods') void api.mods(instanz.id).then((a) => setMods(a.mods)).catch(() => undefined);
+    if (tab === 'welt') {
+      void api.welt(instanz.id).then((a) => setWelt(a.welt)).catch(() => setWelt(null));
+    }
   }, [tab, instanz?.id]);
 
   /** Führt eine Aktion aus, zeigt Fehler an und lädt die Instanzen neu. */
@@ -193,7 +202,7 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
 
   const { frage, dialog: bestaetigung } = useBestaetigung();
 
-  const tabs = instanz ? sichtbareTabs(instanz.capabilities) : [];
+  const tabs = instanz ? sichtbareTabs(instanz.capabilities, vorlage?.world !== undefined) : [];
   // Wechselt die Instanz auf eine Vorlage ohne Mods, muss der Reiter zurück.
   useEffect(() => {
     if (instanz && !tabs.some((t) => t.id === tab)) setTab('overview');
@@ -330,6 +339,36 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
                   onKick={(name) => void aktion(() => api.kick(instanz.id, name))}
                   onBann={(name) => void aktion(() => api.ban(instanz.id, name))}
                   onAufheben={(name) => void aktion(() => api.unban(instanz.id, name))}
+                />
+              )}
+
+              {tab === 'welt' && (
+                <Welt
+                  instanz={instanz}
+                  welt={welt}
+                  beschaeftigt={beschaeftigt}
+                  downloadUrl={api.weltDownloadUrl(instanz.id)}
+                  onDatei={(datei) =>
+                    frage({
+                      titel: 'Weltdaten ersetzen?',
+                      text: `Die Welt „${welt?.name ?? ''}“ von „${instanz.name}“ wird durch ${datei.name} (${formatBytes(datei.size)}) ersetzt. Der bisherige Stand ist danach nur noch über die Sicherung erreichbar.`,
+                      knopf: 'Ersetzen',
+                      gefahr: true,
+                      // Ein Fehlklick vernichtet hier den Spielstand von Monaten.
+                      tippen: 'ersetzen',
+                      schalter: {
+                        label: 'Vorher sichern',
+                        hilfe: 'Legt ein Backup an, aus dem sich die bisherige Welt zurückholen lässt.',
+                        wert: weltSicherung,
+                        onAendern: setWeltSicherung,
+                      },
+                      onJa: () =>
+                        void aktion(
+                          () => api.weltHochladen(instanz.id, datei, weltSicherung),
+                          () => api.welt(instanz.id).then((a) => setWelt(a.welt)),
+                        ),
+                    })
+                  }
                 />
               )}
 

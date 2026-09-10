@@ -1,22 +1,32 @@
 import type { Capabilities } from '@gsp/shared';
 
-export type TabId = 'overview' | 'console' | 'players' | 'backups' | 'mods' | 'settings';
+export type TabId = 'overview' | 'console' | 'players' | 'welt' | 'backups' | 'mods' | 'settings';
 
 const ALLE: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Übersicht' },
   { id: 'console', label: 'Konsole' },
   { id: 'players', label: 'Spieler' },
+  // Vor „Backups“: beide handeln von denselben Daten, und die Welt ist das
+  // Konkrete, das Backup die Ableitung davon.
+  { id: 'welt', label: 'Welt' },
   { id: 'backups', label: 'Backups' },
   { id: 'mods', label: 'Mods' },
   { id: 'settings', label: 'Config' },
 ];
 
 /**
- * Der Mod-Reiter entfällt bei Vorlagen ohne Mod-Unterstützung — ein leerer
- * Reiter wäre irreführend.
+ * Zwei Reiter entfallen, weil sie sonst etwas Falsches versprächen: Mods bei
+ * Vorlagen ohne Mod-Unterstützung, Welt bei Vorlagen ohne Weltdaten — CS2, TF2
+ * und Garry's Mod sichern nur cfg-Verzeichnisse.
  */
-export function sichtbareTabs(capabilities: Capabilities): { id: TabId; label: string }[] {
-  return ALLE.filter((tab) => tab.id !== 'mods' || capabilities.mods !== 'none');
+export function sichtbareTabs(
+  capabilities: Capabilities,
+  hatWelt: boolean,
+): { id: TabId; label: string }[] {
+  return ALLE.filter(
+    (tab) =>
+      (tab.id !== 'mods' || capabilities.mods !== 'none') && (tab.id !== 'welt' || hatWelt),
+  );
 }
 
 export function Reiterleiste({
