@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileTemplate } from './compile.js';
-import { WorldNameError, erforderlichBeimImport, worldTarget } from './world.js';
+import { WorldNameError, requiredOnImport, worldTarget } from './world.js';
 import { minecraftDefinition } from './minecraft.js';
 import type { TemplateDefinition } from '../schema/template-definition.js';
 
@@ -15,7 +15,7 @@ import type { TemplateDefinition } from '../schema/template-definition.js';
  * entfernt den Block — Minecraft bringt inzwischen einen mit, ein Spread mit
  * leerem Objekt ließe ihn also stehen.
  */
-function mitWelt(world: TemplateDefinition['world']): ReturnType<typeof compileTemplate> {
+function withWorld(world: TemplateDefinition['world']): ReturnType<typeof compileTemplate> {
   const definition = { ...minecraftDefinition } as TemplateDefinition;
   if (world) definition.world = world;
   else delete definition.world;
@@ -24,9 +24,9 @@ function mitWelt(world: TemplateDefinition['world']): ReturnType<typeof compileT
 
 describe('worldTarget', () => {
   it('löst den Stamm aus einem Formularfeld auf', () => {
-    const ziel = worldTarget(mitWelt(minecraftDefinition.world), { levelName: 'nordheim' });
-    expect(ziel?.base).toBe('nordheim');
-    expect(ziel?.parts.map((p) => p.containerPath)).toEqual([
+    const target = worldTarget(withWorld(minecraftDefinition.world), { levelName: 'nordheim' });
+    expect(target?.base).toBe('nordheim');
+    expect(target?.parts.map((p) => p.containerPath)).toEqual([
       '/data/nordheim',
       '/data/nordheim_nether',
       '/data/nordheim_the_end',
@@ -34,8 +34,8 @@ describe('worldTarget', () => {
   });
 
   it('löst einen festen Stamm ohne Formularfeld auf', () => {
-    const ziel = worldTarget(
-      mitWelt({
+    const target = worldTarget(
+      withWorld({
         parent: '/opt/enshrouded',
         name: { kind: 'const', value: 'savegame' },
         parts: [{ suffix: '', type: 'dir', required: true }],
@@ -44,11 +44,11 @@ describe('worldTarget', () => {
       }),
       {},
     );
-    expect(ziel?.haupt.containerPath).toBe('/opt/enshrouded/savegame');
+    expect(target?.main.containerPath).toBe('/opt/enshrouded/savegame');
   });
 
   it('gibt null zurück, wenn die Vorlage keine Welt benennt', () => {
-    expect(worldTarget(mitWelt(undefined), { levelName: 'welt' })).toBeNull();
+    expect(worldTarget(withWorld(undefined), { levelName: 'welt' })).toBeNull();
   });
 
   /*
@@ -66,27 +66,27 @@ describe('worldTarget', () => {
     ['   ', 'nur Leerraum'],
     ['x'.repeat(129), 'zu lang'],
   ])('lehnt „%s“ als Weltnamen ab (%s)', (name) => {
-    expect(() => worldTarget(mitWelt(minecraftDefinition.world), { levelName: name })).toThrow(WorldNameError);
+    expect(() => worldTarget(withWorld(minecraftDefinition.world), { levelName: name })).toThrow(WorldNameError);
   });
 
   it('lehnt einen Weltnamen mit Steuerzeichen ab', () => {
     expect(() =>
-      worldTarget(mitWelt(minecraftDefinition.world), { levelName: `welt${String.fromCharCode(9)}` }),
+      worldTarget(withWorld(minecraftDefinition.world), { levelName: `welt${String.fromCharCode(9)}` }),
     ).not.toThrow(); // Tabulator wird von trim() entfernt
     expect(() =>
-      worldTarget(mitWelt(minecraftDefinition.world), { levelName: `wel${String.fromCharCode(0)}t` }),
+      worldTarget(withWorld(minecraftDefinition.world), { levelName: `wel${String.fromCharCode(0)}t` }),
     ).toThrow(WorldNameError);
   });
 
   it('meldet ein fehlendes Namensfeld statt still zu raten', () => {
-    expect(() => worldTarget(mitWelt(minecraftDefinition.world), {})).toThrow(WorldNameError);
+    expect(() => worldTarget(withWorld(minecraftDefinition.world), {})).toThrow(WorldNameError);
   });
 });
 
 describe('erforderlichBeimImport', () => {
   it('verlangt bei Minecraft nur die Welt selbst, nicht die Dimensionen', () => {
-    const ziel = worldTarget(mitWelt(minecraftDefinition.world), { levelName: 'welt' })!;
-    expect(erforderlichBeimImport(ziel).map((p) => p.fileName)).toEqual(['welt']);
+    const target = worldTarget(withWorld(minecraftDefinition.world), { levelName: 'welt' })!;
+    expect(requiredOnImport(target).map((p) => p.fileName)).toEqual(['welt']);
   });
 
   /*
@@ -95,8 +95,8 @@ describe('erforderlichBeimImport', () => {
    * dagegen nicht.
    */
   it('verlangt bei Valheim beide Weltdateien, aber keine .old-Kopie', () => {
-    const ziel = worldTarget(
-      mitWelt({
+    const target = worldTarget(
+      withWorld({
         parent: '/config/worlds_local',
         name: { kind: 'field', field: 'worldName' },
         parts: [
@@ -110,6 +110,6 @@ describe('erforderlichBeimImport', () => {
       }),
       { worldName: 'Midgard' },
     )!;
-    expect(erforderlichBeimImport(ziel).map((p) => p.fileName)).toEqual(['Midgard.fwl', 'Midgard.db']);
+    expect(requiredOnImport(target).map((p) => p.fileName)).toEqual(['Midgard.fwl', 'Midgard.db']);
   });
 });

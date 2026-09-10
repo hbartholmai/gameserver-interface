@@ -37,15 +37,15 @@ export interface WeltTeilInfo {
   present: boolean;
 }
 
-export interface WeltInfo {
+export interface WorldInfo {
   name: string;
   /** Feld, aus dem der Name stammt — für den Hinweis „steht im Config-Reiter“. */
   nameField: string | null;
-  teile: WeltTeilInfo[];
+  parts: WeltTeilInfo[];
   sizeBytes: number;
   modifiedAt: string | null;
   /** Der Download liefert eine rohe Datei statt eines ZIP. */
-  roh: boolean;
+  raw: boolean;
   /** Name, den der Download tragen wird — die Oberfläche nennt ihn vorab. */
   downloadName: string;
   /** Was der Dateidialog annehmen soll. */
@@ -93,7 +93,7 @@ export class WeltService {
   }
 
   /** Auskunft für den Welt-Reiter. `null`, wenn die Vorlage keine Welt benennt. */
-  async info(instance: InstanceRecord): Promise<WeltInfo | null> {
+  async info(instance: InstanceRecord): Promise<WorldInfo | null> {
     const ziel = this.ziel(instance);
     if (!ziel) return null;
 
@@ -127,10 +127,10 @@ export class WeltService {
     return {
       name: ziel.base,
       nameField: quelle?.kind === 'field' ? quelle.field : null,
-      teile,
+      parts: teile,
       sizeBytes: gesamt,
       modifiedAt: neuestes === null ? null : new Date(neuestes).toISOString(),
-      roh,
+      raw: roh,
       downloadName: this.downloadName(instance, ziel, roh),
       accept: [...new Set([...ziel.accept, '.zip'])],
       maxUploadBytes: this.config.worldUploadMaxBytes,
@@ -146,8 +146,8 @@ export class WeltService {
    * Upload roh wieder an.
    */
   istRoh(ziel: WorldTarget, vorhandeneNamen: string[]): boolean {
-    if (ziel.haupt.type !== 'file') return false;
-    return vorhandeneNamen.length === 1 && vorhandeneNamen[0] === ziel.haupt.fileName;
+    if (ziel.main.type !== 'file') return false;
+    return vorhandeneNamen.length === 1 && vorhandeneNamen[0] === ziel.main.fileName;
   }
 
   /** Dateiname des Downloads. */
@@ -155,8 +155,8 @@ export class WeltService {
     if (!roh) return `${slug(instance.name)}-${slug(ziel.base)}-${backupStamp()}.zip`;
     // Terrarias Datei heißt auf der Platte `welt` — ohne Endung nützt sie
     // niemandem, deshalb hängt `accept[0]` sie an.
-    const endung = extname(ziel.haupt.fileName);
-    return endung === '' && ziel.accept[0] ? `${ziel.haupt.fileName}${ziel.accept[0]}` : ziel.haupt.fileName;
+    const endung = extname(ziel.main.fileName);
+    return endung === '' && ziel.accept[0] ? `${ziel.main.fileName}${ziel.accept[0]}` : ziel.main.fileName;
   }
 
   /** Die Teile, die tatsächlich auf der Platte liegen. */
@@ -242,12 +242,12 @@ export class WeltService {
 
       if (this.istRoheWeltdatei(ziel, quelle.endung)) {
         // Rohe Einzeldatei: sie *ist* die Welt und wird nur umbenannt.
-        if (ziel.haupt.type !== 'file') {
+        if (ziel.main.type !== 'file') {
           throw new WeltError('Für dieses Spiel wird ein ZIP erwartet, keine einzelne Datei');
         }
-        const nach = join(zwischen, ziel.haupt.fileName);
+        const nach = join(zwischen, ziel.main.fileName);
         await pipeline(createReadStream(quelle.pfad), createWriteStream(nach));
-        neueTeile = [ziel.haupt.fileName];
+        neueTeile = [ziel.main.fileName];
       } else {
         const eintraege = await liesEintraege(quelle.pfad);
         const zuordnungen = ordneArchivZu(eintraege, ziel);

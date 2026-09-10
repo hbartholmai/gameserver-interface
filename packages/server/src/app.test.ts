@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import yazl from 'yazl';
-import type { WeltInfo } from '@gsp/shared';
+import type { WorldInfo } from '@gsp/shared';
 import { buildApp, type App } from './app.js';
 import { loadConfig } from './config.js';
 import { FakeRuntime } from './runtime/fake.js';
@@ -321,13 +321,13 @@ describe('API-Durchlauf', () => {
       });
       expect(antwort.statusCode).toBe(200);
 
-      const welt = antwort.json<{ welt: WeltInfo }>().welt;
+      const welt = antwort.json<{ welt: WorldInfo }>().welt;
       expect(welt.name).toBe('welt');
       expect(welt.nameField).toBe('levelName');
       expect(welt.sizeBytes).toBeGreaterThan(0);
-      expect(welt.roh).toBe(false);
+      expect(welt.raw).toBe(false);
       // Fehlende Dimensionen werden gezeigt, nicht verschwiegen.
-      expect(welt.teile.map((t) => [t.name, t.present])).toEqual([
+      expect(welt.parts.map((t) => [t.name, t.present])).toEqual([
         ['welt', true],
         ['welt_nether', false],
         ['welt_the_end', false],

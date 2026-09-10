@@ -14,7 +14,7 @@ import {
   toDescriptor,
   updateSettingsRequestSchema,
   formatBytes,
-  weltUploadOptionsSchema,
+  worldUploadOptionsSchema,
 } from '@gsp/shared';
 import { getAdapter, UnsupportedError } from '../games/index.js';
 import type { Store } from '../db/store.js';
@@ -371,15 +371,15 @@ export async function instanceRoutes(app: FastifyInstance, deps: Deps): Promise<
        * `z.coerce.boolean()` wäre hier eine Falle: `Boolean('false')` ist
        * `true`, und die Sicherung ließe sich nie abwählen.
        */
-      const gewaehlt = feldWert(feld.fields, 'sicherung');
-      const optionen = weltUploadOptionsSchema.safeParse({ sicherung: gewaehlt });
+      const gewaehlt = feldWert(feld.fields, 'backup');
+      const optionen = worldUploadOptionsSchema.safeParse({ backup: gewaehlt });
       if (!optionen.success) {
         await rm(quelle.pfad, { force: true });
         return reply.code(400).send({ error: 'Ungültige Eingabe' });
       }
 
       try {
-        return { job: await instances.replaceWorld(instance.id, quelle, optionen.data.sicherung) };
+        return { job: await instances.replaceWorld(instance.id, quelle, optionen.data.backup) };
       } catch (err) {
         await rm(quelle.pfad, { force: true });
         // Eine laufende Instanz ist kein Eingabefehler, sondern ein Konflikt.

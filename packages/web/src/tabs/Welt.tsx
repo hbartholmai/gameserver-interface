@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { formatBytes, formatTimestamp, type Instance, type WeltInfo } from '@gsp/shared';
+import { formatBytes, formatTimestamp, type Instance, type WorldInfo } from '@gsp/shared';
 import { Leerzustand, SektionsLabel } from '../components/basis.js';
 
 /**
@@ -18,7 +18,7 @@ export function Welt({
   onDatei,
 }: {
   instanz: Instance;
-  welt: WeltInfo | null;
+  welt: WorldInfo | null;
   beschaeftigt: boolean;
   downloadUrl: string;
   onDatei: (datei: File) => void;
@@ -27,7 +27,7 @@ export function Welt({
 
   if (!welt) return <Leerzustand text="Weltdaten werden geladen" />;
 
-  const vorhanden = welt.teile.filter((t) => t.present);
+  const vorhanden = welt.parts.filter((t) => t.present);
   const laeuft = instanz.status !== 'Offline';
 
   return (
@@ -100,11 +100,11 @@ export function Welt({
       <section style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-4)' }}>
         <SektionsLabel
           text="Bestandteile"
-          rechts={welt.roh ? 'Download als einzelne Datei' : 'Download als ZIP'}
+          rechts={welt.raw ? 'Download als einzelne Datei' : 'Download als ZIP'}
         />
         <div className="zeilen">
-          {welt.teile.length === 0 && <Leerzustand text="noch keine Weltdaten" />}
-          {welt.teile.map((teil) => (
+          {welt.parts.length === 0 && <Leerzustand text="noch keine Weltdaten" />}
+          {welt.parts.map((teil) => (
             <div className="zeile" key={teil.name}>
               <span className="zeile__datei">{teil.name}</span>
               <span className="zeile__meta">{teil.type === 'dir' ? 'Verzeichnis' : 'Datei'}</span>

@@ -59,9 +59,9 @@ function buildEnv(
 ): Record<string, string> {
   const env: Record<string, string> = {};
   for (const mapping of mappings) {
-    const wert = resolveEnv(mapping, values, ctx);
-    if (wert === null) continue;
-    env[mapping.name] = wert;
+    const value = resolveEnv(mapping, values, ctx);
+    if (value === null) continue;
+    env[mapping.name] = value;
   }
   return env;
 }
@@ -72,33 +72,33 @@ function resolveEnv(
   values: FieldValues,
   ctx: TemplateContext,
 ): string | null {
-  let roh: string | number | boolean | undefined;
+  let raw: string | number | boolean | undefined;
 
   switch (mapping.source.kind) {
     case 'const':
-      roh = mapping.source.value;
+      raw = mapping.source.value;
       break;
     case 'field':
-      roh = values[mapping.source.field];
+      raw = values[mapping.source.field];
       break;
     case 'port':
-      roh = ctx.hostPorts[mapping.source.port];
+      raw = ctx.hostPorts[mapping.source.port];
       break;
     case 'rconPassword':
-      roh = ctx.rconPassword;
+      raw = ctx.rconPassword;
       break;
     case 'timezone':
-      roh = ctx.timezone;
+      raw = ctx.timezone;
       break;
   }
 
   // Booleans übersetzen die Images sehr unterschiedlich (`TRUE`, `true`,
   // `-crossplay`), deshalb ist die Abbildung Teil der Definition.
-  if (typeof roh === 'boolean' && mapping.boolean) {
-    return roh ? mapping.boolean.whenTrue : mapping.boolean.whenFalse;
+  if (typeof raw === 'boolean' && mapping.boolean) {
+    return raw ? mapping.boolean.whenTrue : mapping.boolean.whenFalse;
   }
 
-  let text = roh === undefined || roh === null ? mapping.fallback : String(roh);
+  let text = raw === undefined || raw === null ? mapping.fallback : String(raw);
   if (text === undefined) text = '';
   if (mapping.trim) text = text.trim();
 
@@ -119,7 +119,7 @@ function buildArgs(mappings: ArgMapping[], values: FieldValues, ctx: TemplateCon
       if (mapping.flag) args.push(mapping.flag);
       continue;
     }
-    const wert = resolveEnv(
+    const value = resolveEnv(
       {
         name: '',
         source: mapping.source,
@@ -131,9 +131,9 @@ function buildArgs(mappings: ArgMapping[], values: FieldValues, ctx: TemplateCon
       values,
       ctx,
     );
-    if (wert === null) continue;
+    if (value === null) continue;
     if (mapping.flag) args.push(mapping.flag);
-    args.push(wert);
+    args.push(value);
   }
   return args;
 }
@@ -147,20 +147,20 @@ function toRegExp(spec: PatternSpec): RegExp {
 function buildLogPatterns(def: TemplateDefinition): LogPatterns {
   const clean = def.logPatterns.clean;
   const cleanRe = clean ? toRegExp(clean.pattern) : null;
-  const cleanErsatz = clean?.replacement ?? '';
+  const cleanReplacement = clean?.replacement ?? '';
 
   const level = def.logPatterns.level;
-  const fehlerRe = level && level.error.length > 0 ? woerter(level.error) : null;
-  const warnRe = level && level.warn.length > 0 ? woerter(level.warn) : null;
+  const errorRe = level && level.error.length > 0 ? words(level.error) : null;
+  const warnRe = level && level.warn.length > 0 ? words(level.warn) : null;
 
   return {
     join: toRegExp(def.logPatterns.join),
     ...(def.logPatterns.leave ? { leave: toRegExp(def.logPatterns.leave) } : {}),
     ready: toRegExp(def.logPatterns.ready),
     level:
-      fehlerRe || warnRe
+      errorRe || warnRe
         ? (line: string): LogLevel => {
-            if (fehlerRe?.test(line)) return 'ERROR';
+            if (errorRe?.test(line)) return 'ERROR';
             if (warnRe?.test(line)) return 'WARN';
             return 'INFO';
           }
@@ -169,14 +169,14 @@ function buildLogPatterns(def: TemplateDefinition): LogPatterns {
       ? {
           // Das abschließende Beschneiden hatten alle ursprünglichen Vorlagen
           // gemeinsam; es steckt jetzt hier statt in jeder Vorlage einzeln.
-          clean: (line: string) => line.replace(cleanRe, cleanErsatz).trimEnd(),
+          clean: (line: string) => line.replace(cleanRe, cleanReplacement).trimEnd(),
         }
       : {}),
   };
 }
 
-function woerter(liste: string[]): RegExp {
-  const escaped = liste.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+function words(list: string[]): RegExp {
+  const escaped = list.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   return new RegExp(`\\b(${escaped.join('|')})\\b`, 'i');
 }
 
@@ -190,29 +190,29 @@ export function applyValidations(
   const errors: { field: string; message: string }[] = [];
 
   for (const rule of rules) {
-    const wert = String(values[rule.field] ?? '');
+    const value = String(values[rule.field] ?? '');
 
     switch (rule.rule) {
       case 'required':
-        if (wert === '') errors.push({ field: rule.field, message: rule.message });
+        if (value === '') errors.push({ field: rule.field, message: rule.message });
         break;
 
       case 'minLength':
-        if (rule.onlyWhenSet && wert === '') break;
-        if (wert.length < rule.value) errors.push({ field: rule.field, message: rule.message });
+        if (rule.onlyWhenSet && value === '') break;
+        if (value.length < rule.value) errors.push({ field: rule.field, message: rule.message });
         break;
 
       case 'pattern':
-        if (rule.onlyWhenSet && wert === '') break;
-        if (!toRegExp(rule.pattern).test(wert)) {
+        if (rule.onlyWhenSet && value === '') break;
+        if (!toRegExp(rule.pattern).test(value)) {
           errors.push({ field: rule.field, message: rule.message });
         }
         break;
 
       case 'notContainedIn': {
-        if (rule.onlyWhenSet && wert === '') break;
-        const treffer = rule.fields.some((feld) => String(values[feld] ?? '').includes(wert));
-        if (treffer) errors.push({ field: rule.field, message: rule.message });
+        if (rule.onlyWhenSet && value === '') break;
+        const hit = rule.fields.some((field) => String(values[field] ?? '').includes(value));
+        if (hit) errors.push({ field: rule.field, message: rule.message });
         break;
       }
     }

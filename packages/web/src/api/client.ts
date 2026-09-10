@@ -10,7 +10,7 @@ import type {
   SessionInfo,
   TemplateDefinition,
   TemplateDescriptor,
-  WeltInfo,
+  WorldInfo,
 } from '@gsp/shared';
 
 /** Eine Vorlage in der Verwaltungsansicht — mit Nutzungszahl und Herkunft. */
@@ -160,7 +160,7 @@ export const api = {
   deleteBackup: (id: string, backupId: string) =>
     request<{ ok: true }>(`/api/instances/${id}/backups/${backupId}`, { method: 'DELETE' }),
 
-  welt: (id: string) => request<{ welt: WeltInfo }>(`/api/instances/${id}/welt`),
+  welt: (id: string) => request<{ welt: WorldInfo }>(`/api/instances/${id}/welt`),
   /**
    * Nur die URL, kein `fetch`: `request()` liest jede Antwort als Text und
    * parst sie als JSON, und ein `response.blob()` legte die ganze Welt in den
@@ -173,7 +173,7 @@ export const api = {
     const form = new FormData();
     // Das Textfeld muss vor der Datei stehen — der Server liest es aus
     // `file.fields`, und die sind erst gefüllt, wenn sie vorher kamen.
-    form.append('sicherung', sicherung ? 'true' : 'false');
+    form.append('backup', sicherung ? 'true' : 'false');
     form.append('file', datei);
     return request<{ job: Job }>(`/api/instances/${id}/welt`, { method: 'POST', body: form });
   },

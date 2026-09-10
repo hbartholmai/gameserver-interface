@@ -85,8 +85,8 @@ afterEach(() => {
  * Host-Pfad innerhalb eines Volumes dieser Testinstanz. Der Volumename ist je
  * Vorlage verschieden — Minecraft nennt es `data`, Terraria `worlds`.
  */
-function welt(volume: string, ...teile: string[]): string {
-  return join(config.volumeDir, 'i1', volume, ...teile);
+function welt(volume: string, ...parts: string[]): string {
+  return join(config.volumeDir, 'i1', volume, ...parts);
 }
 
 describe('Auskunft', () => {
@@ -96,14 +96,14 @@ describe('Auskunft', () => {
 
     expect(info?.name).toBe('welt');
     expect(info?.nameField).toBe('levelName');
-    expect(info?.teile.map((t) => [t.name, t.present])).toEqual([
+    expect(info?.parts.map((t) => [t.name, t.present])).toEqual([
       ['welt', true],
       ['welt_nether', false],
       ['welt_the_end', false],
     ]);
     expect(info?.sizeBytes).toBe(100);
     // Ein Verzeichnis wird nie roh ausgeliefert.
-    expect(info?.roh).toBe(false);
+    expect(info?.raw).toBe(false);
     expect(info?.downloadName).toMatch(/^nordheim-welt-.*\.zip$/);
   });
 
@@ -118,7 +118,7 @@ describe('rohe Datei statt Archiv', () => {
     const dienst = new WeltService(config);
     const info = await dienst.info(instanz('terraria', { worldName: 'welt' }));
 
-    expect(info?.roh).toBe(true);
+    expect(info?.raw).toBe(true);
     // Auf der Platte heißt sie `welt` — dem Benutzer nützt erst `welt.wld`.
     expect(info?.downloadName).toBe('welt.wld');
   });
@@ -128,7 +128,7 @@ describe('rohe Datei statt Archiv', () => {
     datei(welt('worlds', 'welt.twld'), 'regionen');
     const info = await new WeltService(config).info(instanz('terraria', { worldName: 'welt' }));
 
-    expect(info?.roh).toBe(false);
+    expect(info?.raw).toBe(false);
     expect(info?.downloadName).toMatch(/\.zip$/);
   });
 
@@ -212,12 +212,12 @@ describe('Austausch', () => {
 
   it('spielt eine rohe Weltdatei unter dem Namen der Instanz ein', async () => {
     datei(welt('worlds', 'welt'), 'alt');
-    const roh = join(verzeichnis, 'Meine Welt.wld');
-    writeFileSync(roh, 'neu');
+    const raw = join(verzeichnis, 'Meine Welt.wld');
+    writeFileSync(raw, 'neu');
 
     await dienst().importieren(
       instanz('terraria', { worldName: 'welt' }),
-      { pfad: roh, endung: '.wld' },
+      { pfad: raw, endung: '.wld' },
       entpacke,
       (a) => liesEintraege(a, config.worldUploadMaxBytes),
       () => {},

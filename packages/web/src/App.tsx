@@ -12,7 +12,7 @@ import {
   type Mod,
   type SessionInfo,
   type TemplateDescriptor,
-  type WeltInfo,
+  type WorldInfo,
 } from '@gsp/shared';
 import { api, ApiError, setCsrfToken } from './api/client.js';
 import { LiveConnection } from './api/ws.js';
@@ -69,7 +69,7 @@ function Panel({ session, onAbmelden }: { session: SessionInfo; onAbmelden: () =
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [backups, setBackups] = useState<Backup[]>([]);
   const [mods, setMods] = useState<Mod[]>([]);
-  const [welt, setWelt] = useState<WeltInfo | null>(null);
+  const [welt, setWelt] = useState<WorldInfo | null>(null);
   // Vorgabe des Sicherungsschalters im Austauschdialog.
   const [weltSicherung, setWeltSicherung] = useState(true);
   const [dialogOffen, setDialogOffen] = useState(false);

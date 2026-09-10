@@ -138,7 +138,7 @@ function wurzelAbschneiden(namen: string[], ziel: WorldTarget): Zuordnung[] {
   const praefix = gemeinsamerPraefix(namen);
   if (praefix !== '') rest = rest.map((e) => ({ ...e, kurz: e.kurz.slice(praefix.length) }));
 
-  const haupt = ziel.haupt;
+  const main = ziel.main;
 
   /*
    * Marker: Nennt die Vorlage eine Datei, an der eine Welt erkennbar ist, und
@@ -164,7 +164,7 @@ function wurzelAbschneiden(namen: string[], ziel: WorldTarget): Zuordnung[] {
     }
   }
 
-  if (haupt.type === 'file') {
+  if (main.type === 'file') {
     // Eine Einzeldatei als Ziel: nach dem Abschneiden darf genau eine übrig sein.
     const dateien = rest.filter((e) => !e.kurz.endsWith('/'));
     if (dateien.length !== 1) {
@@ -175,7 +175,7 @@ function wurzelAbschneiden(namen: string[], ziel: WorldTarget): Zuordnung[] {
           : `Das Archiv enthält mehr als eine Datei (${beispiele}) — erwartet wird genau eine Welt`,
       );
     }
-    return [{ quelle: dateien[0]!.quelle, ziel: haupt.fileName }];
+    return [{ quelle: dateien[0]!.quelle, ziel: main.fileName }];
   }
 
   /*
@@ -192,7 +192,7 @@ function wurzelAbschneiden(namen: string[], ziel: WorldTarget): Zuordnung[] {
 
   return rest
     .filter((e) => e.kurz !== '')
-    .map((e) => ({ quelle: e.quelle, ziel: `${haupt.fileName}/${e.kurz}` }));
+    .map((e) => ({ quelle: e.quelle, ziel: `${main.fileName}/${e.kurz}` }));
 }
 
 /**

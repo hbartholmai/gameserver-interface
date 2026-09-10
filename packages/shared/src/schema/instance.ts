@@ -39,7 +39,7 @@ export const backupSchema = z.object({
 export type Backup = z.infer<typeof backupSchema>;
 
 /** Ein Teil der Welt, wie er auf der Platte vorgefunden wurde. */
-export const weltTeilSchema = z.object({
+export const worldPartInfoSchema = z.object({
   name: z.string(),
   type: z.enum(['dir', 'file']),
   sizeBytes: z.number(),
@@ -50,25 +50,25 @@ export const weltTeilSchema = z.object({
    */
   present: z.boolean(),
 });
-export type WeltTeil = z.infer<typeof weltTeilSchema>;
+export type WorldPartInfo = z.infer<typeof worldPartInfoSchema>;
 
 /** Auskunft für den Welt-Reiter. */
-export const weltInfoSchema = z.object({
+export const worldInfoSchema = z.object({
   name: z.string(),
   /** Feld, aus dem der Name stammt; `null` bei einem festen Namen. */
   nameField: z.string().nullable(),
-  teile: z.array(weltTeilSchema),
+  parts: z.array(worldPartInfoSchema),
   sizeBytes: z.number(),
   modifiedAt: z.string().nullable(),
   /** Der Download liefert eine rohe Datei statt eines ZIP. */
-  roh: z.boolean(),
+  raw: z.boolean(),
   /** Name, den der Download tragen wird — die Oberfläche nennt ihn vorab. */
   downloadName: z.string(),
   /** Endungen für den Dateidialog. */
   accept: z.array(z.string()),
   maxUploadBytes: z.number(),
 });
-export type WeltInfo = z.infer<typeof weltInfoSchema>;
+export type WorldInfo = z.infer<typeof worldInfoSchema>;
 
 /** Live-Messwerte einer Instanz. Kommen im 2-Sekunden-Takt über die WebSocket. */
 export const metricsSchema = z.object({
