@@ -32,7 +32,17 @@ export interface Config {
    * Schlüssel für den KI-Vorlagenentwurf. Bewusst aus der Umgebung und nicht
    * aus der Datenbank — dort läge er in jedem Backup.
    */
-  anthropicApiKey: string | undefined;
+  geminiApiKey: string | undefined;
+  /**
+   * Modellkennung für den Entwurf. Konfigurierbar, weil Googles Kennungen sich
+   * schneller ändern als dieses Panel — eine fest eingebaute ID, die in einem
+   * halben Jahr 404 liefert, wäre ein vermeidbarer Fehler.
+   *
+   * Die Vorgabe ist bewusst **nicht** das neueste Modell: `gemini-3.8-flash`
+   * antwortete im Test durchgehend mit „high demand“ (503), die Generation
+   * darunter lief. Wer das neueste will, trägt es hier ein.
+   */
+  geminiModel: string;
   dbPath: string;
   /** `docker` steuert echte Container, `fake` simuliert sie im Speicher. */
   runtime: 'docker' | 'fake';
@@ -61,7 +71,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     dataDir,
     backupDir: resolve(env.GSP_BACKUP_DIR ?? `${dataDir}/backups`),
     volumeDir,
-    anthropicApiKey: env.GSP_ANTHROPIC_API_KEY || undefined,
+    geminiApiKey: env.GSP_GEMINI_API_KEY || undefined,
+    geminiModel: env.GSP_GEMINI_MODELL || 'gemini-3.7-flash',
     hostVolumeDir: env.GSP_HOST_DATA_DIR
       ? resolve(env.GSP_HOST_DATA_DIR, 'instances')
       : volumeDir,

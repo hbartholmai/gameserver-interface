@@ -1,5 +1,6 @@
 import type { LogLevel } from '../schema/common.js';
 import type {
+  ArgMapping,
   EnvMapping,
   PatternSpec,
   TemplateDefinition,
@@ -34,6 +35,7 @@ export function compileTemplate(def: TemplateDefinition): GameTemplate {
     fields: def.fields,
 
     env: (values, ctx) => buildEnv(def.env, values, ctx),
+    args: (values, ctx) => buildArgs(def.args ?? [], values, ctx),
     logPatterns: buildLogPatterns(def),
     backup: {
       paths: def.backup.paths,
@@ -41,7 +43,7 @@ export function compileTemplate(def: TemplateDefinition): GameTemplate {
       ...(def.backup.postCommands.length > 0 ? { postCommands: def.backup.postCommands } : {}),
     },
     ...(def.modsPath !== undefined ? { modsPath: def.modsPath } : {}),
-    ...(def.modExtensions.length > 0 ? { modExtensions: def.modExtensions } : {}),
+    modExtensions: def.modExtensions,
 
     definition: def,
   };
@@ -101,6 +103,38 @@ function resolveEnv(
 
   if (mapping.omitWhenEmpty && text === '') return null;
   return text;
+}
+
+/**
+ * Baut die Startargumente. Ein Eintrag wird zu einem oder zwei Elementen:
+ * `{flag: '-world', source: …}` ergibt `['-world', 'welt.wld']`, ein Eintrag
+ * ohne Quelle nur das Flag selbst.
+ */
+function buildArgs(mappings: ArgMapping[], values: FieldValues, ctx: TemplateContext): string[] {
+  const args: string[] = [];
+  for (const mapping of mappings) {
+    if (!mapping.source) {
+      // Reines Schalterargument ohne Wert.
+      if (mapping.flag) args.push(mapping.flag);
+      continue;
+    }
+    const wert = resolveEnv(
+      {
+        name: '',
+        source: mapping.source,
+        ...(mapping.fallback !== undefined ? { fallback: mapping.fallback } : {}),
+        ...(mapping.boolean ? { boolean: mapping.boolean } : {}),
+        trim: mapping.trim,
+        omitWhenEmpty: mapping.omitWhenEmpty,
+      },
+      values,
+      ctx,
+    );
+    if (wert === null) continue;
+    if (mapping.flag) args.push(mapping.flag);
+    args.push(wert);
+  }
+  return args;
 }
 
 // --- Log --------------------------------------------------------------------

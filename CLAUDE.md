@@ -52,7 +52,7 @@ Drei Pakete, npm workspaces:
 
 ### Vorlagen sind der zentrale Erweiterungspunkt
 
-Eine Vorlage beschreibt deklarativ Image, Ports, Volumes, Formularfelder, Env-Abbildung, Fähigkeiten, Log-Muster, Prüfregeln und Backup-Pfade. Daraus entstehen **Anlege-Wizard, Config-Reiter und Container**.
+Eine Vorlage beschreibt deklarativ Image, Ports, Volumes, Formularfelder, Env-Abbildung, Startargumente, Fähigkeiten, Log-Muster, Prüfregeln und Backup-Pfade. Daraus entstehen **Anlege-Wizard, Config-Reiter und Container**.
 
 Vorlagen sind **Daten, nicht Code**. Sie liegen als JSON in der Tabelle `templates` und werden beim Start zu lauffähigen `GameTemplate`-Objekten kompiliert:
 
@@ -62,12 +62,14 @@ DB templates ──▶ compileTemplate() ──▶ Registry ──▶ getTemplat
 
 - `packages/shared/src/schema/template-definition.ts` — das Datenschema (`TemplateDefinition`)
 - `packages/shared/src/templates/compile.ts` — macht daraus wieder `env()`, `logPatterns`, Prüfregeln
-- `packages/shared/src/templates/{minecraft,valheim,enshrouded}.ts` — **Startbestand**, kein Laufzeitpfad
+- `packages/shared/src/templates/*.ts` — **Startbestand**, kein Laufzeitpfad; `index.ts` führt sie in `BUILTIN_DEFINITIONS`
 - `packages/server/src/services/templates.ts` — Laden, Seeding, Schlüssigkeitsprüfung
 
 Ein weiteres Spiel braucht damit im Normalfall **gar keine Codeänderung**: es entsteht im Editor unter „Vorlagen" oder als KI-Entwurf. Siehe `docs/vorlage-hinzufuegen.md`.
 
 **Die Registry ist ein Modul-Singleton** (`setTemplates()` / `getTemplate()`). Tests, die Vorlagen brauchen, rufen im Setup `loadBuiltinTemplates()` — sonst wirft `getTemplate()` eine `UnknownTemplateError`.
+
+**Die Umgebung ist der Regelfall, `args` der Ausweg.** Fast jedes Image richtet sich vollständig über Env ein. Wo nicht — Terraria kennt nur `WORLD_FILENAME` und `CONFIG_FILENAME` — trägt die Vorlage `args` ein; das ersetzt das Kommando des Images. Leere Liste heißt: Kommando unangetastet lassen, sonst startete der Container ins Leere. `omitWhenEmpty` lässt bei leerem Wert **auch das Flag** entfallen, damit ein optionales Passwort nicht als `-password ""` ankommt.
 
 **Seeding fügt nur ein, es überschreibt nie.** Fehlende mitgelieferte Vorlagen werden beim Start ergänzt, vorhandene bleiben unangetastet — sonst setzte jedes Panel-Update die Anpassungen des Betreibers lautlos zurück.
 
@@ -82,10 +84,15 @@ Der Design-Prototyp nimmt an, dass jede Instanz eine Befehlseingabe und Mods hat
 | Minecraft | `rcon` | `rcon` | ja | `plugins` |
 | Valheim | `readonly` | `a2s` | nein | `bepinex` |
 | Enshrouded | `readonly` | `log` | nein | `none` |
+| Palworld | `rcon` | `a2s` | nein | `none` |
 
-Die Tabelle zeigt die mitgelieferten Vorlagen — eigene können jede Kombination haben.
+Ein Ausschnitt der mitgelieferten Vorlagen — eigene können jede Kombination haben.
 
-**Nie gegen `game === '…'` prüfen, immer gegen `capabilities`.** Das gilt seit dem Vorlagenumbau auch im Backend: `games/index.ts` wählt den Adapter über `capabilities.players`, nicht über die Spiel-ID. Ein neues Spiel mit RCON, Steam-Query oder nur Log braucht deshalb **keinen eigenen Adapter** — nur eine Vorlage. Adapter werfen `UnsupportedError`, wenn etwas nicht geht; die Route beantwortet das mit 400 statt 502.
+**Nie gegen `game === '…'` prüfen, immer gegen `capabilities`.** Das gilt seit dem Vorlagenumbau auch im Backend: `games/index.ts` bedient sich an den Adaptern nach `capabilities`, nicht nach der Spiel-ID. Ein neues Spiel mit RCON, Steam-Query oder nur Log braucht deshalb **keinen eigenen Adapter** — nur eine Vorlage. Adapter werfen `UnsupportedError`, wenn etwas nicht geht; die Route beantwortet das mit 400 statt 502.
+
+**`console` und `players` sind zwei Fragen, nicht eine.** `adapterFor()` setzt deshalb zusammen: die Spielerliste kommt vom Adapter zu `players`, `sendCommand` bei `console: 'rcon'` von RCON, Kick und Bann nur zusätzlich bei `moderation`. Bei den ersten drei Vorlagen fiel der Unterschied nicht auf, weil keine die Spalten verschieden belegte; Palworld zählt Spieler per Steam-Abfrage und nimmt Befehle per RCON entgegen.
+
+RCON ist damit nicht mehr Minecrafts Port 25575: `adapter.rconPortName` benennt den Port aus der Vorlage (Vorgabe `rcon`, verbunden wird der **Container**-Port), `adapter.rconListCommand` und `rconListFormat` den Befehl für die Spielerliste und die Form seiner Antwort (`minecraft` oder `csv`).
 
 ### Schichten im Backend
 
@@ -161,19 +168,52 @@ Echte Docker-Container lassen sich in dieser Umgebung **nicht** prüfen (kein Da
 
 ## KI-Vorlagenentwurf
 
-`GSP_ANTHROPIC_API_KEY` schaltet den Knopf „Vorlage entwerfen lassen" frei —
+Anbieter ist **Google Gemini** (`@google/genai`), weil sein kostenloses
+Kontingent beides mitbringt, was der Entwurf braucht: die Google-Suche als
+Werkzeug und eine gegen ein JSON-Schema erzwungene Ausgabe. Ein Betreiber, der
+ein paar Mal im Jahr eine Vorlage anlegt, soll dafür keinen kostenpflichtigen
+Zugang brauchen.
+
+`GSP_GEMINI_API_KEY` schaltet den Knopf „Vorlage entwerfen lassen" frei —
 bewusst eine Umgebungsvariable, nicht die Datenbank, weil sie sonst in jedem
 Backup läge. Ohne Schlüssel meldet `GET /api/templates/ki/status` das, und die
 Oberfläche blendet den Knopf aus.
 
-Der Entwurf läuft in **zwei** Aufrufen (`services/vorlagen-ki.ts`): erst
-Recherche mit Websuche und freiem Text, dann Formen ohne Werkzeuge gegen ein
-JSON-Schema. Getrennt, weil strukturierte Ausgaben sich nicht mit Zitaten
-vertragen — und weil Belegen und Formen zwei Aufgaben sind.
+`GSP_GEMINI_MODELL` ist konfigurierbar, weil Googles Kennungen sich schneller
+ändern als dieses Panel. Wer sie im Code fest verdrahtet, baut einen 404 für
+übermorgen ein.
+
+**Die Recherche macht kein Modell.** `services/image-doku.ts` holt die
+Beschreibung des Images bei Docker Hub und, wo sie dünn ist, das README des
+verlinkten GitHub-Repos. Googles Suchwerkzeug ist im kostenlosen Kontingent
+**nicht** enthalten — es antwortet dort mit `RESOURCE_EXHAUSTED`, schon beim
+ersten Aufruf.
+
+Der direkte Weg ist ohnehin der bessere: Primärquelle statt Suchtreffer, kein
+Kontingent, reproduzierbar. Gemessen: 25.000 Zeichen bei
+`lloesche/valheim-server`, 15.000 bei `mornedhels/enshrouded-server`, 8.000 bei
+`ryshe/terraria` — jeweils mit den echten Variablennamen. Nur
+`itzg/minecraft-server` ist mit 1.400 Zeichen dünn; dort greift das README.
+
+Dem Modell bleibt damit eine Aufgabe: die Dokumentation ins Schema gießen
+(`services/vorlagen-ki.ts`).
+
+**Nicht das neueste Modell als Vorgabe.** `gemini-3.8-flash` antwortete im Test
+durchgehend mit „high demand" (503), die Generation darunter lief. Deshalb
+`gemini-3.7-flash` als Standard, eine Wiederholung bei Überlastung, und
+`GSP_GEMINI_MODELL` zum Umschalten.
 
 **Ein Entwurf wird nie automatisch gespeichert.** Er landet im Editor, mit den
 Belegen daneben, und durchläuft beim Speichern dieselbe Prüfung wie eine
 handgeschriebene Vorlage.
+
+Der Weg braucht einen Schlüssel und ist deshalb in der Entwicklung nicht
+durchspielbar. `scripts/entwurf-testen.mjs` erzeugt einen Entwurf auf der
+Kommandozeile — ohne Panel, ohne Anmeldung:
+
+```bash
+GSP_GEMINI_API_KEY=... node scripts/entwurf-testen.mjs "Terraria" "ryshe/terraria"
+```
 
 ## Weiterführend
 

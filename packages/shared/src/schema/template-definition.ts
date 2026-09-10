@@ -50,6 +50,26 @@ export const envMappingSchema = z.object({
 });
 export type EnvMapping = z.infer<typeof envMappingSchema>;
 
+/**
+ * Ein Startargument des Containers.
+ *
+ * Nicht jedes Image lässt sich über Umgebungsvariablen einrichten: `ryshe/terraria`
+ * etwa kennt genau zwei und erwartet alles Weitere als Argument — ohne
+ * `-autocreate` bleibt der Server sogar im interaktiven Einrichtungsdialog
+ * stehen und kommt nie hoch. Die Quellen sind dieselben wie bei `env`.
+ */
+export const argMappingSchema = z.object({
+  /** Feste Zeichenkette davor, etwa `-world`. Leer lassen für einen bloßen Wert. */
+  flag: z.string().default(''),
+  source: envSourceSchema.optional(),
+  fallback: z.string().optional(),
+  boolean: z.object({ whenTrue: z.string(), whenFalse: z.string() }).optional(),
+  trim: z.boolean().default(false),
+  /** Argument samt Flag weglassen, wenn der Wert leer ist. */
+  omitWhenEmpty: z.boolean().default(false),
+});
+export type ArgMapping = z.infer<typeof argMappingSchema>;
+
 /** Ein regulärer Ausdruck als Daten. */
 export const patternSchema = z.object({
   source: z.string().min(1),
@@ -123,6 +143,19 @@ export const adapterHintsSchema = z.object({
   queryPortName: z.string().optional(),
   /** Feld, das die Slotzahl trägt — für die Anzeige „x / y Spieler“. */
   maxPlayersField: z.string().optional(),
+  /**
+   * Port der RCON-Konsole, nach `PortSpec.name` — nur bei `console: 'rcon'`.
+   * Verbunden wird der **Container**-Port, nicht der Host-Port: RCON wird
+   * üblicherweise nicht veröffentlicht, das Panel erreicht es über das
+   * Container-Netz.
+   */
+  rconPortName: z.string().optional(),
+  /**
+   * Befehl, der die Spielerliste liefert, und das Format seiner Antwort —
+   * nur bei `players: 'rcon'`. Ohne Angabe bleibt es bei Minecrafts `list`.
+   */
+  rconListCommand: z.string().optional(),
+  rconListFormat: z.enum(['minecraft', 'csv']).optional(),
 });
 export type AdapterHints = z.infer<typeof adapterHintsSchema>;
 
@@ -172,6 +205,11 @@ export const templateDefinitionSchema = z.object({
   volumes: z.array(volumeSpecSchema).min(1),
   fields: z.array(fieldSpecSchema).default([]),
   env: z.array(envMappingSchema).default([]),
+  /**
+   * Startargumente des Containers. Fehlt bei den meisten Vorlagen — dann bleibt
+   * das Kommando des Images unangetastet, was der Normalfall ist.
+   */
+  args: z.array(argMappingSchema).optional(),
   logPatterns: logPatternsDefinitionSchema,
   backup: backupDefinitionSchema,
   validations: z.array(validationRuleSchema).default([]),

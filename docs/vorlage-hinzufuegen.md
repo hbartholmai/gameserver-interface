@@ -23,6 +23,22 @@ Die Fähigkeiten sind keine Beschriftung: Sie bestimmen, welche Bedienelemente d
 Oberfläche zeigt **und welcher Adapter den Server abfragt**. Ein Spiel mit RCON,
 Steam-Query oder nur Log braucht deshalb keinen eigenen Adapter.
 
+Konsole und Spielerliste sind dabei **getrennte Fragen**. Palworld etwa spricht
+RCON, zählt Spieler aber schneller über die Steam-Abfrage: `console: rcon` neben
+`players: a2s`. Wo RCON im Spiel ist, gehören drei Angaben dazu:
+
+- ein **Port namens `rcon`** in den Ports, sonst weiß das Panel nicht, wohin es
+  sich verbindet (ein anderer Name geht, dann trägt ihn `adapter.rconPortName`);
+  verbunden wird der Container-Port, RCON gehört nicht auf den Host
+  veröffentlicht.
+- **Befehl und Format der Spielerliste**, falls die Liste per RCON kommt und der
+  Server nicht Minecrafts `list` mit dessen Satzform beantwortet: Palworld
+  antwortet auf `ShowPlayers` mit CSV.
+- **Kick und Bann brauchen eine Konsole.** Ohne `console: rcon` lehnt der Server
+  die Vorlage ab — die Knöpfe wären da und lieferten nichts. Umgekehrt heißt
+  RCON nicht automatisch Kick: Palworld adressiert Spieler dort über SteamIDs,
+  die das Panel nicht führt, also bleibt `moderation` aus.
+
 ## 2. Vorlage anlegen
 
 **Panel → Vorlagen → „+ Vorlage von Hand"**, oder — wenn ein API-Schlüssel
@@ -51,6 +67,17 @@ Worauf zu achten ist:
     Images mit einer Passwortprüfung abbrechen.
   - *Ja/Nein übersetzen* — nötig bei Ja/Nein-Feldern, weil die Images sehr
     unterschiedliche Werte erwarten: `TRUE`, `true`, `-crossplay`.
+- **Startargumente** — der Ausweg für Images, die sich nicht allein über
+  Umgebungsvariablen einrichten lassen. Sie ersetzen das Kommando des Images;
+  bleibt die Liste leer, bleibt das Kommando unangetastet. Jeder Eintrag wird zu
+  Flag und Wert, `-port` und `7777` also getrennt. *Leer weglassen* lässt bei
+  leerem Wert **auch das Flag** entfallen — nötig, damit ein optionales Passwort
+  nicht als `-password ""` beim Server ankommt.
+
+  Der Regelfall bleibt die Umgebung. Greif erst hierher, wenn die Dokumentation
+  des Images belegt, dass es eine Einstellung nur als Argument kennt: Terraria
+  ist so ein Fall — das Image liest genau zwei Umgebungsvariablen, alles Weitere
+  erwartet der Server auf der Kommandozeile.
 - **Log-Muster** — bei Beitritt und Abgang muss **Gruppe 1** der Spielername
   sein. Gibt es kein Abgangsmuster, leer lassen und bei der Spielerliste etwas
   wählen, das eine Zählung liefert (Steam-Query), sonst bleiben Spieler in der
@@ -111,7 +138,9 @@ Nur, wenn das Spiel ein Protokoll spricht, das noch keiner der drei Adapter
 kennt (`games/minecraft.ts` für RCON, `games/valheim.ts` für Steam-Query,
 `games/enshrouded.ts` für reines Log). Dann kommt ein vierter Adapter dazu und
 `capabilities.players` in `packages/shared/src/schema/template.ts` bekommt einen
-weiteren Wert.
+weiteren Wert. Ein neues **Antwortformat** der RCON-Spielerliste ist der
+kleinere Fall: dafür genügt ein weiterer Wert für `adapter.rconListFormat` und
+eine Parserfunktion daneben.
 
 Wer eine Vorlage als **Startbestand** mitliefern will — also so, dass eine
 frische Installation sie bekommt —, legt sie in

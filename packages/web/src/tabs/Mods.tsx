@@ -5,18 +5,25 @@ import { Leerzustand, SektionsLabel } from '../components/basis.js';
 export function Mods({
   instanz,
   mods,
+  endungen,
   onUmschalten,
   onLoeschen,
   onHinzufuegen,
 }: {
   instanz: Instance;
   mods: Mod[];
+  /** Dateiendungen der Vorlage. Leer, solange die Vorlagen noch nicht geladen sind. */
+  endungen: string[];
   onUmschalten: (mod: Mod) => void;
   onLoeschen: (mod: Mod) => void;
   onHinzufuegen: (datei: File) => void;
 }) {
   const auswahl = useRef<HTMLInputElement>(null);
-  const endung = instanz.capabilities.mods === 'bepinex' ? '.dll' : '.jar';
+  // Früher stand hier `.dll` oder `.jar`, je nach Fähigkeit. Das stimmte für
+  // Valheim und Minecraft und log bei allem anderen — die Endungen stehen in
+  // der Vorlage.
+  const akzeptiert = endungen.join(',');
+  const beschriftung = endungen.length > 0 ? ` (${endungen.join(', ')})` : '';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-4)' }}>
@@ -63,7 +70,7 @@ export function Mods({
       <input
         ref={auswahl}
         type="file"
-        accept={endung}
+        {...(akzeptiert ? { accept: akzeptiert } : {})}
         hidden
         onChange={(event) => {
           const datei = event.target.files?.[0];
@@ -76,7 +83,7 @@ export function Mods({
         className="knopf knopf--gestrichelt"
         onClick={() => auswahl.current?.click()}
       >
-        + Mod hinzufügen ({endung})
+        + Mod hinzufügen{beschriftung}
       </button>
 
       <p className="hinweis">

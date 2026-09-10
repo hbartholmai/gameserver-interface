@@ -116,6 +116,9 @@ export class DockerRuntime implements Runtime {
 
     const container = await this.docker.createContainer({
       name: spec.name,
+      // Nur setzen, wenn die Vorlage etwas vorgibt: sonst überschriebe ein
+      // leeres Array das Kommando des Images und der Container täte nichts.
+      ...(spec.cmd && spec.cmd.length > 0 ? { Cmd: spec.cmd } : {}),
       Image: spec.image,
       Env: Object.entries(spec.env).map(([k, v]) => `${k}=${v}`),
       Labels: { ...spec.labels, [MANAGED_LABEL]: 'true' },

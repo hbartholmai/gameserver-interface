@@ -1,5 +1,5 @@
 import { Rcon } from 'rcon-client';
-import type { Player } from '@gsp/shared';
+import { getTemplate, type Player } from '@gsp/shared';
 import { pingMinecraft } from '../util/mcping.js';
 import { UnsupportedError, withPlaytime, type AdapterContext, type GameAdapter, type Probe } from './types.js';
 
@@ -24,9 +24,10 @@ async function rcon(ctx: AdapterContext): Promise<Rcon> {
 
   // RCON ist nicht auf dem Host veröffentlicht — erreichbar ist es über die
   // Container-IP. Im Panel-Container läuft der Zugriff über den Container-Namen.
+  // Deshalb der Container-Port aus der Vorlage, nicht der Host-Port aus der Instanz.
   const pending = Rcon.connect({
     host: ctx.instance.containerName,
-    port: 25575,
+    port: rconPort(ctx),
     password,
     timeout: 5000,
   }).then((client) => {
@@ -41,6 +42,17 @@ async function rcon(ctx: AdapterContext): Promise<Rcon> {
     connections.delete(key);
     throw err;
   }
+}
+
+/** Ohne Angabe in der Vorlage bleibt `rcon` der gebräuchliche Name. */
+function rconPort(ctx: AdapterContext): number {
+  const template = getTemplate(ctx.instance.game);
+  const name = template.definition.adapter.rconPortName ?? 'rcon';
+  const spec = template.ports.find((p) => p.name === name);
+  if (!spec) {
+    throw new UnsupportedError(`Die Vorlage benennt keinen RCON-Port „${name}“`);
+  }
+  return spec.container;
 }
 
 export function dropRconConnection(instanceId: string): void {
@@ -60,6 +72,31 @@ export function parsePlayerList(response: string): { online: number; max: number
     .map((n) => n.trim())
     .filter((n) => n.length > 0 && !n.includes(' '));
   return { online, max, names };
+}
+
+/**
+ * Antwort von Palworlds `ShowPlayers` — CSV mit Kopfzeile:
+ *
+ * ```
+ * name,playeruid,steamid
+ * Kai,12345,76561198000000000
+ * ```
+ *
+ * Der Name ist die erste Spalte. Kommas im Namen kann das Format nicht
+ * ausdrücken; der Server selbst unterscheidet sie nicht, also tut es das Panel
+ * auch nicht.
+ */
+export function parsePlayerCsv(response: string): string[] {
+  const zeilen = response.split(/\r?\n/).map((z) => z.trim()).filter((z) => z.length > 0);
+  const namen: string[] = [];
+  for (const zeile of zeilen) {
+    const name = zeile.split(',')[0]?.trim();
+    if (!name) continue;
+    // Kopfzeile überspringen — sie heißt bei Palworld wörtlich `name`.
+    if (name.toLowerCase() === 'name') continue;
+    namen.push(name);
+  }
+  return namen;
 }
 
 /** Antwort von `tps` (Paper): `TPS from last 1m, 5m, 15m: 19.87, 19.9, 20.0`. */
@@ -98,9 +135,12 @@ export const rconAdapter: GameAdapter = {
   },
 
   async listPlayers(ctx): Promise<Player[]> {
+    const hints = getTemplate(ctx.instance.game).definition.adapter;
     try {
       const client = await rcon(ctx);
-      const { names } = parsePlayerList(await client.send('list'));
+      const antwort = await client.send(hints.rconListCommand ?? 'list');
+      const names =
+        hints.rconListFormat === 'csv' ? parsePlayerCsv(antwort) : parsePlayerList(antwort).names;
       return withPlaytime(ctx, names);
     } catch {
       // Ohne RCON bleibt die aus dem Log abgeleitete Liste.

@@ -3,11 +3,14 @@ import { Leerzustand, SektionsLabel } from '../components/basis.js';
 
 export function Spieler({
   instanz,
+  vorlage,
   onKick,
   onBann,
   onAufheben,
 }: {
   instanz: Instance;
+  /** Beschriftung der Vorlage. Früher stand hier ein fester Spielname im Text. */
+  vorlage: string;
   onKick: (name: string) => void;
   onBann: (name: string) => void;
   onAufheben: (name: string) => void;
@@ -50,8 +53,8 @@ export function Spieler({
         </div>
         {!moderierbar && instanz.players.length > 0 && (
           <p className="hinweis">
-            Kick und Bann sind bei {instanz.game === 'valheim' ? 'Valheim' : 'Enshrouded'} nur im Spiel
-            über eine Admin-Rolle möglich.
+            Kick und Bann sind bei {vorlage} nur im Spiel möglich — die Vorlage sagt keine
+            serverseitige Moderation zu.
           </p>
         )}
       </section>

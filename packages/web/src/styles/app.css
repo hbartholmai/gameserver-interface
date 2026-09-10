@@ -379,6 +379,18 @@
   color: var(--gefahr);
 }
 
+/* Rotes Gegenstück zu `--primaer` für den bestätigenden Knopf einer Rückfrage.
+   Die Literalfarbe steht hier wie bei `.banner--fehler`, nicht in tokens.css:
+   die Token bilden den Handoff unverändert ab. */
+.knopf--gefahr {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid var(--gefahr);
+  color: var(--gefahr);
+}
+.knopf--gefahr:hover:not(:disabled) {
+  background: rgba(255, 107, 107, 0.22);
+}
+
 /* --- Banner --------------------------------------------------------------- */
 
 .banner {

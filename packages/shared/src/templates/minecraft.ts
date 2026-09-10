@@ -10,7 +10,11 @@ export const minecraftDefinition: TemplateDefinition = {
   label: 'Minecraft',
   summary: 'Java Edition mit Paper, Vanilla, Fabric oder Forge. Volle Konsole über RCON, Plugin-Verwaltung und Hot-Backups.',
   image: 'itzg/minecraft-server',
-  defaultTag: 'java21',
+  // `VERSION: LATEST` holt die neueste Paper-Ausgabe, und die verlangt seit
+  // Minecraft 26.1 Java 25 — mit `java21` bricht der Server beim Start ab
+  // („Minecraft 26.1 and newer requires running the server with Java 25“).
+  // Die Java-Version muss also mitwachsen, solange die Vorgabe LATEST ist.
+  defaultTag: 'java25',
   defaultMemoryMb: 6144,
   defaultCpus: 4,
   notes: [

@@ -198,17 +198,24 @@ describe('Migration: Log-Muster bleiben identisch', () => {
         '09/09/2026 12:34:56: DungeonDB Start 1200  ',
       ],
     },
+    /*
+     * Enshrouded ist die eine Ausnahme in dieser Tabelle: seine Muster sind
+     * nicht die von vor dem Umbau. Die stammten aus keiner Logzeile, die das
+     * Image je geschrieben hat — die Instanz blieb deshalb für immer auf
+     * „Startet“. Festgeschrieben ist hier der Stand nach der Korrektur,
+     * abgelesen an einem laufenden `mornedhels/enshrouded-server`.
+     */
     {
       name: 'Enshrouded',
       definition: enshroudedDefinition,
-      join: /(?:Player|Character)\s+['"]?([^'"]+?)['"]?\s+(?:connected|joined)/i,
-      leave: /(?:Player|Character)\s+['"]?([^'"]+?)['"]?\s+(?:disconnected|left)/i,
-      ready: /(Server is now (?:online|listening)|HandleAssignmentReq|Session .* created)/i,
+      join: /\[server\] Player '([^']+)' logged in/,
+      leave: /\[server\] Remove Player '([^']+)'/,
+      ready: /\[game_server\] Switching state from \S+ to Run\b/,
       clean: (line: string) => line.replace(/^\s*\[?\d{4}-\d{2}-\d{2}[ T][\d:.]+\]?\s*/, '').trimEnd(),
       beispiele: [
-        "[2026-09-09 12:34:56] Player 'Skadi' connected",
-        "[2026-09-09 12:34:56] Player 'Skadi' disconnected",
-        '[2026-09-09 12:34:56] Server is now online   ',
+        "2026-09-10 00:37:14.083 supervisord: enshrouded-server [server] Player 'Henner' logged in with Permissions:",
+        "2026-09-10 00:37:50.164 supervisord: enshrouded-server [server] Remove Player 'Henner'",
+        '2026-09-10 00:38:24.506 supervisord: enshrouded-server [game_server] Switching state from LoadEcsScene to Run after 169.01 ms   ',
       ],
     },
   ];

@@ -11,6 +11,7 @@ import {
   toDescriptor,
   validateSettings,
 } from './index.js';
+import { terrariaDefinition } from './terraria.js';
 import type { TemplateContext } from '../schema/template.js';
 
 const ctx: TemplateContext = {
@@ -149,6 +150,11 @@ describe('Validierung', () => {
       minecraft: {},
       valheim: { password: 'sicher123' },
       enshrouded: { adminPassword: 'admin123' },
+      // Rust hat kein erzeugtes Geheimnis: sein Web-RCON braucht ein Passwort,
+      // das der Betreiber selbst kennt.
+      rust: { rconPassword: 'sicher123' },
+      zomboid: { adminPassword: 'sicher123' },
+      dst: { clusterToken: 'pds-g^abcdefghi-q^jklmnopqrstuvwxyz0123456789=' },
     };
     for (const template of listTemplates()) {
       const werte = { ...defaultValues(template), ...gueltig[template.id] };
@@ -196,6 +202,54 @@ describe('Kompilierte Vorlagen', () => {
   it('behalten ihre Definition bei sich', () => {
     for (const definition of BUILTIN_DEFINITIONS) {
       expect(compileTemplate(definition).definition).toEqual(definition);
+    }
+  });
+});
+
+/**
+ * Terraria ist die erste Vorlage, die sich nicht allein ueber Umgebungsvariablen
+ * einrichten laesst: Das Image kennt nur `WORLD_FILENAME` und `CONFIG_FILENAME`,
+ * alles Weitere erwartet der Server als Startargument. Diese Tests halten die
+ * Uebersetzung fest — vor allem, dass ein leeres Passwort nicht als leeres
+ * Argument durchrutscht und den Server mit `-password ""` starten laesst.
+ */
+describe('Startargumente', () => {
+  const terraria = compileTemplate(terrariaDefinition);
+  const ctx = { hostPorts: { game: 7788 }, rconPassword: 'unbenutzt', timezone: 'Europe/Berlin' };
+  const vorgaben = Object.fromEntries(terraria.fields.map((f) => [f.id, f.default]));
+
+  it('setzt Flag und Wert als getrennte Elemente', () => {
+    const args = terraria.args(vorgaben, ctx);
+    expect(args.slice(0, 2)).toEqual(['-autocreate', '2']);
+  });
+
+  /*
+   * `bootstrap.sh` im Image hängt selbst ein `-world` an, gebildet aus
+   * `WORLD_FILENAME`. Ein zweites aus der Vorlage bricht TShock beim Start ab:
+   * „An item with the same key has already been added. Key: -world“.
+   */
+  it('überlässt -world dem Bootstrap-Skript des Images', () => {
+    expect(terraria.args(vorgaben, ctx)).not.toContain('-world');
+    expect(terraria.env(vorgaben, ctx).WORLD_FILENAME).toBe('welt');
+  });
+
+  it('nimmt den tatsaechlich belegten Host-Port, nicht die Vorgabe', () => {
+    const args = terraria.args(vorgaben, ctx);
+    expect(args[args.indexOf('-port') + 1]).toBe('7788');
+  });
+
+  it('laesst ein leeres Passwort samt Flag weg', () => {
+    expect(terraria.args(vorgaben, ctx)).not.toContain('-password');
+    const mit = terraria.args({ ...vorgaben, password: 'geheim' }, ctx);
+    expect(mit.slice(mit.indexOf('-password'))).toEqual(['-password', 'geheim']);
+  });
+
+  it('bleibt bei Vorlagen ohne Argumente leer', () => {
+    for (const definition of BUILTIN_DEFINITIONS.filter((d) => d.args === undefined)) {
+      const t = compileTemplate(definition);
+      const ports = Object.fromEntries(t.ports.map((p) => [p.name, p.defaultHost]));
+      const werte = Object.fromEntries(t.fields.map((f) => [f.id, f.default]));
+      expect(t.args(werte, { ...ctx, hostPorts: ports }), definition.id).toEqual([]);
     }
   });
 });

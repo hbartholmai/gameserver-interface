@@ -10,6 +10,23 @@ import { applyValidations, compileTemplate } from './compile.js';
 import { minecraftDefinition } from './minecraft.js';
 import { valheimDefinition } from './valheim.js';
 import { enshroudedDefinition } from './enshrouded.js';
+import { minecraftBedrockDefinition } from './minecraft-bedrock.js';
+import { factorioDefinition } from './factorio.js';
+import { terrariaDefinition } from './terraria.js';
+import { luantiDefinition } from './luanti.js';
+import { palworldDefinition } from './palworld.js';
+import { cs2Definition } from './cs2.js';
+import { tf2Definition } from './tf2.js';
+import { garrysmodDefinition } from './garrysmod.js';
+import { rustDefinition } from './rust.js';
+import { arkDefinition } from './ark.js';
+import { sevenDaysToDieDefinition } from './sevendaystodie.js';
+import { zomboidDefinition } from './zomboid.js';
+import { vrisingDefinition } from './vrising.js';
+import { satisfactoryDefinition } from './satisfactory.js';
+import { dstDefinition } from './dst.js';
+import { coreKeeperDefinition } from './corekeeper.js';
+import { barotraumaDefinition } from './barotrauma.js';
 
 /**
  * Die mitgelieferten Vorlagen. Sie sind **Startbestand**, kein Laufzeitpfad:
@@ -19,8 +36,25 @@ import { enshroudedDefinition } from './enshrouded.js';
  */
 export const BUILTIN_DEFINITIONS: TemplateDefinition[] = [
   minecraftDefinition,
+  minecraftBedrockDefinition,
   valheimDefinition,
   enshroudedDefinition,
+  factorioDefinition,
+  terrariaDefinition,
+  luantiDefinition,
+  palworldDefinition,
+  cs2Definition,
+  tf2Definition,
+  garrysmodDefinition,
+  rustDefinition,
+  arkDefinition,
+  sevenDaysToDieDefinition,
+  zomboidDefinition,
+  vrisingDefinition,
+  satisfactoryDefinition,
+  dstDefinition,
+  coreKeeperDefinition,
+  barotraumaDefinition,
 ];
 
 /**
@@ -86,6 +120,7 @@ export function toDescriptor(template: GameTemplate): TemplateDescriptor {
     defaultMemoryMb: template.defaultMemoryMb,
     defaultCpus: template.defaultCpus,
     notes: template.notes,
+    modExtensions: template.modExtensions,
   };
 }
 
@@ -159,3 +194,20 @@ export { renderFakeLine, DEFAULT_FAKE_LOG } from './fakelog.js';
 export { minecraftDefinition } from './minecraft.js';
 export { valheimDefinition } from './valheim.js';
 export { enshroudedDefinition } from './enshrouded.js';
+export { minecraftBedrockDefinition } from './minecraft-bedrock.js';
+export { factorioDefinition } from './factorio.js';
+export { terrariaDefinition } from './terraria.js';
+export { luantiDefinition } from './luanti.js';
+export { palworldDefinition } from './palworld.js';
+export { cs2Definition } from './cs2.js';
+export { tf2Definition } from './tf2.js';
+export { garrysmodDefinition } from './garrysmod.js';
+export { rustDefinition } from './rust.js';
+export { arkDefinition } from './ark.js';
+export { sevenDaysToDieDefinition } from './sevendaystodie.js';
+export { zomboidDefinition } from './zomboid.js';
+export { vrisingDefinition } from './vrising.js';
+export { satisfactoryDefinition } from './satisfactory.js';
+export { dstDefinition } from './dst.js';
+export { coreKeeperDefinition } from './corekeeper.js';
+export { barotraumaDefinition } from './barotrauma.js';

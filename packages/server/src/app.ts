@@ -91,7 +91,7 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   const instances = new InstanceService(config, store, runtime, logs, metrics, backups, jobs, hub, templates);
   const ticker = new Ticker(config, runtime, store, instances, metrics, hub);
   const scheduler = new Scheduler(instances);
-  const drafts = new DraftService(config.anthropicApiKey);
+  const drafts = new DraftService(config.geminiApiKey, config.geminiModel);
 
   const server = Fastify({
     logger: { level: process.env.GSP_LOG_LEVEL ?? 'info' },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parsePlayerList, parseTps } from './minecraft.js';
+import { parsePlayerCsv, parsePlayerList, parseTps } from './minecraft.js';
 
 describe('parsePlayerList', () => {
   it('liest Anzahl und Namen aus der list-Antwort', () => {
@@ -15,6 +15,17 @@ describe('parsePlayerList', () => {
     const ergebnis = parsePlayerList('There are 0 of a max of 20 players online: ');
     expect(ergebnis.online).toBe(0);
     expect(ergebnis.names).toEqual([]);
+  });
+});
+
+describe('parsePlayerCsv', () => {
+  it('liest die Namen aus Palworlds ShowPlayers und überspringt die Kopfzeile', () => {
+    const antwort = 'name,playeruid,steamid\nKai,12345,76561198000000000\nMara,12346,76561198000000001';
+    expect(parsePlayerCsv(antwort)).toEqual(['Kai', 'Mara']);
+  });
+
+  it('gibt bei einem leeren Server nur die Kopfzeile preis — also nichts', () => {
+    expect(parsePlayerCsv('name,playeruid,steamid\n')).toEqual([]);
   });
 });
 

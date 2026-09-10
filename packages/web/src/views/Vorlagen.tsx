@@ -248,7 +248,7 @@ function KiDialog({
           {!job && (
             <>
               <p className="hinweis">
-                Claude sucht die Dokumentation des Images und schlägt daraus eine Vorlage vor. Der
+                Gemini sucht die Dokumentation des Images und schlägt daraus eine Vorlage vor. Der
                 Entwurf wird <b>nicht</b> gespeichert — er landet im Editor, samt Belegen zum
                 Nachprüfen.
               </p>

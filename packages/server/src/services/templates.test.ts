@@ -2,7 +2,13 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { findTemplate, listTemplates, valheimDefinition, type TemplateDefinition } from '@gsp/shared';
+import {
+  BUILTIN_DEFINITIONS,
+  findTemplate,
+  listTemplates,
+  valheimDefinition,
+  type TemplateDefinition,
+} from '@gsp/shared';
 import { openDb, type Db } from '../db/index.js';
 import { Store } from '../db/store.js';
 import { TemplateService } from './templates.js';
@@ -28,8 +34,25 @@ describe('Vorlagendienst', () => {
 
   it('legt die mitgelieferten Vorlagen beim ersten Start an', () => {
     const { seeded } = dienst.seedAndLoad();
-    expect(seeded).toEqual(['minecraft', 'valheim', 'enshrouded']);
-    expect(listTemplates().map((t) => t.id)).toEqual(['minecraft', 'valheim', 'enshrouded']);
+    expect(seeded).toEqual(BUILTIN_DEFINITIONS.map((d) => d.id));
+    // Die Registry bildet den Startbestand vollständig und in derselben
+    // Reihenfolge ab — sie bestimmt, wie der Wizard die Karten anordnet.
+    expect(listTemplates().map((t) => t.id)).toEqual(BUILTIN_DEFINITIONS.map((d) => d.id));
+  });
+
+  /**
+   * Der Startbestand durchlaeuft beim Seeding nur das Zod-Schema, nicht die
+   * Schluessigkeitspruefung — die haengt an `create`/`update`. Damit koennte
+   * eine mitgelieferte Vorlage Widersprueche enthalten, die einer von Hand
+   * angelegten verwehrt werden: Backup-Pfade ausserhalb der Volumes,
+   * Vorbefehle ohne RCON, Beispielzeilen, die nicht zu den eigenen Mustern
+   * passen. Dieser Test schliesst die Luecke.
+   */
+  it('haelt jede mitgelieferte Vorlage an dieselbe Schluessigkeitspruefung', () => {
+    for (const definition of BUILTIN_DEFINITIONS) {
+      // `create` prueft; die Kennung ist beim ersten Aufruf noch frei.
+      expect(() => dienst.create({ ...definition, id: `probe-${definition.id}` }), definition.id).not.toThrow();
+    }
   });
 
   /**
@@ -124,6 +147,24 @@ describe('Vorlagendienst', () => {
       const kaputt = eigeneVorlage();
       kaputt.backup.preCommands = ['save-all'];
       expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'backup.preCommands')).toBe(true);
+    });
+
+    it('verlangt einen RCON-Port, sobald die Konsole ihn braucht', () => {
+      const kaputt = eigeneVorlage();
+      kaputt.capabilities.console = 'rcon';
+      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'adapter.rconPortName')).toBe(true);
+    });
+
+    it('lehnt Kick und Bann ohne Konsole ab', () => {
+      const kaputt = eigeneVorlage();
+      kaputt.capabilities.moderation = true;
+      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'capabilities.moderation')).toBe(true);
+    });
+
+    it('lehnt ein Listenformat ab, wenn die Spielerliste nicht über RCON kommt', () => {
+      const kaputt = eigeneVorlage();
+      kaputt.adapter.rconListFormat = 'csv';
+      expect(fange(() => dienst.create(kaputt)).fields.some((f) => f.field === 'adapter.rconListFormat')).toBe(true);
     });
 
     /**

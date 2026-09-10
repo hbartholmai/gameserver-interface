@@ -93,10 +93,13 @@ describe('API-Durchlauf', () => {
     expect(antwort.statusCode).toBe(403);
   });
 
-  it('liefert die drei Vorlagen', async () => {
+  it('liefert die mitgelieferten Vorlagen in der vorgesehenen Reihenfolge', async () => {
     const antwort = await app.server.inject({ method: 'GET', url: '/api/templates', headers: kopf(false) });
     const ids = antwort.json<{ templates: { id: string }[] }>().templates.map((t) => t.id);
-    expect(ids).toEqual(['minecraft', 'valheim', 'enshrouded']);
+    // Reihenfolge des Startbestands, nicht alphabetisch — so erscheinen sie im Wizard.
+    expect(ids.slice(0, 3)).toEqual(['minecraft', 'minecraft-bedrock', 'valheim']);
+    expect(ids).toContain('factorio');
+    expect(ids.length).toBeGreaterThanOrEqual(7);
   });
 
   it('legt eine Minecraft-Instanz an und startet sie', async () => {
@@ -409,6 +412,35 @@ describe('API-Durchlauf', () => {
       payload: { game: 'Irgendwas', image: 'beispiel/image' },
     });
     expect(versuch.statusCode).toBe(503);
+  });
+
+  /**
+   * Mit Schlüssel meldet die Statusroute `available` und die Oberfläche zeigt
+   * den Knopf. Ein echter Aufruf findet nicht statt — geprüft ist damit die
+   * Verdrahtung von Umgebungsvariable bis Route, nicht der Gemini-Aufruf selbst.
+   */
+  it('schaltet den KI-Entwurf frei, sobald ein Schlüssel hinterlegt ist', async () => {
+    const verzeichnis = mkdtempSync(join(tmpdir(), 'gsp-ki-'));
+    const mitSchluessel = await buildApp(
+      loadConfig({
+        GSP_DATA_DIR: verzeichnis,
+        GSP_RUNTIME: 'fake',
+        GSP_LOG_LEVEL: 'silent',
+        GSP_GEMINI_API_KEY: 'test-schluessel',
+        GSP_GEMINI_MODELL: 'gemini-test',
+        TZ: 'Europe/Berlin',
+      }),
+      new FakeRuntime(0, 0),
+    );
+
+    try {
+      const status = mitSchluessel.services.drafts.status();
+      expect(status.available).toBe(true);
+      expect(status.model).toBe('gemini-test');
+    } finally {
+      await mitSchluessel.close();
+      rmSync(verzeichnis, { recursive: true, force: true });
+    }
   });
 
   it('markiert Instanzen, deren Vorlage sich geändert hat', async () => {

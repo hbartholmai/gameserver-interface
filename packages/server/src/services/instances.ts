@@ -172,16 +172,21 @@ export class InstanceService {
       });
     }
 
-    const env = template.env(record.settings, {
+    const ctx = {
       hostPorts: record.ports,
       rconPassword: record.secrets.rconPassword,
       timezone: this.config.timezone,
-    });
+    };
+    const env = template.env(record.settings, ctx);
+    // Startargumente hat nur, wessen Image sich nicht allein über Env einrichten
+    // laesst — Terraria etwa kennt genau zwei Umgebungsvariablen.
+    const args = template.args(record.settings, ctx);
 
     const containerId = await this.runtime.create({
       name: record.containerName,
       image: `${template.image}:${record.tag}`,
       env,
+      ...(args.length > 0 ? { cmd: args } : {}),
       // Intern belegte Ports (RCON) werden nicht auf den Host veröffentlicht.
       ports: template.ports
         .filter((port) => !port.internalOnly)

@@ -180,6 +180,28 @@ Kopf: 1.190 px.
 **Merke:** Bei generierten Formularen nicht die Komponente ansehen, sondern die
 Höhe messen — mit echten Daten, nicht mit einem Beispiel.
 
+### Ein Rust-Server, dem die Oberfläche „Enshrouded" sagte
+
+Beim Durchklicken der zwanzigsten Vorlage stand im Spieler-Reiter: „Kick und
+Bann sind bei Enshrouded nur im Spiel über eine Admin-Rolle möglich." Die
+Instanz war Rust. Zwei Stellen im Frontend prüften noch gegen
+`instanz.game === 'valheim'` und nannten sonst Enshrouded — genau das, was
+`CLAUDE.md` seit dem Vorlagenumbau verbietet. Mit drei mitgelieferten Vorlagen
+stimmte der Text in zwei von drei Fällen; mit zwanzig in zwei von zwanzig.
+
+Beide Texte nennen jetzt die Beschriftung der Vorlage. Die Begründung, *warum*
+ein Spiel keine Konsole hat, steht ohnehin in den Hinweisen der Vorlage.
+
+**Merke:** Eine Fallunterscheidung über zwei Werte sieht wie eine Auswahl aus,
+ist aber eine Annahme. Sie fällt erst auf, wenn es einen dritten Wert gibt.
+
+### Die Dateiendung im Mod-Reiter war geraten
+
+`.dll` bei BepInEx, sonst `.jar` — das stimmte für Valheim und Minecraft und
+für nichts anderes. Rust lädt `.cs`, Barotrauma `.sub`. Die Endungen standen
+längst in der Vorlage, gehörten aber nicht zum Descriptor und kamen deshalb nie
+im Frontend an.
+
 ## 4. Prüfvorgehen
 
 ### Ohne Docker
@@ -216,17 +238,70 @@ Fake-Runtime (es gibt dort keinen RCON-Server).
 
 ### Der KI-Vorlagenentwurf
 
-Zwei Aufrufe statt einem: erst Recherche mit Websuche und freiem Text, dann
-Formen ohne Werkzeuge gegen ein JSON-Schema. Getrennt, weil strukturierte
-Ausgaben sich nicht mit Zitaten vertragen und die Websuche zitierte Ergebnisse
-liefert — und weil Belegen und Formen zwei Aufgaben sind.
+**Der Anbieter wurde nachträglich gewechselt.** Zuerst gebaut mit der
+Anthropic-API, dann auf Google Gemini umgestellt — nicht aus technischen
+Gründen, sondern weil ein kostenpflichtiger Zugang für ein Feature, das ein
+Betreiber vielleicht drei Mal im Jahr benutzt, eine unverhältnismäßige Hürde
+ist. Der Knopf erscheint ohne Schlüssel gar nicht, das Feature wäre für die
+meisten unsichtbar geblieben.
 
-Das Ausgabeschema ist von Hand geschrieben, nicht aus dem Zod-Schema erzeugt.
-Der SDK-Helfer `zodOutputFormat` setzt Zod 4 voraus, das Projekt nutzt Zod 3;
-und das Definitionsschema arbeitet mit `.default()`, was für strukturierte
-Ausgaben ungünstig ist, weil das Modell Optionales gern weglässt. Im
-Entwurfsschema ist deshalb alles verlangt, „nicht vorhanden" ist `null` und
-wird danach entfernt.
+Gemini, weil sein kostenloses Kontingent **beide** benötigten Fähigkeiten
+mitbringt: die Google-Suche als Werkzeug und eine gegen ein JSON-Schema
+erzwungene Ausgabe. Freie Modelle bei OpenRouter, Groq oder Mistral haben keine
+eingebaute Websuche; dort hätte die Recherche neu gebaut werden müssen — und
+ohne Recherche erfindet ein Modell Variablennamen, was genau der Fehler ist,
+vor dem Abschnitt 2 warnt.
+
+**Die Websuche fiel beim ersten echten Test durch.** Geplant war: erst
+Recherche mit Googles Suchwerkzeug, dann Formen gegen ein JSON-Schema. Der
+Recherche-Aufruf antwortete mit `429 RESOURCE_EXHAUSTED` — beim allerersten
+Versuch, mit einem frischen Schlüssel. Grounding ist im kostenlosen Kontingent
+nicht enthalten, anders als die Preisseite nahelegt. Der normale
+Generierungsaufruf lief zur selben Zeit einwandfrei; es lag also weder am
+Schlüssel noch am Modell.
+
+Die Lösung war nicht Ausweichen, sondern der bessere Weg: **die Dokumentation
+direkt bei der Quelle holen.** `image-doku.ts` liest die Beschreibung des Images
+über die Docker-Hub-API und, wo sie dünn ist, das README des verlinkten
+GitHub-Repos. Gemessen an sechs Gameserver-Images: 25.000 Zeichen bei
+`lloesche/valheim-server`, 15.000 bei `mornedhels/enshrouded-server`, 8.000 bei
+`ryshe/terraria` — mit den echten Variablennamen darin. Nur
+`itzg/minecraft-server` ist mit 1.400 Zeichen dünn und verweist nach außen; dort
+greift das README.
+
+Das ist der Primärquelle näher als eine Sammlung von Suchtreffern, kostet nichts,
+unterliegt keinem Kontingent und ist reproduzierbar. Dem Modell bleibt nur noch
+das Formen.
+
+**Merke:** Eine Fähigkeit, die im Plan steht, ist nicht dieselbe wie eine, die
+unter den Bedingungen des Nutzers auch verfügbar ist. Der Unterschied zeigt sich
+erst im echten Aufruf — und manchmal ist der Umweg der kürzere Weg.
+
+### Was der erste echte Entwurf zeigte
+
+Zwei Dinge, die nur ein Lauf gegen die echte API zutage fördert:
+
+**Das neueste Modell ist das überlasteteste.** `gemini-3.8-flash` antwortete
+durchgehend mit `503 UNAVAILABLE` („high demand"), während `gemini-3.7-flash`
+und ältere Generationen sofort liefen. Daher: nicht das neueste als Vorgabe,
+eine Wiederholung mit wachsender Wartezeit, und eine Fehlermeldung, die zum
+Umschalten rät statt nur zu scheitern.
+
+**Die Log-Muster hatten einen Zeilenanker.** Der erste Minecraft-Entwurf lieferte
+`^(\w+) joined the game` — korrekt gedacht, aber die rohe Logzeile beginnt mit
+`[12:34:56] [Server thread/INFO]: `, also greift der Anker nie. Die
+Schlüssigkeitsprüfung fing das ab (genau wofür sie gebaut ist), aber besser ist,
+es gar nicht erst entstehen zu lassen: Die Anweisung ans Modell sagt jetzt
+ausdrücklich, dass die Muster gegen die **rohe** Zeile laufen, mitsamt Präfix,
+und dass es seine Muster gegen die eigenen Beispielzeilen prüfen soll. Der
+nächste Entwurf lieferte `(\w+) joined the game` und wurde angenommen.
+
+Das Ausgabeschema ist von Hand geschrieben, nicht aus dem Zod-Schema erzeugt:
+das Definitionsschema arbeitet mit `.default()`, was für strukturierte Ausgaben
+ungünstig ist, weil das Modell Optionales gern weglässt. Im Entwurfsschema ist
+deshalb alles verlangt, „nicht vorhanden" ist `null` und wird danach entfernt.
+Geprüft: Gemini unterstützt `anyOf`, `enum`, `required`, `additionalProperties`
+und `type: ["string", "null"]`, also blieb das Schema beim Wechsel unverändert.
 
 ### Was hier nicht prüfbar ist
 
@@ -237,8 +312,17 @@ Bind-Mount-Auflösung im Compose-Betrieb.
 
 Dazu seit dem Vorlagenumbau: ob ein KI-erzeugter Entwurf gegen ein reales Image
 tatsächlich startet, und ob die Env-Namen eines neu angelegten Spiels stimmen.
-Der Entwurf selbst braucht außerdem einen API-Schlüssel und wurde ohne einen
-solchen nur bis zur Statusroute geprüft (503 ohne Schlüssel).
+
+Der KI-Entwurf ist inzwischen **mit** echtem Schlüssel geprüft: Das große
+Ausgabeschema wird angenommen, und die Entwürfe für `ryshe/terraria` und
+`itzg/minecraft-server` trafen die echten Variablennamen (`EULA`, `MAX_PLAYERS`,
+`RCON_PASSWORD`, `SERVER_PORT`), Ports und Volumes und bestanden die
+Schlüssigkeitsprüfung des Vorlagendienstes.
+
+Ungeprüft bleibt, ob ein so entstandener Container auf einer Maschine mit Docker
+tatsächlich hochfährt — dafür fehlt hier der Daemon. Der Entwurf ist ein
+Entwurf; die Belege stehen daneben, damit man ihn prüfen kann, bevor daraus ein
+Container wird.
 
 Diese Punkte gehören in jedem Bericht ausdrücklich als ungeprüft benannt.
 
