@@ -6,6 +6,8 @@ import type {
   TemplateDefinition,
   ValidationRule,
   VolumeSpec,
+  WorldDefinition,
+  WorldPart,
 } from '@gsp/shared';
 import { Abschnitt, Liste, Schalter, TextFeld, WahlFeld, ZahlFeld } from './vorlagen-teile.js';
 import { useBestaetigung } from '../components/Bestaetigung.js';
@@ -381,6 +383,16 @@ export function VorlagenEditor({
       )}
 
       </Abschnitt>
+
+      <WeltAbschnitt
+        definition={definition}
+        onAendern={(world) => {
+          const naechste = { ...definition };
+          if (world) naechste.world = world;
+          else delete naechste.world;
+          onAendern(naechste);
+        }}
+      />
 
       <ValidierungsAbschnitt definition={definition} onAendern={(v) => setze('validations', v)} />
 
@@ -801,6 +813,149 @@ function ValidierungsAbschnitt({
         </>
       )}
     />
+    </Abschnitt>
+  );
+}
+
+/**
+ * Weltdaten — woran der Reiter „Welt" hängt.
+ *
+ * Der Block ist optional: CS2, TF2 und Garry's Mod haben keine Welt, und ein
+ * Welt-Reiter über einer Serverkonfiguration verspräche etwas Falsches. Deshalb
+ * steht am Anfang ein Schalter, der ihn anlegt und wieder entfernt.
+ */
+function WeltAbschnitt({
+  definition,
+  onAendern,
+}: {
+  definition: TemplateDefinition;
+  onAendern: (world: WorldDefinition | undefined) => void;
+}) {
+  const world = definition.world;
+  const feldOptionen = definition.fields.map((f) => ({ value: f.id, label: `${f.label} (${f.id})` }));
+
+  /** Ein brauchbarer erster Entwurf statt eines leeren Formulars. */
+  const anlegen = (): WorldDefinition => ({
+    parent: definition.volumes[0]?.containerPath ?? '/data',
+    name:
+      feldOptionen.length > 0
+        ? { kind: 'field', field: feldOptionen[0]!.value }
+        : { kind: 'const', value: 'welt' },
+    parts: [{ suffix: '', type: 'dir', required: true }],
+    markers: [],
+    accept: [],
+  });
+
+  return (
+    <Abschnitt titel="Weltdaten" anzahl={world ? world.parts.length : 0}>
+      <Schalter
+        label="Diese Vorlage hat Weltdaten"
+        wert={world !== undefined}
+        hilfe="Schaltet den Reiter „Welt“ frei: Herunterladen und Austausch der Spielwelt."
+        onAendern={(an) => onAendern(an ? anlegen() : undefined)}
+      />
+
+      {world && (
+        <>
+          <TextFeld
+            label="Verzeichnis"
+            wert={world.parent}
+            hilfe="Container-Pfad des Ordners, in dem die Welt liegt. Muss in einem Volume liegen und von den Backup-Pfaden abgedeckt sein — sonst wäre die Sicherung vor dem Austausch wertlos."
+            onAendern={(v) => onAendern({ ...world, parent: v })}
+          />
+
+          <WahlFeld
+            label="Weltname"
+            wert={world.name.kind}
+            optionen={[
+              { value: 'field', label: 'aus einem Formularfeld' },
+              { value: 'const', label: 'fester Name' },
+            ]}
+            hilfe="Fast jedes Spiel hat ein Feld dafür. Enshrouded nicht — dort heißt die Welt immer „savegame“."
+            onAendern={(v) =>
+              onAendern({
+                ...world,
+                name:
+                  v === 'field'
+                    ? { kind: 'field', field: feldOptionen[0]?.value ?? '' }
+                    : { kind: 'const', value: 'welt' },
+              })
+            }
+          />
+          {world.name.kind === 'field' ? (
+            <WahlFeld
+              label="Feld"
+              wert={world.name.field}
+              optionen={feldOptionen}
+              onAendern={(v) => onAendern({ ...world, name: { kind: 'field', field: v } })}
+            />
+          ) : (
+            <TextFeld
+              label="Name"
+              wert={world.name.value}
+              onAendern={(v) => onAendern({ ...world, name: { kind: 'const', value: v } })}
+            />
+          )}
+
+          <p className="hinweis">
+            <strong>Der erste Teil ist die Welt selbst</strong> — nach ihm heißt der Download, und an
+            ihm hängt, ob eine rohe Datei oder ein ZIP herauskommt. Weitere Teile sind Geschwister mit
+            demselben Stamm: Minecrafts <code>_nether</code>, Valheims <code>.db</code>.
+          </p>
+
+          <Liste
+            eintraege={world.parts}
+            leerText="mindestens ein Teil wird gebraucht"
+            neu={(): WorldPart => ({ suffix: '', type: 'dir', required: false })}
+            onAendern={(parts) => onAendern({ ...world, parts })}
+            zeichne={(teil, aendern) => (
+              <>
+                <TextFeld
+                  label="Endung"
+                  wert={teil.suffix}
+                  hilfe="Wird an den Weltnamen gehängt: „_nether“ oder „.fwl“. Leer lassen für den Hauptteil."
+                  onAendern={(v) => aendern({ ...teil, suffix: v })}
+                />
+                <WahlFeld
+                  label="Art"
+                  wert={teil.type}
+                  optionen={[
+                    { value: 'dir', label: 'Verzeichnis' },
+                    { value: 'file', label: 'Datei' },
+                  ]}
+                  onAendern={(v) => aendern({ ...teil, type: v })}
+                />
+                <Schalter
+                  label="Erforderlich"
+                  wert={teil.required}
+                  hilfe="Muss beim Einspielen im Archiv stehen. Valheims Karte (.db) ja — ohne sie wäre die Welt leer; Minecrafts Nether nein."
+                  onAendern={(v) => aendern({ ...teil, required: v })}
+                />
+              </>
+            )}
+          />
+
+          <TextFeld
+            label="Erkennungsdateien"
+            wert={world.markers.join('\n')}
+            einzeilig={false}
+            hilfe="Eine Zeile je Datei, etwa level.dat. Daran wird eine Welt in einem fremden Archiv wiedergefunden, das sie tiefer verschachtelt hat."
+            onAendern={(v) =>
+              onAendern({ ...world, markers: v.split('\n').map((z) => z.trim()).filter(Boolean) })
+            }
+          />
+
+          <TextFeld
+            label="Rohe Endungen"
+            wert={world.accept.join('\n')}
+            einzeilig={false}
+            hilfe="Endungen, unter denen statt eines ZIP eine einzelne Datei hochgeladen werden darf, etwa .wld. Steht hier .zip, wird ein hochgeladenes ZIP nie entpackt, sondern als die Welt selbst genommen — der Fall Factorio."
+            onAendern={(v) =>
+              onAendern({ ...world, accept: v.split('\n').map((z) => z.trim()).filter(Boolean) })
+            }
+          />
+        </>
+      )}
     </Abschnitt>
   );
 }

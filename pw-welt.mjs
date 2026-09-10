@@ -137,7 +137,7 @@ await schuss(page, 'welt-2-dialog');
 log('Dialogtitel:', (await page.locator('.dialog__titel').innerText()).trim());
 const jaKnopf = page.locator('.dialog__fuss .knopf--gefahr');
 pruefe('Knopf ist ohne Tippwort gesperrt', await jaKnopf.isDisabled());
-pruefe('Sicherungsschalter ist da und vorgewählt', await page.locator('.feld__schalter input').isChecked());
+pruefe('Sicherungsschalter ist da und vorgewählt', (await page.locator('.feld__schalter button').getAttribute('aria-pressed')) === 'true');
 
 await page.locator('#bestaetigung-tippen').fill('ersetzen');
 pruefe('nach „ersetzen" frei', !(await jaKnopf.isDisabled()));

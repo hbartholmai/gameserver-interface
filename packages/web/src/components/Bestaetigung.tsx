@@ -99,17 +99,27 @@ function Dialog({
         <div className="dialog__koerper bestaetigung">
           <p className="bestaetigung__text">{frage.text}</p>
 
+          {/* Dieselbe Machart wie im Vorlageneditor: ein ja/nein-Knopf statt
+              einer Checkbox. Die native Checkbox wäre das einzige Element der
+              Oberfläche, das die Farben des Browsers statt der eigenen trägt. */}
           {frage.schalter && (
-            <label className="feld__schalter">
-              <input
-                type="checkbox"
-                checked={frage.schalter.wert}
-                onChange={(event) => frage.schalter?.onAendern(event.target.checked)}
-              />
-              <span>{frage.schalter.label}</span>
-            </label>
+            <div className="feld">
+              <label className="feld__label">{frage.schalter.label}</label>
+              <div className="feld__eingabe">
+                <div className="feld__schalter">
+                  <button
+                    type="button"
+                    className={`knopf knopf--klein${frage.schalter.wert ? ' chip--aktiv' : ''}`}
+                    aria-pressed={frage.schalter.wert}
+                    onClick={() => frage.schalter?.onAendern(!frage.schalter.wert)}
+                  >
+                    {frage.schalter.wert ? 'ja' : 'nein'}
+                  </button>
+                </div>
+                {frage.schalter.hilfe && <span className="feld__hilfe">{frage.schalter.hilfe}</span>}
+              </div>
+            </div>
           )}
-          {frage.schalter?.hilfe && <p className="feld__hilfe">{frage.schalter.hilfe}</p>}
 
           {frage.tippen !== undefined && (
             <div className="feld">
