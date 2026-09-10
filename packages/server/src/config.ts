@@ -59,6 +59,18 @@ export interface Config {
   sessionTtlHours: number;
   /** Verzeichnis mit dem gebauten Frontend; leer = nicht ausliefern. */
   webRoot: string | null;
+  /**
+   * Verzeichnis für angefangene Uploads. Bewusst unter `dataDir` und nicht in
+   * `os.tmpdir()`: eine Welt kann Gigabytes haben, und das anschließende
+   * Verschieben ins Instanzverzeichnis soll ein `rename` bleiben, kein Kopieren
+   * über Dateisystemgrenzen. Der Inhalt überlebt keinen Neustart.
+   */
+  tempDir: string;
+  /**
+   * Obergrenze für den Welt-Upload. Das globale Multipart-Limit von 256 MB gilt
+   * für Mods und bleibt dort; eine Welt sprengt es mühelos.
+   */
+  worldUploadMaxBytes: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -86,5 +98,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     secureCookies: bool(env.GSP_SECURE_COOKIES, false),
     sessionTtlHours: num(env.GSP_SESSION_TTL_HOURS, 24 * 14),
     webRoot: env.GSP_WEB_ROOT ? resolve(env.GSP_WEB_ROOT) : null,
+    tempDir: resolve(env.GSP_TEMP_DIR ?? `${dataDir}/tmp`),
+    worldUploadMaxBytes: Math.max(64, num(env.GSP_WELT_UPLOAD_MAX_MB, 4096)) * 1024 * 1024,
   };
 }
