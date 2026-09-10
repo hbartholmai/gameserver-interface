@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
@@ -20,6 +20,7 @@ import { JobService } from './services/jobs.js';
 import { LogService } from './services/logs.js';
 import { MetricsService } from './services/metrics.js';
 import { ModService } from './services/mods.js';
+import { WeltService } from './services/welt.js';
 import { Scheduler } from './services/scheduler.js';
 import { TemplateService } from './services/templates.js';
 import { DraftService } from './services/vorlagen-ki.js';
@@ -65,6 +66,13 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   mkdirSync(config.dataDir, { recursive: true });
   mkdirSync(config.backupDir, { recursive: true });
   mkdirSync(config.volumeDir, { recursive: true });
+  /*
+   * Angefangene Uploads eines abgestürzten Laufs. Hier liegt nichts, was einen
+   * Neustart überdauern soll — der zugehörige Job ist ohnehin als
+   * fehlgeschlagen markiert (`jobs.failStaleJobs()`).
+   */
+  rmSync(config.tempDir, { recursive: true, force: true });
+  mkdirSync(config.tempDir, { recursive: true });
 
   const db = openDb(config.dbPath);
   const store = new Store(db);
@@ -88,7 +96,10 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   const metrics = new MetricsService(runtime, store, logs, config.publicHost, config.volumeDir);
   const backups = new BackupService(store, config.volumeDir, config.backupDir);
   const mods = new ModService(config.volumeDir);
-  const instances = new InstanceService(config, store, runtime, logs, metrics, backups, jobs, hub, templates);
+  const welt = new WeltService(config);
+  const instances = new InstanceService(
+    config, store, runtime, logs, metrics, backups, jobs, hub, templates, welt,
+  );
   const ticker = new Ticker(config, runtime, store, instances, metrics, hub);
   const scheduler = new Scheduler(instances);
   const drafts = new DraftService(config.geminiApiKey, config.geminiModel);
@@ -143,7 +154,7 @@ export async function buildApp(config: Config, runtimeOverride?: Runtime): Promi
   });
 
   await server.register(authRoutes, { auth, config });
-  await server.register(instanceRoutes, { instances, store, logs, mods, backups, jobs, ticker, templates });
+  await server.register(instanceRoutes, { instances, store, logs, mods, backups, jobs, ticker, templates, welt, config });
   await server.register(templateRoutes, { templates, instances, jobs, drafts });
   await server.register(websocketRoute, { auth, hub, logs, ticker });
 

@@ -56,7 +56,7 @@ export const banRequestSchema = z.object({
 export const jobSchema = z.object({
   id: z.string(),
   instanceId: z.string().nullable(),
-  kind: z.enum(['create', 'update', 'backup', 'restore', 'delete', 'draft']),
+  kind: z.enum(['create', 'update', 'backup', 'restore', 'delete', 'draft', 'welt']),
   status: z.enum(['pending', 'running', 'done', 'failed']),
   /** 0–100, `null` wenn kein Fortschritt bekannt ist. */
   progress: z.number().nullable(),
@@ -92,3 +92,15 @@ export const errorResponseSchema = z.object({
   error: z.string(),
   detail: z.string().optional(),
 });
+
+/**
+ * Optionen des Welt-Uploads.
+ *
+ * Sie kommen als Multipart-Textfeld, also als Zeichenkette.
+ * `z.coerce.boolean()` waere hier eine Falle: `Boolean('false')` ist `true`,
+ * und die Sicherung liesse sich nie abwaehlen.
+ */
+export const weltUploadOptionsSchema = z.object({
+  sicherung: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
+});
+export type WeltUploadOptions = z.infer<typeof weltUploadOptionsSchema>;

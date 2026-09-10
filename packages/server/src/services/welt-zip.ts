@@ -61,7 +61,7 @@ export async function sammleEintraege(hostPath: string, name: string): Promise<Z
  * Baut ein ZIP als lesbaren Strom — ohne Zwischendatei, damit eine 20-GB-Welt
  * nicht erst vollständig auf die Platte muss, bevor der Browser etwas sieht.
  */
-export function packeZip(eintraege: ZipEintrag[], zip64: boolean): NodeJS.ReadableStream {
+export function packeZip(eintraege: ZipEintrag[], zip64: boolean): Readable {
   const zipfile = new yazl.ZipFile();
   for (const e of eintraege) {
     const punkt = e.name.lastIndexOf('.');
@@ -71,7 +71,9 @@ export function packeZip(eintraege: ZipEintrag[], zip64: boolean): NodeJS.Readab
   // `@types/yazl` schreibt beide Felder von `EndOptions` als Pflicht, obwohl
   // yazl selbst ein Teilobjekt nimmt — daher die Zusicherung.
   zipfile.end({ forceZip64Format: zip64 } as yazl.EndOptions);
-  return zipfile.outputStream;
+  // `@types/yazl` gibt nur `NodeJS.ReadableStream` an; zur Laufzeit ist es ein
+  // Node-`Readable`, und den brauchen wir, um beim Abbruch `destroy()` zu rufen.
+  return zipfile.outputStream as Readable;
 }
 
 /** Ab hier braucht das zentrale Verzeichnis ZIP64. */
