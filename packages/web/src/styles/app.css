@@ -55,6 +55,16 @@
   text-transform: uppercase;
   color: var(--text-label);
 }
+/* Eine Stufe heller als der Rest der Kontextzeile: die Fassung wird gesucht,
+   Knotenname und Laufzeit liest man nur nebenbei. Ein Rahmen oder eine Fläche
+   wären hier zu viel — der Entwurf kennt keine Plaketten. */
+.kopfzeile__version {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text-sekundaer);
+}
 .kopfzeile__kennzahlen {
   display: flex;
   gap: var(--s-4);
